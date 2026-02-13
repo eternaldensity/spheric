@@ -165,12 +165,11 @@ const GameRenderer = {
 
     // Compute forward direction from this tile toward the neighbor in the
     // orientation direction, so buildings point exactly at their output tile.
-    const N = this.subdivisions;
+    // Use raw (unwrapped) coordinates so getTileCenter extrapolates beyond the
+    // face edge correctly. Modulo wrapping would snap to the opposite edge of
+    // the same face, reversing the direction for edge tiles.
     const [dr, dc] = DIR_OFFSETS[orientation];
-    const neighborCenter = this.getTileCenter(face,
-      (row + dr + N) % N,
-      (col + dc + N) % N
-    );
+    const neighborCenter = this.getTileCenter(face, row + dr, col + dc);
 
     // Project neighbor direction onto tangent plane at this tile
     const toNeighbor = new THREE.Vector3().subVectors(neighborCenter, normal);
@@ -383,7 +382,8 @@ const GameRenderer = {
     const [dr, dc] = DIR_OFFSETS[orientation];
 
     const from = this.getTileCenter(face, row, col);
-    const to = this.getTileCenter(face, (row + dr + N) % N, (col + dc + N) % N);
+    // Use raw coordinates (no modulo) so edge tiles point in the correct direction
+    const to = this.getTileCenter(face, row + dr, col + dc);
     const normal = from.clone().normalize();
 
     // Build arrow from tile center toward neighbor, on the surface
