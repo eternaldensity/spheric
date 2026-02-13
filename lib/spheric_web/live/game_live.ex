@@ -218,6 +218,9 @@ defmodule SphericWeb.GameLive do
 
   @impl true
   def handle_event("remove_building", %{"face" => face, "row" => row, "col" => col}, socket) do
+    face = to_int(face)
+    row = to_int(row)
+    col = to_int(col)
     key = {face, row, col}
 
     case WorldServer.remove_building(key) do
@@ -396,6 +399,9 @@ defmodule SphericWeb.GameLive do
   end
 
   defp building_status_text(_building), do: nil
+
+  defp to_int(v) when is_integer(v), do: v
+  defp to_int(v) when is_binary(v), do: String.to_integer(v)
 
   defp build_buildings_snapshot do
     for face_id <- 0..29,
