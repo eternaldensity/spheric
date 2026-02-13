@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js";
 import { createBuildingMesh } from "../buildings/building_factory.js";
 import { ItemInterpolator } from "../systems/item_interpolator.js";
 import { ItemRenderer } from "../systems/item_renderer.js";
@@ -101,12 +101,13 @@ const GameRenderer = {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.el.appendChild(this.renderer.domElement);
 
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.08;
+    this.controls = new TrackballControls(this.camera, this.renderer.domElement);
+    this.controls.noPan = true;
+    this.controls.dynamicDampingFactor = 0.15;
     this.controls.minDistance = 1.3;
     this.controls.maxDistance = 8;
-    this.controls.rotateSpeed = 0.5;
+    this.controls.rotateSpeed = 2.0;
+    this.controls.zoomSpeed = 1.2;
 
     // Lighting
     this.scene.add(new THREE.AmbientLight(0x606070, 1.5));
@@ -252,12 +253,9 @@ const GameRenderer = {
         localStorage.setItem("spheric_player_color", player_color);
       } catch (_e) { /* localStorage unavailable */ }
 
-      // Restore camera position and orbit target
+      // Restore camera position (target is always origin for sphere viewing)
       if (camera && camera.z != null) {
         this.camera.position.set(camera.x, camera.y, camera.z);
-        if (camera.tx != null) {
-          this.controls.target.set(camera.tx, camera.ty, camera.tz);
-        }
         this.controls.update();
       }
     });
@@ -447,10 +445,6 @@ const GameRenderer = {
           localStorage.setItem("spheric_camera_x", pos.x);
           localStorage.setItem("spheric_camera_y", pos.y);
           localStorage.setItem("spheric_camera_z", pos.z);
-          const target = this.controls.target;
-          localStorage.setItem("spheric_camera_tx", target.x);
-          localStorage.setItem("spheric_camera_ty", target.y);
-          localStorage.setItem("spheric_camera_tz", target.z);
         } catch (_e) { /* localStorage unavailable */ }
       }
     }, 500);
@@ -567,6 +561,7 @@ const GameRenderer = {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.controls.handleResize();
   },
 
   destroyed() {
