@@ -12,6 +12,9 @@ const FACE_COLORS = (() => {
   return colors;
 })();
 
+const HIGHLIGHT_COLOR = new THREE.Color(0xffdd44);
+const HOVER_COLOR = new THREE.Color(0xaaddff);
+
 const GameRenderer = {
   mounted() {
     const data = JSON.parse(this.el.dataset.geometry);
@@ -26,8 +29,14 @@ const GameRenderer = {
     }
     this.faceIndices = data.faces; // array of 30 arrays of 4 vertex indices
 
+    // Tile state
+    this.selectedTile = null; // {face, row, col}
+    this.hoveredTile = null;  // {face, row, col}
+
     this.initScene();
     this.buildSphereMesh();
+    this.setupRaycasting();
+    this.setupCameraTracking();
     this.animate();
 
     this._onResize = () => this.onResize();
@@ -70,41 +79,43 @@ const GameRenderer = {
 
   buildSphereMesh() {
     this.chunkMeshes = [];
+    // Store per-face color arrays so we can highlight individual tiles
+    this.faceColorArrays = [];
+    // Store per-face base colors for reset
+    this.faceBaseColors = [];
     const N = this.subdivisions;
 
     for (let faceId = 0; faceId < this.faceIndices.length; faceId++) {
       const [ai, bi, ci, di] = this.faceIndices[faceId];
       const A = this.baseVertices[ai];
       const B = this.baseVertices[bi];
-      const C = this.baseVertices[ci]; // unused for parallelogram, but opposite of A
+      const C = this.baseVertices[ci];
       const D = this.baseVertices[di];
 
-      // Edge vectors for parallelogram parameterization
-      // Face vertices are cyclic: A, B, C, D
-      // e1 = B - A, e2 = D - A
-      // P(u,v) = A + (u/N)*e1 + (v/N)*e2
       const e1 = new THREE.Vector3().subVectors(B, A);
       const e2 = new THREE.Vector3().subVectors(D, A);
 
       // Generate (N+1)^2 vertices
       const positions = [];
       const uvs = [];
+      const colors = [];
+      const baseColor = FACE_COLORS[faceId];
+
       for (let v = 0; v <= N; v++) {
         for (let u = 0; u <= N; u++) {
           const point = new THREE.Vector3()
             .copy(A)
             .addScaledVector(e1, u / N)
             .addScaledVector(e2, v / N);
-
-          // Project to unit sphere
           point.normalize();
 
           positions.push(point.x, point.y, point.z);
           uvs.push(u / N, v / N);
+          colors.push(baseColor.r, baseColor.g, baseColor.b);
         }
       }
 
-      // Generate triangle indices: 2 triangles per grid cell
+      // Generate triangle indices
       const indices = [];
       for (let v = 0; v < N; v++) {
         for (let u = 0; u < N; u++) {
@@ -112,8 +123,6 @@ const GameRenderer = {
           const tr = v * (N + 1) + (u + 1);
           const bl = (v + 1) * (N + 1) + u;
           const br = (v + 1) * (N + 1) + (u + 1);
-
-          // Two triangles per cell
           indices.push(tl, bl, tr);
           indices.push(tr, bl, br);
         }
@@ -125,18 +134,23 @@ const GameRenderer = {
         new THREE.Float32BufferAttribute(positions, 3)
       );
       geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+
+      const colorAttr = new THREE.Float32BufferAttribute(colors, 3);
+      geometry.setAttribute("color", colorAttr);
       geometry.setIndex(indices);
       geometry.computeVertexNormals();
 
       const material = new THREE.MeshLambertMaterial({
-        color: FACE_COLORS[faceId],
+        vertexColors: true,
       });
 
       const mesh = new THREE.Mesh(geometry, material);
       this.scene.add(mesh);
       this.chunkMeshes.push(mesh);
+      this.faceColorArrays.push(colorAttr);
+      this.faceBaseColors.push(baseColor.clone());
 
-      // Grid line overlay — draw lines along u and v grid boundaries
+      // Grid line overlay
       const gridLines = this.buildGridLines(A, e1, e2, N);
       this.scene.add(gridLines);
     }
@@ -144,9 +158,8 @@ const GameRenderer = {
 
   buildGridLines(origin, e1, e2, N) {
     const linePositions = [];
-    const LIFT = 1.001; // slightly above surface to prevent z-fighting
+    const LIFT = 1.001;
 
-    // Lines along u direction (v = const)
     for (let v = 0; v <= N; v++) {
       for (let u = 0; u < N; u++) {
         const p0 = new THREE.Vector3()
@@ -155,19 +168,16 @@ const GameRenderer = {
           .addScaledVector(e2, v / N)
           .normalize()
           .multiplyScalar(LIFT);
-
         const p1 = new THREE.Vector3()
           .copy(origin)
           .addScaledVector(e1, (u + 1) / N)
           .addScaledVector(e2, v / N)
           .normalize()
           .multiplyScalar(LIFT);
-
         linePositions.push(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
       }
     }
 
-    // Lines along v direction (u = const)
     for (let u = 0; u <= N; u++) {
       for (let v = 0; v < N; v++) {
         const p0 = new THREE.Vector3()
@@ -176,14 +186,12 @@ const GameRenderer = {
           .addScaledVector(e2, v / N)
           .normalize()
           .multiplyScalar(LIFT);
-
         const p1 = new THREE.Vector3()
           .copy(origin)
           .addScaledVector(e1, u / N)
           .addScaledVector(e2, (v + 1) / N)
           .normalize()
           .multiplyScalar(LIFT);
-
         linePositions.push(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
       }
     }
@@ -193,15 +201,151 @@ const GameRenderer = {
       "position",
       new THREE.Float32BufferAttribute(linePositions, 3)
     );
-
     const lineMat = new THREE.LineBasicMaterial({
       color: 0x000000,
       opacity: 0.15,
       transparent: true,
     });
-
     return new THREE.LineSegments(lineGeo, lineMat);
   },
+
+  // --- Raycasting for tile selection ---
+
+  setupRaycasting() {
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
+
+    this._onClick = (event) => this.onTileClick(event);
+    this._onMouseMove = (event) => this.onTileHover(event);
+    this.renderer.domElement.addEventListener("click", this._onClick);
+    this.renderer.domElement.addEventListener("mousemove", this._onMouseMove);
+  },
+
+  hitToTile(event) {
+    this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObjects(this.chunkMeshes);
+
+    if (intersects.length === 0) return null;
+
+    const hit = intersects[0];
+    const faceId = this.chunkMeshes.indexOf(hit.object);
+    if (faceId === -1) return null;
+
+    // Each grid cell has 2 triangles. faceIndex is the triangle index
+    // within this mesh. Cell index = floor(faceIndex / 2).
+    const cellIndex = Math.floor(hit.faceIndex / 2);
+    const N = this.subdivisions;
+    const row = Math.floor(cellIndex / N);
+    const col = cellIndex % N;
+
+    return { face: faceId, row, col };
+  },
+
+  onTileClick(event) {
+    const tile = this.hitToTile(event);
+    if (!tile) return;
+
+    // Clear previous selection
+    if (this.selectedTile) {
+      this.setTileColor(
+        this.selectedTile.face,
+        this.selectedTile.row,
+        this.selectedTile.col,
+        this.faceBaseColors[this.selectedTile.face]
+      );
+    }
+
+    this.selectedTile = tile;
+    this.setTileColor(tile.face, tile.row, tile.col, HIGHLIGHT_COLOR);
+
+    // Send to server
+    this.pushEvent("tile_click", {
+      face: tile.face,
+      row: tile.row,
+      col: tile.col,
+    });
+  },
+
+  onTileHover(event) {
+    const tile = this.hitToTile(event);
+
+    // Clear previous hover (unless it's the selected tile)
+    if (this.hoveredTile) {
+      const h = this.hoveredTile;
+      const isSelected =
+        this.selectedTile &&
+        this.selectedTile.face === h.face &&
+        this.selectedTile.row === h.row &&
+        this.selectedTile.col === h.col;
+      if (!isSelected) {
+        this.setTileColor(h.face, h.row, h.col, this.faceBaseColors[h.face]);
+      }
+    }
+
+    this.hoveredTile = tile;
+
+    if (tile) {
+      const isSelected =
+        this.selectedTile &&
+        this.selectedTile.face === tile.face &&
+        this.selectedTile.row === tile.row &&
+        this.selectedTile.col === tile.col;
+      if (!isSelected) {
+        this.setTileColor(tile.face, tile.row, tile.col, HOVER_COLOR);
+      }
+    }
+  },
+
+  setTileColor(faceId, row, col, color) {
+    const N = this.subdivisions;
+    const colorAttr = this.faceColorArrays[faceId];
+    const arr = colorAttr.array;
+
+    // The 4 corner vertices of grid cell (row, col) are:
+    //   tl = row*(N+1) + col
+    //   tr = row*(N+1) + (col+1)
+    //   bl = (row+1)*(N+1) + col
+    //   br = (row+1)*(N+1) + (col+1)
+    const corners = [
+      row * (N + 1) + col,
+      row * (N + 1) + (col + 1),
+      (row + 1) * (N + 1) + col,
+      (row + 1) * (N + 1) + (col + 1),
+    ];
+
+    for (const vi of corners) {
+      arr[vi * 3] = color.r;
+      arr[vi * 3 + 1] = color.g;
+      arr[vi * 3 + 2] = color.b;
+    }
+
+    colorAttr.needsUpdate = true;
+  },
+
+  // --- Camera tracking ---
+
+  setupCameraTracking() {
+    this._lastCameraPos = new THREE.Vector3();
+    this._cameraTrackTimer = null;
+
+    // Send camera position every 500ms, but only if it actually moved
+    this._cameraTrackTimer = setInterval(() => {
+      const pos = this.camera.position;
+      if (!pos.equals(this._lastCameraPos)) {
+        this._lastCameraPos.copy(pos);
+        this.pushEvent("camera_update", {
+          x: pos.x,
+          y: pos.y,
+          z: pos.z,
+        });
+      }
+    }, 500);
+  },
+
+  // --- Render loop ---
 
   animate() {
     this._animId = requestAnimationFrame(() => this.animate());
@@ -217,7 +361,10 @@ const GameRenderer = {
 
   destroyed() {
     if (this._animId) cancelAnimationFrame(this._animId);
+    if (this._cameraTrackTimer) clearInterval(this._cameraTrackTimer);
     window.removeEventListener("resize", this._onResize);
+    this.renderer.domElement.removeEventListener("click", this._onClick);
+    this.renderer.domElement.removeEventListener("mousemove", this._onMouseMove);
     this.controls.dispose();
     this.renderer.dispose();
   },
