@@ -5,9 +5,10 @@ import * as THREE from "three";
  *
  * Each texture encodes:
  * - Terrain base colors (biome-aware fill per tile)
- * - Resource overlays (hatched pattern for ore deposits)
  * - Grid lines (subtle dark borders between tiles)
  * - Building icons (simple glyphs for buildings placed on tiles)
+ *
+ * Resource rendering is handled by vertex colors in ChunkManager (smooth glow effect).
  *
  * Textures are applied as THREE.CanvasTexture on face materials.
  * Regenerated when terrain/buildings change, or on LOD transitions.
@@ -20,12 +21,6 @@ const TERRAIN_FILLS = {
   tundra: "#a8c8d8",
   forest: "#2d5a27",
   volcanic: "#6b2020",
-};
-
-// Resource overlay colors
-const RESOURCE_FILLS = {
-  iron: "#d4722a",
-  copper: "#30c9a8",
 };
 
 // Building icon colors
@@ -106,11 +101,6 @@ export class TileTextureGenerator {
         ctx.fillStyle = terrainColor;
         ctx.fillRect(x, y, pxPerTile, pxPerTile);
 
-        // Resource overlay: hatched pattern
-        if (td.r && RESOURCE_FILLS[td.r]) {
-          drawResourceOverlay(ctx, x, y, pxPerTile, RESOURCE_FILLS[td.r]);
-        }
-
         // Building icon
         const buildingKey = `${faceId}:${fullRow}:${fullCol}`;
         const building = buildings.get ? buildings.get(buildingKey) : buildings[buildingKey];
@@ -165,25 +155,6 @@ export class TileTextureGenerator {
       this.canvases[i] = null;
     }
   }
-}
-
-// --- Resource overlay drawing ---
-
-function drawResourceOverlay(ctx, x, y, size, color) {
-  ctx.save();
-  ctx.globalAlpha = 0.4;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-
-  // Diagonal hatching pattern
-  const step = 6;
-  ctx.beginPath();
-  for (let i = -size; i < size * 2; i += step) {
-    ctx.moveTo(x + i, y);
-    ctx.lineTo(x + i + size, y + size);
-  }
-  ctx.stroke();
-  ctx.restore();
 }
 
 // --- Building icon drawing ---
