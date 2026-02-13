@@ -28,11 +28,11 @@ const HIGHLIGHT_BLEND = 0.55;
 const HOVER_BLEND = 0.35;
 
 // Direction offsets: orientation -> [dRow, dCol]
-// 0=E (col+1), 1=S (row+1), 2=W (col-1), 3=N (row-1)
+// 0=W (col+1), 1=S (row+1), 2=E (col-1), 3=N (row-1)
 const DIR_OFFSETS = [
-  [0, 1],   // E
+  [0, 1],   // W
   [1, 0],   // S
-  [0, -1],  // W
+  [0, -1],  // E
   [-1, 0],  // N
 ];
 

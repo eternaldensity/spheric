@@ -170,7 +170,7 @@ defmodule SphericWeb.GameLive do
 
   @impl true
   def handle_event("rotate_building", _params, socket) do
-    new_orientation = rem(socket.assigns.placement_orientation + 1, 4)
+    new_orientation = rem(socket.assigns.placement_orientation + 3, 4)
 
     socket =
       socket
@@ -263,7 +263,7 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_event("keydown", %{"key" => "r"}, socket) do
     if socket.assigns.selected_building_type do
-      new_orientation = rem(socket.assigns.placement_orientation + 1, 4)
+      new_orientation = rem(socket.assigns.placement_orientation + 3, 4)
 
       socket =
         socket
@@ -367,9 +367,9 @@ defmodule SphericWeb.GameLive do
     end
   end
 
-  defp direction_label(0), do: "E"
+  defp direction_label(0), do: "W"
   defp direction_label(1), do: "S"
-  defp direction_label(2), do: "W"
+  defp direction_label(2), do: "E"
   defp direction_label(3), do: "N"
 
   defp build_tile_info({face, row, col} = key) do
