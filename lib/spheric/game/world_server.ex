@@ -11,7 +11,7 @@ defmodule Spheric.Game.WorldServer do
 
   use GenServer
 
-  alias Spheric.Game.{WorldStore, WorldGen, Buildings}
+  alias Spheric.Game.{WorldStore, WorldGen, Buildings, TickProcessor}
 
   require Logger
 
@@ -97,7 +97,7 @@ defmodule Spheric.Game.WorldServer do
         {:reply, {:error, :invalid_placement}, state}
 
       true ->
-        building = %{type: type, orientation: orientation, state: %{}}
+        building = %{type: type, orientation: orientation, state: Buildings.initial_state(type)}
         WorldStore.put_building(key, building)
 
         Phoenix.PubSub.broadcast(
@@ -138,8 +138,15 @@ defmodule Spheric.Game.WorldServer do
   def handle_info(:tick, state) do
     new_tick = state.tick + 1
 
-    # Phase 5 will add tick processing here:
-    # process miners -> machines -> conveyors -> broadcast changes
+    {_tick, items_by_face} = TickProcessor.process_tick(new_tick)
+
+    for {face_id, items} <- items_by_face do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{face_id}",
+        {:tick_update, new_tick, face_id, items}
+      )
+    end
 
     schedule_tick()
     {:noreply, %{state | tick: new_tick}}

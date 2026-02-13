@@ -32,4 +32,10 @@ defmodule Spheric.Game.Buildings do
   def can_place_on?(:miner, _tile), do: false
   def can_place_on?(type, _tile) when type in @types, do: true
   def can_place_on?(_type, _tile), do: false
+
+  @doc "Returns the initial state map for a building of the given type."
+  def initial_state(:miner), do: Spheric.Game.Behaviors.Miner.initial_state()
+  def initial_state(:conveyor), do: Spheric.Game.Behaviors.Conveyor.initial_state()
+  def initial_state(:smelter), do: Spheric.Game.Behaviors.Smelter.initial_state()
+  def initial_state(_type), do: %{}
 end

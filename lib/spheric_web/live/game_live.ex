@@ -205,6 +205,34 @@ defmodule SphericWeb.GameLive do
     {:noreply, socket}
   end
 
+  @impl true
+  def handle_info({:tick_update, tick, face_id, items}, socket) do
+    if MapSet.member?(socket.assigns.visible_faces, face_id) do
+      serialized_items =
+        Enum.map(items, fn item ->
+          %{
+            row: item.row,
+            col: item.col,
+            item: Atom.to_string(item.item),
+            from_face: item.from_face,
+            from_row: item.from_row,
+            from_col: item.from_col
+          }
+        end)
+
+      socket =
+        push_event(socket, "tick_items", %{
+          tick: tick,
+          face: face_id,
+          items: serialized_items
+        })
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
   # --- Helpers ---
 
   defp build_terrain_data(subdivisions) do

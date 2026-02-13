@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createBuildingMesh } from "../buildings/building_factory.js";
+import { ItemInterpolator } from "../systems/item_interpolator.js";
+import { ItemRenderer } from "../systems/item_renderer.js";
 
 // Terrain biome colors
 const TERRAIN_COLORS = {
@@ -61,6 +63,14 @@ const GameRenderer = {
     this.setupRaycasting();
     this.setupCameraTracking();
     this.setupEventHandlers();
+
+    // Item interpolation and rendering
+    this.itemInterpolator = new ItemInterpolator();
+    this.itemRenderer = new ItemRenderer(
+      this.scene,
+      (face, row, col) => this.getTileCenter(face, row, col)
+    );
+
     this.animate();
 
     this._onResize = () => this.onResize();
@@ -361,6 +371,10 @@ const GameRenderer = {
       }
     });
 
+    this.handleEvent("tick_items", ({ tick, face, items }) => {
+      this.itemInterpolator.onTickUpdate(tick, face, items);
+    });
+
     this.handleEvent("place_error", ({ face, row, col, reason }) => {
       // Brief red flash on the tile via overlay
       this.setTileOverlay(face, row, col, "error");
@@ -568,6 +582,12 @@ const GameRenderer = {
   animate() {
     this._animId = requestAnimationFrame(() => this.animate());
     this.controls.update();
+
+    // Update item positions with interpolation
+    const now = performance.now();
+    const interpolated = this.itemInterpolator.getInterpolatedItems(now);
+    this.itemRenderer.update(interpolated);
+
     this.renderer.render(this.scene, this.camera);
   },
 
@@ -583,6 +603,7 @@ const GameRenderer = {
     window.removeEventListener("resize", this._onResize);
     this.renderer.domElement.removeEventListener("click", this._onClick);
     this.renderer.domElement.removeEventListener("mousemove", this._onMouseMove);
+    if (this.itemRenderer) this.itemRenderer.dispose();
     this.controls.dispose();
     this.renderer.dispose();
   },
