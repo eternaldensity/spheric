@@ -93,7 +93,7 @@ defmodule Spheric.Game.WorldServer do
 
     schedule_tick()
 
-    {:ok, %{tick: 0, seed: actual_seed, world_id: world_id}}
+    {:ok, %{tick: 0, seed: actual_seed, world_id: world_id, prev_item_faces: MapSet.new()}}
   end
 
   @impl true
@@ -170,6 +170,9 @@ defmodule Spheric.Game.WorldServer do
 
     {_tick, items_by_face} = TickProcessor.process_tick(new_tick)
 
+    current_item_faces = items_by_face |> Map.keys() |> MapSet.new()
+
+    # Broadcast item updates for faces that have items
     for {face_id, items} <- items_by_face do
       Phoenix.PubSub.broadcast(
         Spheric.PubSub,
@@ -178,8 +181,18 @@ defmodule Spheric.Game.WorldServer do
       )
     end
 
+    # Broadcast empty updates for faces that had items last tick but don't now,
+    # so clients clear stale item data
+    for face_id <- MapSet.difference(state.prev_item_faces, current_item_faces) do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{face_id}",
+        {:tick_update, new_tick, face_id, []}
+      )
+    end
+
     schedule_tick()
-    {:noreply, %{state | tick: new_tick}}
+    {:noreply, %{state | tick: new_tick, prev_item_faces: current_item_faces}}
   end
 
   @impl true

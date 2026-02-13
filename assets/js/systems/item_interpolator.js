@@ -4,6 +4,9 @@
  * On each server tick (every 200ms), the server sends the complete item state per face.
  * The interpolator lerps item positions from their previous location to their current
  * location over the tick interval, producing smooth 60fps visuals.
+ *
+ * Tick start times are tracked per-face so that updates arriving for one face
+ * don't reset the interpolation progress of items on other faces.
  */
 
 const TICK_INTERVAL = 200; // ms, must match server @tick_interval_ms
@@ -12,7 +15,8 @@ export class ItemInterpolator {
   constructor() {
     // Current tick items keyed by "face:row:col"
     this.currItems = new Map();
-    this.tickStartTime = 0;
+    // Per-face tick start times so cross-face updates don't interfere
+    this.faceTickStart = new Map(); // face -> performance.now() timestamp
     this.tickInterval = TICK_INTERVAL;
   }
 
@@ -42,7 +46,11 @@ export class ItemInterpolator {
       });
     }
 
-    this.tickStartTime = performance.now();
+    if (items.length > 0) {
+      this.faceTickStart.set(face, performance.now());
+    } else {
+      this.faceTickStart.delete(face);
+    }
   }
 
   /**
@@ -53,14 +61,15 @@ export class ItemInterpolator {
    * @returns {Array<{face, row, col, fromFace, fromRow, fromCol, item, t}>}
    */
   getInterpolatedItems(now) {
-    const elapsed = now - this.tickStartTime;
-    const t = Math.min(elapsed / this.tickInterval, 1.0);
-
     const result = [];
 
     for (const [, curr] of this.currItems) {
       if (curr.fromFace != null && curr.fromRow != null && curr.fromCol != null) {
-        // Item moved this tick — interpolate from source to destination
+        // Item moved this tick — interpolate using the face's own tick start
+        const start = this.faceTickStart.get(curr.face) || 0;
+        const elapsed = now - start;
+        const t = Math.min(elapsed / this.tickInterval, 1.0);
+
         result.push({
           face: curr.face,
           row: curr.row,
