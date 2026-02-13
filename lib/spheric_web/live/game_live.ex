@@ -87,7 +87,8 @@ defmodule SphericWeb.GameLive do
       id="player-info"
       style="position: fixed; top: 16px; right: 16px; background: rgba(0,0,0,0.7); color: #fff; padding: 6px 12px; border-radius: 6px; font-family: monospace; font-size: 12px; pointer-events: none; display: flex; align-items: center; gap: 6px;"
     >
-      <span style={"display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #{@player_color};"}></span>
+      <span style={"display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #{@player_color};"}>
+      </span>
       {@player_name}
     </div>
 
@@ -108,13 +109,17 @@ defmodule SphericWeb.GameLive do
       <div :if={@tile_info.resource == nil} style="color: #666;">
         No resources
       </div>
-      <div :if={@tile_info.building} style="margin-top: 4px; border-top: 1px solid #444; padding-top: 4px;">
+      <div
+        :if={@tile_info.building}
+        style="margin-top: 4px; border-top: 1px solid #444; padding-top: 4px;"
+      >
         <div>
           Building: <span style="color: #fd4">{@tile_info.building_name}</span>
         </div>
         <div style="color: #aaa; font-size: 11px;">
-          Orientation: {@tile_info.building_orientation}
-          ({direction_label(@tile_info.building_orientation)})
+          Orientation: {@tile_info.building_orientation} ({direction_label(
+            @tile_info.building_orientation
+          )})
         </div>
         <div :if={@tile_info.building_status} style="color: #aaa; font-size: 11px;">
           {@tile_info.building_status}
@@ -153,7 +158,10 @@ defmodule SphericWeb.GameLive do
       >
         {Buildings.display_name(type)}
       </button>
-      <div :if={@selected_building_type} style="display: flex; align-items: center; gap: 4px; margin-left: 8px; padding-left: 8px; border-left: 1px solid #555;">
+      <div
+        :if={@selected_building_type}
+        style="display: flex; align-items: center; gap: 4px; margin-left: 8px; padding-left: 8px; border-left: 1px solid #555;"
+      >
         <button
           phx-click="rotate_building"
           style="padding: 8px 12px; border: 2px solid #77aaff; border-radius: 6px; background: rgba(119,170,255,0.15); color: #aaddff; cursor: pointer; font-family: monospace; font-size: 13px;"

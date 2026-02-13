@@ -1,2 +1,2 @@
 ExUnit.start()
-# Ecto.Adapters.SQL.Sandbox.mode(Spheric.Repo, :manual)  # TODO: re-enable with PostgreSQL
+Ecto.Adapters.SQL.Sandbox.mode(Spheric.Repo, :manual)

@@ -86,7 +86,12 @@ defmodule Spheric.Game.WorldStoreTest do
     test "get_face_buildings returns only buildings for that face" do
       WorldStore.put_building({@test_face, 0, 0}, %{type: :miner, orientation: 0, state: %{}})
       WorldStore.put_building({@test_face, 1, 0}, %{type: :conveyor, orientation: 2, state: %{}})
-      WorldStore.put_building({@test_face + 1, 0, 0}, %{type: :smelter, orientation: 0, state: %{}})
+
+      WorldStore.put_building({@test_face + 1, 0, 0}, %{
+        type: :smelter,
+        orientation: 0,
+        state: %{}
+      })
 
       face_buildings = WorldStore.get_face_buildings(@test_face)
       assert length(face_buildings) == 2

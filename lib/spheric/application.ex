@@ -9,9 +9,10 @@ defmodule Spheric.Application do
   def start(_type, _args) do
     children = [
       SphericWeb.Telemetry,
-      # Spheric.Repo,  # TODO: re-enable when PostgreSQL is available
+      Spheric.Repo,
       {DNSCluster, query: Application.get_env(:spheric, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Spheric.PubSub},
+      Spheric.Game.SaveServer,
       Spheric.Game.WorldServer,
       SphericWeb.Presence,
       SphericWeb.Endpoint

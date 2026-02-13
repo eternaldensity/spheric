@@ -145,15 +145,12 @@ defmodule Spheric.Geometry.TileNeighbors do
       # Entering via neighbor's edge 0 (v0->v1, row=0 boundary)
       # We arrive at row=0, position along edge -> col
       0 -> {0, pos}
-
       # Entering via neighbor's edge 1 (v1->v2, col=max boundary)
       # We arrive at col=max, position along edge -> row
       1 -> {pos, max}
-
       # Entering via neighbor's edge 2 (v2->v3, row=max boundary)
       # We arrive at row=max, position along edge -> col (reversed)
       2 -> {max, max - pos}
-
       # Entering via neighbor's edge 3 (v3->v0, col=0 boundary)
       # We arrive at col=0, position along edge -> row (reversed)
       3 -> {max - pos, 0}

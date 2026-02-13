@@ -25,7 +25,9 @@ defmodule Spheric.Game.WorldGenTest do
         tile = WorldStore.get_tile({face_id, row, col})
 
         case tile.resource do
-          nil -> :ok
+          nil ->
+            :ok
+
           {type, amount} ->
             assert type in [:iron, :copper]
             assert is_integer(amount)

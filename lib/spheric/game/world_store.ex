@@ -12,6 +12,7 @@ defmodule Spheric.Game.WorldStore do
 
   @tiles_table :spheric_tiles
   @buildings_table :spheric_buildings
+  @dirty_table :spheric_dirty
 
   @type tile_key :: {non_neg_integer(), non_neg_integer(), non_neg_integer()}
   @type terrain :: :grassland | :desert | :tundra | :forest | :volcanic
@@ -36,14 +37,19 @@ defmodule Spheric.Game.WorldStore do
       :ets.new(@buildings_table, [:named_table, :set, :public, read_concurrency: true])
     end
 
+    unless :ets.whereis(@dirty_table) != :undefined do
+      :ets.new(@dirty_table, [:named_table, :set, :public])
+    end
+
     :ok
   end
 
   # --- Tiles ---
 
-  @doc "Insert or update a tile."
+  @doc "Insert or update a tile. Marks the tile as dirty for persistence."
   def put_tile(key, data) do
     :ets.insert(@tiles_table, {key, data})
+    :ets.insert(@dirty_table, {{:tile, key}, true})
     :ok
   end
 
@@ -73,15 +79,19 @@ defmodule Spheric.Game.WorldStore do
 
   # --- Buildings ---
 
-  @doc "Place a building at the given tile key."
+  @doc "Place a building at the given tile key. Marks the building as dirty for persistence."
   def put_building(key, data) do
     :ets.insert(@buildings_table, {key, data})
+    :ets.insert(@dirty_table, {{:building, key}, true})
+    :ets.delete(@dirty_table, {:building_removed, key})
     :ok
   end
 
-  @doc "Remove a building at the given tile key."
+  @doc "Remove a building at the given tile key. Marks the building as removed for persistence."
   def remove_building(key) do
     :ets.delete(@buildings_table, key)
+    :ets.insert(@dirty_table, {{:building_removed, key}, true})
+    :ets.delete(@dirty_table, {:building, key})
     :ok
   end
 
@@ -106,5 +116,27 @@ defmodule Spheric.Game.WorldStore do
   @doc "Check if a building exists at the given tile."
   def has_building?(key) do
     :ets.member(@buildings_table, key)
+  end
+
+  # --- Dirty Tracking ---
+
+  @doc """
+  Drain all dirty markers. Returns `{tile_keys, building_keys, removed_building_keys}`.
+  After this call, the dirty table is empty.
+  """
+  def drain_dirty do
+    all = :ets.tab2list(@dirty_table)
+    :ets.delete_all_objects(@dirty_table)
+
+    Enum.reduce(all, {[], [], []}, fn
+      {{:tile, key}, _}, {t, b, r} -> {[key | t], b, r}
+      {{:building, key}, _}, {t, b, r} -> {t, [key | b], r}
+      {{:building_removed, key}, _}, {t, b, r} -> {t, b, [key | r]}
+    end)
+  end
+
+  @doc "Returns the count of dirty entries."
+  def dirty_count do
+    :ets.info(@dirty_table, :size)
   end
 end

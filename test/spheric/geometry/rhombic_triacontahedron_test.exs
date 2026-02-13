@@ -51,8 +51,12 @@ defmodule Spheric.Geometry.RhombicTriacontahedronTest do
       edge_counts =
         RT.faces()
         |> Enum.flat_map(fn [a, b, c, d] ->
-          [{min(a, b), max(a, b)}, {min(b, c), max(b, c)},
-           {min(c, d), max(c, d)}, {min(d, a), max(d, a)}]
+          [
+            {min(a, b), max(a, b)},
+            {min(b, c), max(b, c)},
+            {min(c, d), max(c, d)},
+            {min(d, a), max(d, a)}
+          ]
         end)
         |> Enum.frequencies()
 
@@ -65,8 +69,12 @@ defmodule Spheric.Geometry.RhombicTriacontahedronTest do
       unique_edges =
         RT.faces()
         |> Enum.flat_map(fn [a, b, c, d] ->
-          [{min(a, b), max(a, b)}, {min(b, c), max(b, c)},
-           {min(c, d), max(c, d)}, {min(d, a), max(d, a)}]
+          [
+            {min(a, b), max(a, b)},
+            {min(b, c), max(b, c)},
+            {min(c, d), max(c, d)},
+            {min(d, a), max(d, a)}
+          ]
         end)
         |> Enum.uniq()
 
@@ -129,6 +137,7 @@ defmodule Spheric.Geometry.RhombicTriacontahedronTest do
 
     test "order-5 vertices are indices 0..11" do
       orders = RT.vertex_orders()
+
       for i <- 0..11 do
         assert Map.get(orders, i) == 5, "Vertex #{i} should be order-5"
       end
@@ -136,6 +145,7 @@ defmodule Spheric.Geometry.RhombicTriacontahedronTest do
 
     test "order-3 vertices are indices 12..31" do
       orders = RT.vertex_orders()
+
       for i <- 12..31 do
         assert Map.get(orders, i) == 3, "Vertex #{i} should be order-3"
       end

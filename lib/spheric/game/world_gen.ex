@@ -26,7 +26,13 @@ defmodule Spheric.Game.WorldGen do
   """
   def generate(opts \\ []) do
     seed = Keyword.get(opts, :seed, @default_seed)
-    subdivisions = Keyword.get(opts, :subdivisions, Application.get_env(:spheric, :subdivisions, @default_subdivisions))
+
+    subdivisions =
+      Keyword.get(
+        opts,
+        :subdivisions,
+        Application.get_env(:spheric, :subdivisions, @default_subdivisions)
+      )
 
     face_centers = RT.face_centers()
 

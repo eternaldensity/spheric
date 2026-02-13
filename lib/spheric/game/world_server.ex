@@ -11,7 +11,7 @@ defmodule Spheric.Game.WorldServer do
 
   use GenServer
 
-  alias Spheric.Game.{WorldStore, WorldGen, Buildings, TickProcessor}
+  alias Spheric.Game.{WorldStore, WorldGen, Buildings, TickProcessor, Persistence, SaveServer}
 
   require Logger
 
@@ -63,6 +63,8 @@ defmodule Spheric.Game.WorldServer do
 
   @impl true
   def init(opts) do
+    Process.flag(:trap_exit, true)
+
     seed = Keyword.get(opts, :seed, @default_seed)
     subdivisions = Application.get_env(:spheric, :subdivisions, 16)
 
@@ -70,12 +72,28 @@ defmodule Spheric.Game.WorldServer do
 
     WorldStore.init()
 
-    tile_count = WorldGen.generate(seed: seed, subdivisions: subdivisions)
-    Logger.info("WorldGen complete: #{tile_count} tiles generated")
+    # Try to load an existing world from the database
+    {world_id, actual_seed} =
+      case Persistence.load_world("default") do
+        {:ok, world} ->
+          Logger.info("Loaded saved world (id=#{world.id}, seed=#{world.seed})")
+          {world.id, world.seed}
+
+        :none ->
+          Logger.info("No saved world found, generating fresh")
+          tile_count = WorldGen.generate(seed: seed, subdivisions: subdivisions)
+          Logger.info("WorldGen complete: #{tile_count} tiles generated")
+
+          world = Persistence.ensure_world("default", seed, subdivisions)
+          {world.id, seed}
+      end
+
+    # Tell SaveServer which world we're persisting
+    SaveServer.set_world(world_id)
 
     schedule_tick()
 
-    {:ok, %{tick: 0, seed: seed}}
+    {:ok, %{tick: 0, seed: actual_seed, world_id: world_id}}
   end
 
   @impl true
@@ -150,6 +168,19 @@ defmodule Spheric.Game.WorldServer do
 
     schedule_tick()
     {:noreply, %{state | tick: new_tick}}
+  end
+
+  @impl true
+  def terminate(reason, _state) do
+    Logger.info("WorldServer terminating (reason=#{inspect(reason)}), triggering final save")
+
+    try do
+      SaveServer.save_now()
+    rescue
+      e -> Logger.error("Final save failed: #{inspect(e)}")
+    end
+
+    :ok
   end
 
   defp schedule_tick do
