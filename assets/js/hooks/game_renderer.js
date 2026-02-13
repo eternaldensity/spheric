@@ -539,7 +539,8 @@ const GameRenderer = {
           const tileIdx = row * N + col;
           const base = tileColors[tileIdx];
           const overlay = overlays.get(tileIdx);
-          adjacent.push(this.applyOverlay(base, overlay));
+          const resourceType = this.terrainData[faceId][row][col].r;
+          adjacent.push(this.applyOverlay(base, overlay, resourceType));
         }
       }
     }
@@ -559,13 +560,20 @@ const GameRenderer = {
   },
 
   // Blend an overlay tint onto a base terrain color
-  applyOverlay(baseColor, overlay) {
+  applyOverlay(baseColor, overlay, resourceType) {
     if (!overlay) return baseColor;
     const result = baseColor.clone();
     if (overlay === "selected") {
       result.lerp(HIGHLIGHT_TINT, HIGHLIGHT_BLEND);
     } else if (overlay === "hover") {
-      result.lerp(HOVER_TINT, HOVER_BLEND);
+      if (resourceType && RESOURCE_ACCENTS[resourceType]) {
+        // Brighten toward a vivid version of the resource color
+        const vivid = RESOURCE_ACCENTS[resourceType].clone();
+        vivid.offsetHSL(0, 0.3, 0.2);
+        result.lerp(vivid, 0.55);
+      } else {
+        result.lerp(HOVER_TINT, HOVER_BLEND);
+      }
     } else if (overlay === "error") {
       result.lerp(ERROR_TINT, 0.6);
     }
