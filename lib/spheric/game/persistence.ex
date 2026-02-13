@@ -11,10 +11,37 @@ defmodule Spheric.Game.Persistence do
   import Ecto.Query
 
   alias Spheric.Repo
-  alias Spheric.Game.Schema.{World, Building, TileResource}
+  alias Spheric.Game.Schema.{World, Building, TileResource, Player}
   alias Spheric.Game.{WorldStore, WorldGen}
 
   require Logger
+
+  @doc """
+  Upsert a player record (id -> name, color mapping).
+  Called on every connected mount to keep the mapping current.
+  """
+  def upsert_player(player_id, name, color) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    Repo.insert_all(
+      Player,
+      [%{player_id: player_id, name: name, color: color, inserted_at: now, updated_at: now}],
+      on_conflict: {:replace, [:name, :color, :updated_at]},
+      conflict_target: [:player_id]
+    )
+
+    :ok
+  end
+
+  @doc "Look up a player's name by their player_id. Returns the name or nil."
+  def get_player_name(nil), do: nil
+
+  def get_player_name(player_id) do
+    Player
+    |> where([p], p.player_id == ^player_id)
+    |> select([p], p.name)
+    |> Repo.one()
+  end
 
   @doc """
   Load a world by name. If found, regenerates terrain from seed,
@@ -113,7 +140,8 @@ defmodule Spheric.Game.Persistence do
       building_data = %{
         type: type,
         orientation: b.orientation,
-        state: state
+        state: state,
+        owner_id: b.owner_id
       }
 
       WorldStore.put_building(key, building_data)
@@ -207,6 +235,7 @@ defmodule Spheric.Game.Persistence do
               type: Atom.to_string(building.type),
               orientation: building.orientation,
               state: serialized_state,
+              owner_id: building[:owner_id],
               inserted_at: now,
               updated_at: now
             }
@@ -221,7 +250,7 @@ defmodule Spheric.Game.Persistence do
       |> Enum.chunk_every(500)
       |> Enum.each(fn chunk ->
         Repo.insert_all(Building, chunk,
-          on_conflict: {:replace, [:type, :orientation, :state, :updated_at]},
+          on_conflict: {:replace, [:type, :orientation, :state, :owner_id, :updated_at]},
           conflict_target: [:world_id, :face_id, :row, :col]
         )
       end)

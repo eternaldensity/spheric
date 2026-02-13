@@ -25,13 +25,13 @@ defmodule Spheric.Game.WorldServer do
   end
 
   @doc "Place a building at the given tile. Returns :ok or {:error, reason}."
-  def place_building({_face_id, _row, _col} = key, type, orientation \\ 0) do
-    GenServer.call(__MODULE__, {:place_building, key, type, orientation})
+  def place_building({_face_id, _row, _col} = key, type, orientation \\ 0, owner \\ %{}) do
+    GenServer.call(__MODULE__, {:place_building, key, type, orientation, owner})
   end
 
   @doc "Remove a building at the given tile. Returns :ok or {:error, :no_building}."
-  def remove_building({_face_id, _row, _col} = key) do
-    GenServer.call(__MODULE__, {:remove_building, key})
+  def remove_building({_face_id, _row, _col} = key, player_id \\ nil) do
+    GenServer.call(__MODULE__, {:remove_building, key, player_id})
   end
 
   @doc """
@@ -97,7 +97,7 @@ defmodule Spheric.Game.WorldServer do
   end
 
   @impl true
-  def handle_call({:place_building, key, type, orientation}, _from, state) do
+  def handle_call({:place_building, key, type, orientation, owner}, _from, state) do
     {face_id, _row, _col} = key
     tile = WorldStore.get_tile(key)
 
@@ -115,7 +115,13 @@ defmodule Spheric.Game.WorldServer do
         {:reply, {:error, :invalid_placement}, state}
 
       true ->
-        building = %{type: type, orientation: orientation, state: Buildings.initial_state(type)}
+        building = %{
+          type: type,
+          orientation: orientation,
+          state: Buildings.initial_state(type),
+          owner_id: owner[:id]
+        }
+
         WorldStore.put_building(key, building)
 
         Phoenix.PubSub.broadcast(
@@ -129,21 +135,27 @@ defmodule Spheric.Game.WorldServer do
   end
 
   @impl true
-  def handle_call({:remove_building, key}, _from, state) do
+  def handle_call({:remove_building, key, player_id}, _from, state) do
     {face_id, _row, _col} = key
+    building = WorldStore.get_building(key)
 
-    if WorldStore.has_building?(key) do
-      WorldStore.remove_building(key)
+    cond do
+      building == nil ->
+        {:reply, {:error, :no_building}, state}
 
-      Phoenix.PubSub.broadcast(
-        Spheric.PubSub,
-        "world:face:#{face_id}",
-        {:building_removed, key}
-      )
+      building.owner_id != nil and player_id != nil and building.owner_id != player_id ->
+        {:reply, {:error, :not_owner}, state}
 
-      {:reply, :ok, state}
-    else
-      {:reply, {:error, :no_building}, state}
+      true ->
+        WorldStore.remove_building(key)
+
+        Phoenix.PubSub.broadcast(
+          Spheric.PubSub,
+          "world:face:#{face_id}",
+          {:building_removed, key}
+        )
+
+        {:reply, :ok, state}
     end
   end
 

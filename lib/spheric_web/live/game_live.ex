@@ -3,7 +3,7 @@ defmodule SphericWeb.GameLive do
 
   alias Spheric.Geometry.RhombicTriacontahedron, as: RT
   alias Spheric.Geometry.Coordinate
-  alias Spheric.Game.{WorldServer, WorldStore, Buildings}
+  alias Spheric.Game.{WorldServer, WorldStore, Buildings, Persistence}
   alias SphericWeb.Presence
 
   require Logger
@@ -42,6 +42,9 @@ defmodule SphericWeb.GameLive do
         {"player:temp", Presence.random_name(), Presence.random_color(),
          %{x: 0.0, y: 0.0, z: 3.5, tx: 0.0, ty: 0.0, tz: 0.0}}
       end
+
+    # Persist player identity mapping (id -> name, color)
+    if connected?(socket), do: Persistence.upsert_player(player_id, player_name, player_color)
 
     # Track presence (only when connected)
     if connected?(socket) do
@@ -141,7 +144,11 @@ defmodule SphericWeb.GameLive do
         <div :if={@tile_info.building_status} style="color: #aaa; font-size: 11px;">
           {@tile_info.building_status}
         </div>
+        <div :if={@tile_info.building_owner_name} style="color: #aaa; font-size: 11px;">
+          Built by: <span style="color: #9be">{@tile_info.building_owner_name}</span>
+        </div>
         <button
+          :if={@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id}
           phx-click="remove_building"
           phx-value-face={@tile_info.face}
           phx-value-row={@tile_info.row}
@@ -263,7 +270,9 @@ defmodule SphericWeb.GameLive do
       building_type ->
         orientation = socket.assigns.placement_orientation
 
-        case WorldServer.place_building(key, building_type, orientation) do
+        owner = %{id: socket.assigns.player_id, name: socket.assigns.player_name}
+
+        case WorldServer.place_building(key, building_type, orientation, owner) do
           :ok ->
             building = WorldStore.get_building(key)
             tile_info = build_tile_info(key)
@@ -304,7 +313,7 @@ defmodule SphericWeb.GameLive do
     col = to_int(col)
     key = {face, row, col}
 
-    case WorldServer.remove_building(key) do
+    case WorldServer.remove_building(key, socket.assigns.player_id) do
       :ok ->
         tile_info = build_tile_info(key)
 
@@ -495,16 +504,22 @@ defmodule SphericWeb.GameLive do
     }
 
     if building do
+      owner_name = Persistence.get_player_name(building[:owner_id])
+
       Map.merge(base, %{
         building_name: Buildings.display_name(building.type),
         building_orientation: building.orientation,
-        building_status: building_status_text(building)
+        building_status: building_status_text(building),
+        building_owner_id: building[:owner_id],
+        building_owner_name: owner_name
       })
     else
       Map.merge(base, %{
         building_name: nil,
         building_orientation: nil,
-        building_status: nil
+        building_status: nil,
+        building_owner_id: nil,
+        building_owner_name: nil
       })
     end
   end

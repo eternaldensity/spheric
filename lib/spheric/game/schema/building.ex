@@ -9,6 +9,7 @@ defmodule Spheric.Game.Schema.Building do
     field :type, :string
     field :orientation, :integer, default: 0
     field :state, :map, default: %{}
+    field :owner_id, :string
 
     belongs_to :world, Spheric.Game.Schema.World
 
@@ -17,7 +18,7 @@ defmodule Spheric.Game.Schema.Building do
 
   def changeset(building, attrs) do
     building
-    |> cast(attrs, [:world_id, :face_id, :row, :col, :type, :orientation, :state])
+    |> cast(attrs, [:world_id, :face_id, :row, :col, :type, :orientation, :state, :owner_id])
     |> validate_required([:world_id, :face_id, :row, :col, :type, :orientation])
     |> unique_constraint([:world_id, :face_id, :row, :col])
   end
