@@ -115,7 +115,7 @@ defmodule Spheric.Game.Persistence do
       if tile do
         resource =
           if tr.resource_type && tr.amount && tr.amount > 0 do
-            {String.to_existing_atom(tr.resource_type), tr.amount}
+            {String.to_atom(tr.resource_type), tr.amount}
           else
             nil
           end
@@ -134,7 +134,7 @@ defmodule Spheric.Game.Persistence do
     |> Repo.all()
     |> Enum.each(fn b ->
       key = {b.face_id, b.row, b.col}
-      type = String.to_existing_atom(b.type)
+      type = String.to_atom(b.type)
       state = atomize_state_keys(b.state)
 
       building_data = %{
@@ -155,7 +155,7 @@ defmodule Spheric.Game.Persistence do
   # known atom values back from strings (item types like "iron_ore").
   defp atomize_state_keys(state) when is_map(state) do
     Map.new(state, fn {k, v} ->
-      key = if is_binary(k), do: String.to_existing_atom(k), else: k
+      key = if is_binary(k), do: String.to_atom(k), else: k
       val = atomize_state_value(key, v)
       {key, val}
     end)
@@ -166,7 +166,7 @@ defmodule Spheric.Game.Persistence do
   @atom_fields [:item, :output_buffer, :input_buffer]
 
   defp atomize_state_value(key, value) when key in @atom_fields and is_binary(value) do
-    String.to_existing_atom(value)
+    String.to_atom(value)
   end
 
   defp atomize_state_value(_key, value), do: value
