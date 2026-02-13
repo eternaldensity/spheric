@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-const BUILDING_SCALE = 0.03;
+const BUILDING_SCALE = 0.0075;
 
 const COLORS = {
   miner: 0x8b6914,

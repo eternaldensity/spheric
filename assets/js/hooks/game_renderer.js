@@ -112,7 +112,7 @@ const GameRenderer = {
     this.controls = new TrackballControls(this.camera, this.renderer.domElement);
     this.controls.noPan = true;
     this.controls.dynamicDampingFactor = 0.15;
-    this.controls.minDistance = 1.3;
+    this.controls.minDistance = 1.08;
     this.controls.maxDistance = 8;
     this.controls.rotateSpeed = 2.0;
     this.controls.zoomSpeed = 0.4;
@@ -515,7 +515,7 @@ const GameRenderer = {
 
     // Arrowhead (small cone at the tip)
     const cone = new THREE.Mesh(
-      new THREE.ConeGeometry(0.008, 0.02, 6),
+      new THREE.ConeGeometry(0.002, 0.005, 6),
       new THREE.MeshBasicMaterial({ color: 0xffdd44 })
     );
     cone.position.copy(end);
@@ -615,6 +615,11 @@ const GameRenderer = {
         this._spinVelocity = 0;
       }
     }
+
+    // Scale rotate and zoom speed with camera distance so close-up controls aren't too fast
+    const dist = this.camera.position.length();
+    this.controls.rotateSpeed = 0.25 + Math.min((dist - 1.0) / 2.5, 1.0);
+    this.controls.zoomSpeed = 0.1 + 0.3 * Math.min((dist - 1.0) / 2.0, 1.0);
 
     this.controls.update();
 

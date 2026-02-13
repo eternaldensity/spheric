@@ -7,7 +7,7 @@ const ITEM_COLORS = {
   copper_ingot: 0xdd8844,
 };
 
-const ITEM_SCALE = 0.012;
+const ITEM_SCALE = 0.003;
 const ITEM_HEIGHT = 1.02; // Above sphere surface
 
 /**
