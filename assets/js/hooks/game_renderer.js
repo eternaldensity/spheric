@@ -108,7 +108,7 @@ const GameRenderer = {
     this.controls.minDistance = 1.3;
     this.controls.maxDistance = 8;
     this.controls.rotateSpeed = 2.0;
-    this.controls.zoomSpeed = 1.2;
+    this.controls.zoomSpeed = 0.4;
 
     // Lighting
     this.scene.add(new THREE.AmbientLight(0x606070, 1.5));
