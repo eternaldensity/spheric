@@ -1,24 +1,33 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { createBuildingMesh } from "../buildings/building_factory.js";
 
-// Color palette for face chunks — gives each face a slightly different hue
-// so you can see the 30 individual faces on the sphere
-const FACE_COLORS = (() => {
-  const colors = [];
-  for (let i = 0; i < 30; i++) {
-    const hue = (i * 137.508) % 360; // golden angle spacing
-    colors.push(new THREE.Color().setHSL(hue / 360, 0.35, 0.55));
-  }
-  return colors;
-})();
+// Terrain biome colors
+const TERRAIN_COLORS = {
+  grassland: new THREE.Color(0x4a7c3f),
+  desert: new THREE.Color(0xc2a64e),
+  tundra: new THREE.Color(0xa8c8d8),
+  forest: new THREE.Color(0x2d5a27),
+  volcanic: new THREE.Color(0x6b2020),
+};
+
+// Resource accent colors (blended with terrain)
+const RESOURCE_ACCENTS = {
+  iron: new THREE.Color(0x8b4513),
+  copper: new THREE.Color(0x2e8b7a),
+};
 
 const HIGHLIGHT_COLOR = new THREE.Color(0xffdd44);
 const HOVER_COLOR = new THREE.Color(0xaaddff);
+const ERROR_COLOR = new THREE.Color(0xff2222);
 
 const GameRenderer = {
   mounted() {
     const data = JSON.parse(this.el.dataset.geometry);
     this.subdivisions = data.subdivisions;
+
+    // Parse terrain data
+    this.terrainData = JSON.parse(this.el.dataset.terrain);
 
     // Unpack flat vertex array into vec3 array
     this.baseVertices = [];
@@ -33,10 +42,18 @@ const GameRenderer = {
     this.selectedTile = null; // {face, row, col}
     this.hoveredTile = null;  // {face, row, col}
 
+    // Building state
+    this.buildingMeshes = {}; // keyed by "face:row:col"
+    this.selectedBuildingType = null;
+
+    // Store per-face edge vectors for tile center computation
+    this.faceEdges = [];
+
     this.initScene();
     this.buildSphereMesh();
     this.setupRaycasting();
     this.setupCameraTracking();
+    this.setupEventHandlers();
     this.animate();
 
     this._onResize = () => this.onResize();
@@ -79,10 +96,8 @@ const GameRenderer = {
 
   buildSphereMesh() {
     this.chunkMeshes = [];
-    // Store per-face color arrays so we can highlight individual tiles
     this.faceColorArrays = [];
-    // Store per-face base colors for reset
-    this.faceBaseColors = [];
+    this.faceBaseColors = []; // per-tile base colors: faceBaseColors[faceId][tileIndex] = Color
     const N = this.subdivisions;
 
     for (let faceId = 0; faceId < this.faceIndices.length; faceId++) {
@@ -95,11 +110,27 @@ const GameRenderer = {
       const e1 = new THREE.Vector3().subVectors(B, A);
       const e2 = new THREE.Vector3().subVectors(D, A);
 
+      // Store for tile center computation
+      this.faceEdges.push({ origin: A.clone(), e1: e1.clone(), e2: e2.clone() });
+
+      // Compute per-tile terrain colors
+      const tileColors = [];
+      const faceTerrain = this.terrainData[faceId];
+      for (let row = 0; row < N; row++) {
+        for (let col = 0; col < N; col++) {
+          const td = faceTerrain[row][col];
+          const baseColor = (TERRAIN_COLORS[td.t] || TERRAIN_COLORS.grassland).clone();
+          if (td.r && RESOURCE_ACCENTS[td.r]) {
+            baseColor.lerp(RESOURCE_ACCENTS[td.r], 0.35);
+          }
+          tileColors.push(baseColor);
+        }
+      }
+
       // Generate (N+1)^2 vertices
       const positions = [];
       const uvs = [];
       const colors = [];
-      const baseColor = FACE_COLORS[faceId];
 
       for (let v = 0; v <= N; v++) {
         for (let u = 0; u <= N; u++) {
@@ -111,26 +142,22 @@ const GameRenderer = {
 
           positions.push(point.x, point.y, point.z);
           uvs.push(u / N, v / N);
-          colors.push(baseColor.r, baseColor.g, baseColor.b);
+
+          // Vertex color: average of adjacent tile colors
+          const color = this.vertexTerrainColor(v, u, N, tileColors);
+          colors.push(color.r, color.g, color.b);
         }
       }
 
-      // Generate triangle indices
-      // We need the winding to be CCW when viewed from outside the sphere
-      // so that front-face culling works and raycasting hits the near side.
-      // Determine correct winding by checking if the computed normal points
-      // outward (same direction as the vertex position on a unit sphere).
+      // Generate triangle indices with correct winding
       const indices = [];
-      // Sample the first cell to determine winding
       const p0 = new THREE.Vector3(positions[0], positions[1], positions[2]);
-      const p1idx = (N + 1) * 3; // vertex at (v=1, u=0)
+      const p1idx = (N + 1) * 3;
       const p1 = new THREE.Vector3(positions[p1idx], positions[p1idx + 1], positions[p1idx + 2]);
-      const p2 = new THREE.Vector3(positions[3], positions[4], positions[5]); // vertex at (v=0, u=1)
+      const p2 = new THREE.Vector3(positions[3], positions[4], positions[5]);
       const edge1 = new THREE.Vector3().subVectors(p1, p0);
       const edge2 = new THREE.Vector3().subVectors(p2, p0);
       const testNormal = new THREE.Vector3().crossVectors(edge1, edge2);
-      // If normal points same way as vertex (outward), winding [tl,bl,tr] is correct
-      // Otherwise we need to flip to [tl,tr,bl]
       const needsFlip = testNormal.dot(p0) < 0;
 
       for (let v = 0; v < N; v++) {
@@ -150,10 +177,7 @@ const GameRenderer = {
       }
 
       const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute(
-        "position",
-        new THREE.Float32BufferAttribute(positions, 3)
-      );
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
       geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
 
       const colorAttr = new THREE.Float32BufferAttribute(colors, 3);
@@ -170,12 +194,39 @@ const GameRenderer = {
       this.scene.add(mesh);
       this.chunkMeshes.push(mesh);
       this.faceColorArrays.push(colorAttr);
-      this.faceBaseColors.push(baseColor.clone());
+      this.faceBaseColors.push(tileColors);
 
       // Grid line overlay
       const gridLines = this.buildGridLines(A, e1, e2, N);
       this.scene.add(gridLines);
     }
+  },
+
+  // Compute vertex color by averaging adjacent tile terrain colors
+  vertexTerrainColor(v, u, N, tileColors) {
+    const adjacent = [];
+    // A vertex at grid position (v, u) is shared by up to 4 tiles:
+    // (v-1, u-1), (v-1, u), (v, u-1), (v, u)
+    for (let dv = -1; dv <= 0; dv++) {
+      for (let du = -1; du <= 0; du++) {
+        const row = v + dv;
+        const col = u + du;
+        if (row >= 0 && row < N && col >= 0 && col < N) {
+          adjacent.push(tileColors[row * N + col]);
+        }
+      }
+    }
+    if (adjacent.length === 0) return new THREE.Color(0x4a7c3f);
+    const result = new THREE.Color(0, 0, 0);
+    for (const c of adjacent) {
+      result.r += c.r;
+      result.g += c.g;
+      result.b += c.b;
+    }
+    result.r /= adjacent.length;
+    result.g /= adjacent.length;
+    result.b /= adjacent.length;
+    return result;
   },
 
   buildGridLines(origin, e1, e2, N) {
@@ -219,16 +270,97 @@ const GameRenderer = {
     }
 
     const lineGeo = new THREE.BufferGeometry();
-    lineGeo.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(linePositions, 3)
-    );
+    lineGeo.setAttribute("position", new THREE.Float32BufferAttribute(linePositions, 3));
     const lineMat = new THREE.LineBasicMaterial({
       color: 0x000000,
       opacity: 0.15,
       transparent: true,
     });
     return new THREE.LineSegments(lineGeo, lineMat);
+  },
+
+  // --- Tile center computation ---
+
+  getTileCenter(faceId, row, col) {
+    const N = this.subdivisions;
+    const { origin, e1, e2 } = this.faceEdges[faceId];
+    const center = new THREE.Vector3()
+      .copy(origin)
+      .addScaledVector(e1, (col + 0.5) / N)
+      .addScaledVector(e2, (row + 0.5) / N);
+    center.normalize();
+    return center;
+  },
+
+  // --- Building placement on sphere ---
+
+  addBuildingToScene(face, row, col, type, orientation) {
+    const key = `${face}:${row}:${col}`;
+
+    // Remove existing mesh if any
+    if (this.buildingMeshes[key]) {
+      this.scene.remove(this.buildingMeshes[key]);
+    }
+
+    const mesh = createBuildingMesh(type);
+    const normal = this.getTileCenter(face, row, col);
+
+    // Position slightly above surface
+    mesh.position.copy(normal).multiplyScalar(1.005);
+
+    // Orient Y-axis along surface normal
+    const up = new THREE.Vector3(0, 1, 0);
+    const quat = new THREE.Quaternion().setFromUnitVectors(up, normal.clone().normalize());
+    mesh.quaternion.copy(quat);
+
+    // Apply orientation rotation around the normal
+    if (orientation > 0) {
+      const rotAxis = normal.clone().normalize();
+      const rotQuat = new THREE.Quaternion().setFromAxisAngle(
+        rotAxis,
+        (orientation * Math.PI) / 2
+      );
+      mesh.quaternion.premultiply(rotQuat);
+    }
+
+    this.scene.add(mesh);
+    this.buildingMeshes[key] = mesh;
+  },
+
+  removeBuildingFromScene(face, row, col) {
+    const key = `${face}:${row}:${col}`;
+    const mesh = this.buildingMeshes[key];
+    if (mesh) {
+      this.scene.remove(mesh);
+      delete this.buildingMeshes[key];
+    }
+  },
+
+  // --- LiveView event handlers ---
+
+  setupEventHandlers() {
+    this.handleEvent("building_placed", ({ face, row, col, type, orientation }) => {
+      this.addBuildingToScene(face, row, col, type, orientation);
+    });
+
+    this.handleEvent("building_removed", ({ face, row, col }) => {
+      this.removeBuildingFromScene(face, row, col);
+    });
+
+    this.handleEvent("buildings_snapshot", ({ buildings }) => {
+      for (const b of buildings) {
+        this.addBuildingToScene(b.face, b.row, b.col, b.type, b.orientation);
+      }
+    });
+
+    this.handleEvent("place_error", ({ face, row, col, reason }) => {
+      // Brief red flash on the tile
+      this.setTileColor(face, row, col, ERROR_COLOR);
+      setTimeout(() => {
+        const baseColor = this.getBaseTileColor(face, row, col);
+        this.setTileColor(face, row, col, baseColor);
+      }, 300);
+    });
   },
 
   // --- Raycasting for tile selection ---
@@ -256,8 +388,6 @@ const GameRenderer = {
     const faceId = this.chunkMeshes.indexOf(hit.object);
     if (faceId === -1) return null;
 
-    // Each grid cell has 2 triangles. faceIndex is the triangle index
-    // within this mesh. Cell index = floor(faceIndex / 2).
     const cellIndex = Math.floor(hit.faceIndex / 2);
     const N = this.subdivisions;
     const row = Math.floor(cellIndex / N);
@@ -270,20 +400,16 @@ const GameRenderer = {
     const tile = this.hitToTile(event);
     if (!tile) return;
 
-    // Clear previous selection
+    // Clear previous selection highlight
     if (this.selectedTile) {
-      this.setTileColor(
-        this.selectedTile.face,
-        this.selectedTile.row,
-        this.selectedTile.col,
-        this.faceBaseColors[this.selectedTile.face]
-      );
+      const prev = this.selectedTile;
+      this.setTileColor(prev.face, prev.row, prev.col, this.getBaseTileColor(prev.face, prev.row, prev.col));
     }
 
     this.selectedTile = tile;
     this.setTileColor(tile.face, tile.row, tile.col, HIGHLIGHT_COLOR);
 
-    // Send to server
+    // Send to server — server decides whether this is a selection or building placement
     this.pushEvent("tile_click", {
       face: tile.face,
       row: tile.row,
@@ -303,7 +429,7 @@ const GameRenderer = {
         this.selectedTile.row === h.row &&
         this.selectedTile.col === h.col;
       if (!isSelected) {
-        this.setTileColor(h.face, h.row, h.col, this.faceBaseColors[h.face]);
+        this.setTileColor(h.face, h.row, h.col, this.getBaseTileColor(h.face, h.row, h.col));
       }
     }
 
@@ -321,16 +447,20 @@ const GameRenderer = {
     }
   },
 
+  getBaseTileColor(faceId, row, col) {
+    const N = this.subdivisions;
+    const tileColors = this.faceBaseColors[faceId];
+    if (tileColors && tileColors[row * N + col]) {
+      return tileColors[row * N + col];
+    }
+    return new THREE.Color(0x4a7c3f);
+  },
+
   setTileColor(faceId, row, col, color) {
     const N = this.subdivisions;
     const colorAttr = this.faceColorArrays[faceId];
     const arr = colorAttr.array;
 
-    // The 4 corner vertices of grid cell (row, col) are:
-    //   tl = row*(N+1) + col
-    //   tr = row*(N+1) + (col+1)
-    //   bl = (row+1)*(N+1) + col
-    //   br = (row+1)*(N+1) + (col+1)
     const corners = [
       row * (N + 1) + col,
       row * (N + 1) + (col + 1),
@@ -353,7 +483,6 @@ const GameRenderer = {
     this._lastCameraPos = new THREE.Vector3();
     this._cameraTrackTimer = null;
 
-    // Send camera position every 500ms, but only if it actually moved
     this._cameraTrackTimer = setInterval(() => {
       const pos = this.camera.position;
       if (!pos.equals(this._lastCameraPos)) {

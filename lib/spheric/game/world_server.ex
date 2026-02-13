@@ -11,7 +11,7 @@ defmodule Spheric.Game.WorldServer do
 
   use GenServer
 
-  alias Spheric.Game.{WorldStore, WorldGen}
+  alias Spheric.Game.{WorldStore, WorldGen, Buildings}
 
   require Logger
 
@@ -81,13 +81,20 @@ defmodule Spheric.Game.WorldServer do
   @impl true
   def handle_call({:place_building, key, type, orientation}, _from, state) do
     {face_id, _row, _col} = key
+    tile = WorldStore.get_tile(key)
 
     cond do
-      WorldStore.get_tile(key) == nil ->
+      tile == nil ->
         {:reply, {:error, :invalid_tile}, state}
+
+      not Buildings.valid_type?(type) ->
+        {:reply, {:error, :invalid_building_type}, state}
 
       WorldStore.has_building?(key) ->
         {:reply, {:error, :tile_occupied}, state}
+
+      not Buildings.can_place_on?(type, tile) ->
+        {:reply, {:error, :invalid_placement}, state}
 
       true ->
         building = %{type: type, orientation: orientation, state: %{}}

@@ -21,15 +21,13 @@ defmodule Spheric.Game.WorldServerTest do
   describe "building placement" do
     test "place and retrieve a building" do
       key = {15, 7, 7}
-      # Clean up any prior state
       WorldStore.remove_building(key)
 
-      assert :ok = WorldServer.place_building(key, :miner, 0)
+      assert :ok = WorldServer.place_building(key, :conveyor, 0)
       building = WorldServer.get_building(key)
-      assert building.type == :miner
+      assert building.type == :conveyor
       assert building.orientation == 0
 
-      # Cleanup
       WorldServer.remove_building(key)
     end
 
@@ -37,7 +35,7 @@ defmodule Spheric.Game.WorldServerTest do
       key = {16, 3, 3}
       WorldStore.remove_building(key)
 
-      assert :ok = WorldServer.place_building(key, :miner, 0)
+      assert :ok = WorldServer.place_building(key, :conveyor, 0)
       assert {:error, :tile_occupied} = WorldServer.place_building(key, :conveyor, 1)
 
       WorldServer.remove_building(key)
@@ -60,6 +58,28 @@ defmodule Spheric.Game.WorldServerTest do
       WorldServer.place_building(key, :smelter, 2)
       assert :ok = WorldServer.remove_building(key)
       assert WorldServer.get_building(key) == nil
+    end
+
+    test "cannot place invalid building type" do
+      assert {:error, :invalid_building_type} = WorldServer.place_building({0, 0, 0}, :rocket, 0)
+    end
+
+    test "miner cannot be placed on tile without resources" do
+      # Find a tile without resources
+      tile = WorldStore.get_tile({0, 0, 0})
+
+      if tile.resource == nil do
+        WorldStore.remove_building({0, 0, 0})
+        assert {:error, :invalid_placement} = WorldServer.place_building({0, 0, 0}, :miner, 0)
+      end
+    end
+
+    test "conveyor can be placed on any valid tile" do
+      key = {19, 4, 4}
+      WorldStore.remove_building(key)
+
+      assert :ok = WorldServer.place_building(key, :conveyor, 0)
+      WorldServer.remove_building(key)
     end
   end
 
