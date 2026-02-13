@@ -406,10 +406,8 @@ defmodule SphericWeb.GameLive do
 
   @impl true
   def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff"}, socket) do
-    presences = Presence.list(@presence_topic)
-
     players =
-      presences
+      Presence.list(@presence_topic)
       |> Enum.reject(fn {id, _} -> id == socket.assigns.player_id end)
       |> Enum.map(fn {_id, %{metas: [meta | _]}} ->
         %{
@@ -420,10 +418,6 @@ defmodule SphericWeb.GameLive do
           z: meta.camera.z
         }
       end)
-
-    Logger.debug(
-      "Presence diff: #{map_size(presences)} total, #{length(players)} others (self=#{socket.assigns.player_id})"
-    )
 
     socket = push_event(socket, "players_update", %{players: players})
     {:noreply, socket}
