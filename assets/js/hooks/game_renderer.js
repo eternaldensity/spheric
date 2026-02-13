@@ -244,6 +244,24 @@ const GameRenderer = {
       }
     });
 
+    this.handleEvent("restore_player", ({ player_id, player_name, player_color, camera }) => {
+      // Persist identity to localStorage so it survives reconnects
+      try {
+        localStorage.setItem("spheric_player_id", player_id);
+        localStorage.setItem("spheric_player_name", player_name);
+        localStorage.setItem("spheric_player_color", player_color);
+      } catch (_e) { /* localStorage unavailable */ }
+
+      // Restore camera position and orbit target
+      if (camera && camera.z != null) {
+        this.camera.position.set(camera.x, camera.y, camera.z);
+        if (camera.tx != null) {
+          this.controls.target.set(camera.tx, camera.ty, camera.tz);
+        }
+        this.controls.update();
+      }
+    });
+
     this.handleEvent("players_update", ({ players }) => {
       this.updatePlayerMarkers(players);
     });
@@ -423,6 +441,17 @@ const GameRenderer = {
           y: pos.y,
           z: pos.z,
         });
+
+        // Persist camera state to localStorage for reconnect restoration
+        try {
+          localStorage.setItem("spheric_camera_x", pos.x);
+          localStorage.setItem("spheric_camera_y", pos.y);
+          localStorage.setItem("spheric_camera_z", pos.z);
+          const target = this.controls.target;
+          localStorage.setItem("spheric_camera_tx", target.x);
+          localStorage.setItem("spheric_camera_ty", target.y);
+          localStorage.setItem("spheric_camera_tz", target.z);
+        } catch (_e) { /* localStorage unavailable */ }
       }
     }, 500);
   },

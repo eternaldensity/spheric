@@ -33,18 +33,22 @@ defmodule SphericWeb.GameLive do
       Phoenix.PubSub.subscribe(Spheric.PubSub, @presence_topic)
     end
 
-    # Player identity — use a unique ID per LiveView process since socket.id
-    # is nil without authentication (no live_socket_id in session)
-    player_name = Presence.random_name()
-    player_color = Presence.random_color()
-    player_id = "player:#{Base.encode16(:crypto.strong_rand_bytes(8))}"
+    # Restore player identity and camera from client localStorage (via connect params),
+    # or generate fresh values for new players.
+    {player_id, player_name, player_color, camera} =
+      if connected?(socket) do
+        restore_player(get_connect_params(socket))
+      else
+        {"player:temp", Presence.random_name(), Presence.random_color(),
+         %{x: 0.0, y: 0.0, z: 3.5, tx: 0.0, ty: 0.0, tz: 0.0}}
+      end
 
     # Track presence (only when connected)
     if connected?(socket) do
       Presence.track(self(), @presence_topic, player_id, %{
         name: player_name,
         color: player_color,
-        camera: %{x: 0.0, y: 0.0, z: 3.5}
+        camera: %{x: camera.x, y: camera.y, z: camera.z}
       })
     end
 
@@ -57,7 +61,7 @@ defmodule SphericWeb.GameLive do
       |> assign(:tile_info, nil)
       |> assign(:selected_building_type, nil)
       |> assign(:placement_orientation, 0)
-      |> assign(:camera_pos, {0.0, 0.0, 3.5})
+      |> assign(:camera_pos, {camera.x, camera.y, camera.z})
       |> assign(:visible_faces, initial_faces)
       |> assign(:subscribed_faces, initial_faces)
       |> assign(:building_types, Buildings.types())
@@ -65,6 +69,19 @@ defmodule SphericWeb.GameLive do
       |> assign(:player_name, player_name)
       |> assign(:player_color, player_color)
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
+
+    # Tell the client to restore camera and persist any newly-generated identity
+    socket =
+      if connected?(socket) do
+        push_event(socket, "restore_player", %{
+          player_id: player_id,
+          player_name: player_name,
+          player_color: player_color,
+          camera: camera
+        })
+      else
+        socket
+      end
 
     {:ok, socket, layout: false}
   end
@@ -513,6 +530,42 @@ defmodule SphericWeb.GameLive do
   end
 
   defp building_status_text(_building), do: nil
+
+  defp restore_player(params) do
+    player_id =
+      case params["player_id"] do
+        id when is_binary(id) and id != "" -> id
+        _ -> "player:#{Base.encode16(:crypto.strong_rand_bytes(8))}"
+      end
+
+    player_name =
+      case params["player_name"] do
+        name when is_binary(name) and name != "" -> name
+        _ -> Presence.random_name()
+      end
+
+    player_color =
+      case params["player_color"] do
+        color when is_binary(color) and color != "" -> color
+        _ -> Presence.random_color()
+      end
+
+    camera = %{
+      x: to_float(params["camera_x"], 0.0),
+      y: to_float(params["camera_y"], 0.0),
+      z: to_float(params["camera_z"], 3.5),
+      tx: to_float(params["camera_tx"], 0.0),
+      ty: to_float(params["camera_ty"], 0.0),
+      tz: to_float(params["camera_tz"], 0.0)
+    }
+
+    {player_id, player_name, player_color, camera}
+  end
+
+  defp to_float(val, _default) when is_float(val), do: val
+  defp to_float(val, _default) when is_integer(val), do: val * 1.0
+  defp to_float(nil, default), do: default
+  defp to_float(_, default), do: default
 
   defp to_int(v) when is_integer(v), do: v
   defp to_int(v) when is_binary(v), do: String.to_integer(v)

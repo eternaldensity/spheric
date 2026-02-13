@@ -27,9 +27,31 @@ import topbar from "../vendor/topbar"
 import GameRenderer from "./hooks/game_renderer"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+
+// Read player identity and camera state from localStorage on every connect/reconnect
+// so the server can restore the player's session after code reloads.
+function getConnectParams() {
+  try {
+    return {
+      _csrf_token: csrfToken,
+      player_id: localStorage.getItem("spheric_player_id"),
+      player_name: localStorage.getItem("spheric_player_name"),
+      player_color: localStorage.getItem("spheric_player_color"),
+      camera_x: parseFloat(localStorage.getItem("spheric_camera_x")) || null,
+      camera_y: parseFloat(localStorage.getItem("spheric_camera_y")) || null,
+      camera_z: parseFloat(localStorage.getItem("spheric_camera_z")) || null,
+      camera_tx: parseFloat(localStorage.getItem("spheric_camera_tx")) || null,
+      camera_ty: parseFloat(localStorage.getItem("spheric_camera_ty")) || null,
+      camera_tz: parseFloat(localStorage.getItem("spheric_camera_tz")) || null,
+    }
+  } catch (_e) {
+    return { _csrf_token: csrfToken }
+  }
+}
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: csrfToken},
+  params: getConnectParams,
   hooks: {...colocatedHooks, GameRenderer},
 })
 
