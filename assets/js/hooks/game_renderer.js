@@ -116,15 +116,36 @@ const GameRenderer = {
       }
 
       // Generate triangle indices
+      // We need the winding to be CCW when viewed from outside the sphere
+      // so that front-face culling works and raycasting hits the near side.
+      // Determine correct winding by checking if the computed normal points
+      // outward (same direction as the vertex position on a unit sphere).
       const indices = [];
+      // Sample the first cell to determine winding
+      const p0 = new THREE.Vector3(positions[0], positions[1], positions[2]);
+      const p1idx = (N + 1) * 3; // vertex at (v=1, u=0)
+      const p1 = new THREE.Vector3(positions[p1idx], positions[p1idx + 1], positions[p1idx + 2]);
+      const p2 = new THREE.Vector3(positions[3], positions[4], positions[5]); // vertex at (v=0, u=1)
+      const edge1 = new THREE.Vector3().subVectors(p1, p0);
+      const edge2 = new THREE.Vector3().subVectors(p2, p0);
+      const testNormal = new THREE.Vector3().crossVectors(edge1, edge2);
+      // If normal points same way as vertex (outward), winding [tl,bl,tr] is correct
+      // Otherwise we need to flip to [tl,tr,bl]
+      const needsFlip = testNormal.dot(p0) < 0;
+
       for (let v = 0; v < N; v++) {
         for (let u = 0; u < N; u++) {
           const tl = v * (N + 1) + u;
           const tr = v * (N + 1) + (u + 1);
           const bl = (v + 1) * (N + 1) + u;
           const br = (v + 1) * (N + 1) + (u + 1);
-          indices.push(tl, bl, tr);
-          indices.push(tr, bl, br);
+          if (needsFlip) {
+            indices.push(tl, tr, bl);
+            indices.push(tr, br, bl);
+          } else {
+            indices.push(tl, bl, tr);
+            indices.push(tr, bl, br);
+          }
         }
       }
 
@@ -142,6 +163,7 @@ const GameRenderer = {
 
       const material = new THREE.MeshLambertMaterial({
         vertexColors: true,
+        side: THREE.FrontSide,
       });
 
       const mesh = new THREE.Mesh(geometry, material);
