@@ -27,6 +27,15 @@ const ERROR_TINT = new THREE.Color(0xff2222);
 const HIGHLIGHT_BLEND = 0.55;
 const HOVER_BLEND = 0.35;
 
+// Direction offsets: orientation -> [dRow, dCol]
+// 0=E (col+1), 1=S (row+1), 2=W (col-1), 3=N (row-1)
+const DIR_OFFSETS = [
+  [0, 1],   // E
+  [1, 0],   // S
+  [0, -1],  // W
+  [-1, 0],  // N
+];
+
 const GameRenderer = {
   mounted() {
     const data = JSON.parse(this.el.dataset.geometry);
@@ -50,7 +59,9 @@ const GameRenderer = {
 
     // Building state
     this.buildingMeshes = {}; // keyed by "face:row:col"
-    this.selectedBuildingType = null;
+    this.placementType = null;       // current building type being placed
+    this.placementOrientation = 0;   // current placement orientation (0-3)
+    this.previewArrow = null;        // arrow mesh showing output direction on hover
 
     // Per-face tile overlay state: faceOverlays[faceId] = Map of (row*N+col) -> "selected"|"hover"|null
     this.faceOverlays = [];
@@ -328,15 +339,8 @@ const GameRenderer = {
 
     // Compute forward direction from this tile toward the neighbor in the
     // orientation direction, so buildings point exactly at their output tile.
-    // Direction offsets: 0=col+1, 1=row+1, 2=col-1, 3=row-1
     const N = this.subdivisions;
-    const dirOffsets = [
-      [0, 1],   // orientation 0: col+1
-      [1, 0],   // orientation 1: row+1
-      [0, -1],  // orientation 2: col-1
-      [-1, 0],  // orientation 3: row-1
-    ];
-    const [dr, dc] = dirOffsets[orientation];
+    const [dr, dc] = DIR_OFFSETS[orientation];
     const neighborCenter = this.getTileCenter(face,
       (row + dr + N) % N,
       (col + dc + N) % N
@@ -382,6 +386,16 @@ const GameRenderer = {
 
     this.handleEvent("tick_items", ({ tick, face, items }) => {
       this.itemInterpolator.onTickUpdate(tick, face, items);
+    });
+
+    this.handleEvent("placement_mode", ({ type, orientation }) => {
+      this.placementType = type;
+      this.placementOrientation = orientation ?? 0;
+      this.clearPreviewArrow();
+      // Re-show preview if currently hovering a tile
+      if (this.placementType && this.hoveredTile) {
+        this.showPreviewArrow(this.hoveredTile.face, this.hoveredTile.row, this.hoveredTile.col);
+      }
     });
 
     this.handleEvent("place_error", ({ face, row, col, reason }) => {
@@ -473,20 +487,72 @@ const GameRenderer = {
     if (this.hoveredTile) {
       const h = this.hoveredTile;
       const overlay = this.getTileOverlay(h.face, h.row, h.col);
-      // Only clear if overlay is "hover" (don't touch "selected")
       if (overlay === "hover") {
         this.setTileOverlay(h.face, h.row, h.col, null);
       }
     }
 
+    this.clearPreviewArrow();
     this.hoveredTile = tile;
 
     if (tile) {
       const overlay = this.getTileOverlay(tile.face, tile.row, tile.col);
-      // Only apply hover if not already selected
       if (overlay !== "selected") {
         this.setTileOverlay(tile.face, tile.row, tile.col, "hover");
       }
+      // Show directional arrow when in placement mode
+      if (this.placementType) {
+        this.showPreviewArrow(tile.face, tile.row, tile.col);
+      }
+    }
+  },
+
+  // --- Placement preview arrow ---
+
+  showPreviewArrow(face, row, col) {
+    const N = this.subdivisions;
+    const orientation = this.placementOrientation;
+    const [dr, dc] = DIR_OFFSETS[orientation];
+
+    const from = this.getTileCenter(face, row, col);
+    const to = this.getTileCenter(face, (row + dr + N) % N, (col + dc + N) % N);
+    const normal = from.clone().normalize();
+
+    // Build arrow from tile center toward neighbor, on the surface
+    const dir = new THREE.Vector3().subVectors(to, from);
+    dir.addScaledVector(normal, -dir.dot(normal)).normalize();
+
+    const LIFT = 1.018;
+    const LEN = 0.6 / N;  // arrow length relative to tile size
+    const start = from.clone().multiplyScalar(LIFT);
+    const end = start.clone().addScaledVector(dir, LEN);
+
+    // Shaft
+    const shaftGeo = new THREE.BufferGeometry().setFromPoints([start, end]);
+    const shaftMat = new THREE.LineBasicMaterial({ color: 0xffdd44, linewidth: 2 });
+    const shaft = new THREE.Line(shaftGeo, shaftMat);
+
+    // Arrowhead (small cone at the tip)
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(0.008, 0.02, 6),
+      new THREE.MeshBasicMaterial({ color: 0xffdd44 })
+    );
+    cone.position.copy(end);
+    // Orient cone along dir, with default cone axis = +Y
+    const up = new THREE.Vector3(0, 1, 0);
+    cone.quaternion.setFromUnitVectors(up, dir);
+
+    const group = new THREE.Group();
+    group.add(shaft);
+    group.add(cone);
+    this.scene.add(group);
+    this.previewArrow = group;
+  },
+
+  clearPreviewArrow() {
+    if (this.previewArrow) {
+      this.scene.remove(this.previewArrow);
+      this.previewArrow = null;
     }
   },
 
@@ -635,6 +701,7 @@ const GameRenderer = {
     this.renderer.domElement.removeEventListener("click", this._onClick);
     this.renderer.domElement.removeEventListener("mousemove", this._onMouseMove);
     this.renderer.domElement.removeEventListener("contextmenu", this._onContextMenu);
+    this.clearPreviewArrow();
     if (this.itemRenderer) this.itemRenderer.dispose();
     this.controls.dispose();
     this.renderer.dispose();

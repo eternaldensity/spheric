@@ -142,7 +142,12 @@ defmodule SphericWeb.GameLive do
 
   @impl true
   def handle_event("select_building", %{"type" => "none"}, socket) do
-    {:noreply, assign(socket, :selected_building_type, nil)}
+    socket =
+      socket
+      |> assign(:selected_building_type, nil)
+      |> push_event("placement_mode", %{type: nil, orientation: nil})
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -150,7 +155,14 @@ defmodule SphericWeb.GameLive do
     type = String.to_existing_atom(type_str)
 
     if Buildings.valid_type?(type) do
-      {:noreply, assign(socket, :selected_building_type, type)}
+      orientation = socket.assigns.placement_orientation
+
+      socket =
+        socket
+        |> assign(:selected_building_type, type)
+        |> push_event("placement_mode", %{type: type_str, orientation: orientation})
+
+      {:noreply, socket}
     else
       {:noreply, socket}
     end
@@ -159,7 +171,16 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_event("rotate_building", _params, socket) do
     new_orientation = rem(socket.assigns.placement_orientation + 1, 4)
-    {:noreply, assign(socket, :placement_orientation, new_orientation)}
+
+    socket =
+      socket
+      |> assign(:placement_orientation, new_orientation)
+      |> push_event("placement_mode", %{
+        type: Atom.to_string(socket.assigns.selected_building_type),
+        orientation: new_orientation
+      })
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -243,7 +264,16 @@ defmodule SphericWeb.GameLive do
   def handle_event("keydown", %{"key" => "r"}, socket) do
     if socket.assigns.selected_building_type do
       new_orientation = rem(socket.assigns.placement_orientation + 1, 4)
-      {:noreply, assign(socket, :placement_orientation, new_orientation)}
+
+      socket =
+        socket
+        |> assign(:placement_orientation, new_orientation)
+        |> push_event("placement_mode", %{
+          type: Atom.to_string(socket.assigns.selected_building_type),
+          orientation: new_orientation
+        })
+
+      {:noreply, socket}
     else
       {:noreply, socket}
     end
@@ -337,10 +367,10 @@ defmodule SphericWeb.GameLive do
     end
   end
 
-  defp direction_label(0), do: "Right"
-  defp direction_label(1), do: "Down"
-  defp direction_label(2), do: "Left"
-  defp direction_label(3), do: "Up"
+  defp direction_label(0), do: "E"
+  defp direction_label(1), do: "S"
+  defp direction_label(2), do: "W"
+  defp direction_label(3), do: "N"
 
   defp build_tile_info({face, row, col} = key) do
     tile = WorldStore.get_tile(key)
