@@ -11,15 +11,19 @@ const TERRAIN_COLORS = {
   volcanic: new THREE.Color(0x6b2020),
 };
 
-// Resource accent colors (blended with terrain)
+// Resource accent colors (blended with terrain) — stronger contrast
 const RESOURCE_ACCENTS = {
-  iron: new THREE.Color(0x8b4513),
-  copper: new THREE.Color(0x2e8b7a),
+  iron: new THREE.Color(0xd4722a),
+  copper: new THREE.Color(0x30c9a8),
 };
 
-const HIGHLIGHT_COLOR = new THREE.Color(0xffdd44);
-const HOVER_COLOR = new THREE.Color(0xaaddff);
-const ERROR_COLOR = new THREE.Color(0xff2222);
+// Overlay tints — blended on top of base terrain color
+const HIGHLIGHT_TINT = new THREE.Color(0xffdd44);
+const HOVER_TINT = new THREE.Color(0xaaddff);
+const ERROR_TINT = new THREE.Color(0xff2222);
+
+const HIGHLIGHT_BLEND = 0.55;
+const HOVER_BLEND = 0.35;
 
 const GameRenderer = {
   mounted() {
@@ -45,6 +49,9 @@ const GameRenderer = {
     // Building state
     this.buildingMeshes = {}; // keyed by "face:row:col"
     this.selectedBuildingType = null;
+
+    // Per-face tile overlay state: faceOverlays[faceId] = Map of (row*N+col) -> "selected"|"hover"|null
+    this.faceOverlays = [];
 
     // Store per-face edge vectors for tile center computation
     this.faceEdges = [];
@@ -121,7 +128,7 @@ const GameRenderer = {
           const td = faceTerrain[row][col];
           const baseColor = (TERRAIN_COLORS[td.t] || TERRAIN_COLORS.grassland).clone();
           if (td.r && RESOURCE_ACCENTS[td.r]) {
-            baseColor.lerp(RESOURCE_ACCENTS[td.r], 0.35);
+            baseColor.lerp(RESOURCE_ACCENTS[td.r], 0.55);
           }
           tileColors.push(baseColor);
         }
@@ -195,6 +202,7 @@ const GameRenderer = {
       this.chunkMeshes.push(mesh);
       this.faceColorArrays.push(colorAttr);
       this.faceBaseColors.push(tileColors);
+      this.faceOverlays.push(new Map());
 
       // Grid line overlay
       const gridLines = this.buildGridLines(A, e1, e2, N);
@@ -354,11 +362,16 @@ const GameRenderer = {
     });
 
     this.handleEvent("place_error", ({ face, row, col, reason }) => {
-      // Brief red flash on the tile
-      this.setTileColor(face, row, col, ERROR_COLOR);
+      // Brief red flash on the tile via overlay
+      this.setTileOverlay(face, row, col, "error");
       setTimeout(() => {
-        const baseColor = this.getBaseTileColor(face, row, col);
-        this.setTileColor(face, row, col, baseColor);
+        // Restore to whatever it was before (selected or nothing)
+        const wasSelected =
+          this.selectedTile &&
+          this.selectedTile.face === face &&
+          this.selectedTile.row === row &&
+          this.selectedTile.col === col;
+        this.setTileOverlay(face, row, col, wasSelected ? "selected" : null);
       }, 300);
     });
   },
@@ -400,14 +413,13 @@ const GameRenderer = {
     const tile = this.hitToTile(event);
     if (!tile) return;
 
-    // Clear previous selection highlight
+    // Clear previous selection
     if (this.selectedTile) {
-      const prev = this.selectedTile;
-      this.setTileColor(prev.face, prev.row, prev.col, this.getBaseTileColor(prev.face, prev.row, prev.col));
+      this.setTileOverlay(this.selectedTile.face, this.selectedTile.row, this.selectedTile.col, null);
     }
 
     this.selectedTile = tile;
-    this.setTileColor(tile.face, tile.row, tile.col, HIGHLIGHT_COLOR);
+    this.setTileOverlay(tile.face, tile.row, tile.col, "selected");
 
     // Send to server — server decides whether this is a selection or building placement
     this.pushEvent("tile_click", {
@@ -420,61 +432,116 @@ const GameRenderer = {
   onTileHover(event) {
     const tile = this.hitToTile(event);
 
-    // Clear previous hover (unless it's the selected tile)
+    // Clear previous hover
     if (this.hoveredTile) {
       const h = this.hoveredTile;
-      const isSelected =
-        this.selectedTile &&
-        this.selectedTile.face === h.face &&
-        this.selectedTile.row === h.row &&
-        this.selectedTile.col === h.col;
-      if (!isSelected) {
-        this.setTileColor(h.face, h.row, h.col, this.getBaseTileColor(h.face, h.row, h.col));
+      const overlay = this.getTileOverlay(h.face, h.row, h.col);
+      // Only clear if overlay is "hover" (don't touch "selected")
+      if (overlay === "hover") {
+        this.setTileOverlay(h.face, h.row, h.col, null);
       }
     }
 
     this.hoveredTile = tile;
 
     if (tile) {
-      const isSelected =
-        this.selectedTile &&
-        this.selectedTile.face === tile.face &&
-        this.selectedTile.row === tile.row &&
-        this.selectedTile.col === tile.col;
-      if (!isSelected) {
-        this.setTileColor(tile.face, tile.row, tile.col, HOVER_COLOR);
+      const overlay = this.getTileOverlay(tile.face, tile.row, tile.col);
+      // Only apply hover if not already selected
+      if (overlay !== "selected") {
+        this.setTileOverlay(tile.face, tile.row, tile.col, "hover");
       }
     }
   },
 
-  getBaseTileColor(faceId, row, col) {
+  // --- Overlay-aware color system ---
+
+  getTileOverlay(faceId, row, col) {
     const N = this.subdivisions;
-    const tileColors = this.faceBaseColors[faceId];
-    if (tileColors && tileColors[row * N + col]) {
-      return tileColors[row * N + col];
-    }
-    return new THREE.Color(0x4a7c3f);
+    return this.faceOverlays[faceId].get(row * N + col) || null;
   },
 
-  setTileColor(faceId, row, col, color) {
+  setTileOverlay(faceId, row, col, overlay) {
+    const N = this.subdivisions;
+    const key = row * N + col;
+
+    if (overlay) {
+      this.faceOverlays[faceId].set(key, overlay);
+    } else {
+      this.faceOverlays[faceId].delete(key);
+    }
+
+    // Recompute colors for all vertices touched by this tile
+    this.refreshTileVertices(faceId, row, col);
+  },
+
+  // Recompute the 4 corner vertices of a tile, averaging across all adjacent tiles
+  refreshTileVertices(faceId, row, col) {
     const N = this.subdivisions;
     const colorAttr = this.faceColorArrays[faceId];
     const arr = colorAttr.array;
 
-    const corners = [
-      row * (N + 1) + col,
-      row * (N + 1) + (col + 1),
-      (row + 1) * (N + 1) + col,
-      (row + 1) * (N + 1) + (col + 1),
-    ];
-
-    for (const vi of corners) {
-      arr[vi * 3] = color.r;
-      arr[vi * 3 + 1] = color.g;
-      arr[vi * 3 + 2] = color.b;
+    // The 4 corner vertices at grid positions (row,col), (row,col+1), (row+1,col), (row+1,col+1)
+    for (let dv = 0; dv <= 1; dv++) {
+      for (let du = 0; du <= 1; du++) {
+        const v = row + dv;
+        const u = col + du;
+        const vi = v * (N + 1) + u;
+        const color = this.computeVertexColor(faceId, v, u);
+        arr[vi * 3] = color.r;
+        arr[vi * 3 + 1] = color.g;
+        arr[vi * 3 + 2] = color.b;
+      }
     }
 
     colorAttr.needsUpdate = true;
+  },
+
+  // Compute a vertex color by averaging the effective colors of all adjacent tiles
+  computeVertexColor(faceId, v, u) {
+    const N = this.subdivisions;
+    const tileColors = this.faceBaseColors[faceId];
+    const overlays = this.faceOverlays[faceId];
+    const adjacent = [];
+
+    for (let dv = -1; dv <= 0; dv++) {
+      for (let du = -1; du <= 0; du++) {
+        const row = v + dv;
+        const col = u + du;
+        if (row >= 0 && row < N && col >= 0 && col < N) {
+          const tileIdx = row * N + col;
+          const base = tileColors[tileIdx];
+          const overlay = overlays.get(tileIdx);
+          adjacent.push(this.applyOverlay(base, overlay));
+        }
+      }
+    }
+
+    if (adjacent.length === 0) return new THREE.Color(0x4a7c3f);
+
+    const result = new THREE.Color(0, 0, 0);
+    for (const c of adjacent) {
+      result.r += c.r;
+      result.g += c.g;
+      result.b += c.b;
+    }
+    result.r /= adjacent.length;
+    result.g /= adjacent.length;
+    result.b /= adjacent.length;
+    return result;
+  },
+
+  // Blend an overlay tint onto a base terrain color
+  applyOverlay(baseColor, overlay) {
+    if (!overlay) return baseColor;
+    const result = baseColor.clone();
+    if (overlay === "selected") {
+      result.lerp(HIGHLIGHT_TINT, HIGHLIGHT_BLEND);
+    } else if (overlay === "hover") {
+      result.lerp(HOVER_TINT, HOVER_BLEND);
+    } else if (overlay === "error") {
+      result.lerp(ERROR_TINT, 0.6);
+    }
+    return result;
   },
 
   // --- Camera tracking ---
