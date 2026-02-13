@@ -57,6 +57,7 @@ const GameRenderer = {
     this.placementType = null;       // current building type being placed
     this.placementOrientation = 0;   // current placement orientation (0-3)
     this.previewArrow = null;        // arrow mesh showing output direction on hover
+    this.buildingRenderMode = "3d";  // "3d" = meshes visible, "icons" = texture icons visible
 
     // Multiplayer: other players' markers
     this.playerMarkers = new Map(); // name -> { group, sphere, label }
@@ -179,6 +180,7 @@ const GameRenderer = {
     const m = new THREE.Matrix4().makeBasis(tangentX, normal, tangentZ);
     mesh.quaternion.setFromRotationMatrix(m);
 
+    mesh.visible = this.buildingRenderMode === "3d";
     this.scene.add(mesh);
     this.buildingMeshes[key] = mesh;
 
@@ -206,7 +208,8 @@ const GameRenderer = {
     const N = this.chunkManager.getFaceLOD(faceId);
     if (N === 0) return;
 
-    const texture = this.tileTextures.generateTexture(faceId, N, this.buildingData);
+    const showIcons = this.buildingRenderMode === "icons";
+    const texture = this.tileTextures.generateTexture(faceId, N, showIcons ? this.buildingData : null);
     const faceMesh = this.chunkManager.faceMeshes[faceId];
     if (faceMesh) {
       faceMesh.material.map = texture;
@@ -291,6 +294,13 @@ const GameRenderer = {
     this.renderer.domElement.addEventListener("click", this._onClick);
     this.renderer.domElement.addEventListener("mousemove", this._onMouseMove);
     this.renderer.domElement.addEventListener("contextmenu", this._onContextMenu);
+
+    this._onKeyDown = (event) => {
+      if (event.key === "t" || event.key === "T") {
+        this.toggleBuildingRenderMode();
+      }
+    };
+    window.addEventListener("keydown", this._onKeyDown);
   },
 
   hitToTile(event) {
@@ -411,6 +421,31 @@ const GameRenderer = {
     if (this.previewArrow) {
       this.scene.remove(this.previewArrow);
       this.previewArrow = null;
+    }
+  },
+
+  // --- Building render mode toggle ---
+
+  toggleBuildingRenderMode() {
+    if (this.buildingRenderMode === "3d") {
+      this.buildingRenderMode = "icons";
+      // Hide all 3D meshes
+      for (const key of Object.keys(this.buildingMeshes)) {
+        this.buildingMeshes[key].visible = false;
+      }
+    } else {
+      this.buildingRenderMode = "3d";
+      // Show all 3D meshes
+      for (const key of Object.keys(this.buildingMeshes)) {
+        this.buildingMeshes[key].visible = true;
+      }
+    }
+    // Regenerate textures so icons appear/disappear
+    for (let faceId = 0; faceId < 30; faceId++) {
+      const N = this.chunkManager.getFaceLOD(faceId);
+      if (N > 0) {
+        this.regenerateFaceTexture(faceId);
+      }
     }
   },
 
@@ -568,6 +603,7 @@ const GameRenderer = {
     if (this._animId) cancelAnimationFrame(this._animId);
     if (this._cameraTrackTimer) clearInterval(this._cameraTrackTimer);
     window.removeEventListener("resize", this._onResize);
+    window.removeEventListener("keydown", this._onKeyDown);
     this.renderer.domElement.removeEventListener("click", this._onClick);
     this.renderer.domElement.removeEventListener("mousemove", this._onMouseMove);
     this.renderer.domElement.removeEventListener("contextmenu", this._onContextMenu);

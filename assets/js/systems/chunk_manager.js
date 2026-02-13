@@ -161,7 +161,9 @@ export class ChunkManager {
         point.normalize();
 
         positions.push(point.x, point.y, point.z);
-        uvs.push(u / N, v / N);
+        // v/N is flipped to 1-v/N to compensate for CanvasTexture flipY=true,
+        // so that canvas row 0 (top) maps to vertex row 0 (low v).
+        uvs.push(u / N, 1 - v / N);
 
         const color = this.vertexTerrainColor(v, u, N, tileColors);
         colors.push(color.r, color.g, color.b);

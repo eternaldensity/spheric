@@ -86,12 +86,10 @@ export class TileTextureGenerator {
     const faceTerrain = this.terrainData[faceId];
 
     // Draw each tile
-    // Canvas y is flipped: CanvasTexture uses flipY=true (default), so
-    // UV.y=0 maps to the bottom of the canvas.  Row 0 must be at the bottom.
     for (let row = 0; row < N; row++) {
       for (let col = 0; col < N; col++) {
         const x = col * pxPerTile;
-        const y = (N - 1 - row) * pxPerTile;
+        const y = row * pxPerTile;
 
         // Map LOD tile to full-res terrain (center sample)
         const fullRow = Math.min(Math.floor(((row + 0.5) / N) * fullN), fullN - 1);
@@ -103,11 +101,13 @@ export class TileTextureGenerator {
         ctx.fillStyle = terrainColor;
         ctx.fillRect(x, y, pxPerTile, pxPerTile);
 
-        // Building icon
-        const buildingKey = `${faceId}:${fullRow}:${fullCol}`;
-        const building = buildings.get ? buildings.get(buildingKey) : buildings[buildingKey];
-        if (building) {
-          drawBuildingIcon(ctx, x, y, pxPerTile, building.type, building.orientation);
+        // Building icon (only drawn when buildings data is provided)
+        if (buildings) {
+          const buildingKey = `${faceId}:${fullRow}:${fullCol}`;
+          const building = buildings.get ? buildings.get(buildingKey) : buildings[buildingKey];
+          if (building) {
+            drawBuildingIcon(ctx, x, y, pxPerTile, building.type, building.orientation);
+          }
         }
 
         // Grid line borders
@@ -170,9 +170,7 @@ function drawBuildingIcon(ctx, x, y, size, type, orientation) {
   ctx.translate(cx, cy);
 
   // Rotate based on orientation: 0=W, 1=S, 2=E, 3=N
-  // Negated because canvas rows are drawn bottom-up (flipY compensation),
-  // which mirrors the y-axis and reverses rotation handedness.
-  const angle = -(orientation || 0) * (Math.PI / 2);
+  const angle = (orientation || 0) * (Math.PI / 2);
   ctx.rotate(angle);
 
   const color = BUILDING_FILLS[type] || "#ffffff";
