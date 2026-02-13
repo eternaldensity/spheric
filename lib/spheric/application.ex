@@ -13,6 +13,7 @@ defmodule Spheric.Application do
       {DNSCluster, query: Application.get_env(:spheric, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Spheric.PubSub},
       Spheric.Game.WorldServer,
+      SphericWeb.Presence,
       SphericWeb.Endpoint
     ]
 

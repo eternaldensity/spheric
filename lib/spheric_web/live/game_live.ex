@@ -4,8 +4,11 @@ defmodule SphericWeb.GameLive do
   alias Spheric.Geometry.RhombicTriacontahedron, as: RT
   alias Spheric.Geometry.Coordinate
   alias Spheric.Game.{WorldServer, WorldStore, Buildings}
+  alias SphericWeb.Presence
 
   require Logger
+
+  @presence_topic "game:presence"
 
   @impl true
   def mount(_params, _session, socket) do
@@ -18,11 +21,30 @@ defmodule SphericWeb.GameLive do
     # Build initial buildings snapshot
     buildings_data = build_buildings_snapshot()
 
-    # Subscribe to all face PubSub topics
+    # Initial face set: all faces (until first camera_update narrows it)
+    initial_faces = MapSet.new(0..29)
+
+    # Subscribe to face PubSub topics and presence
     if connected?(socket) do
-      for face_id <- 0..29 do
+      for face_id <- MapSet.to_list(initial_faces) do
         Phoenix.PubSub.subscribe(Spheric.PubSub, "world:face:#{face_id}")
       end
+
+      Phoenix.PubSub.subscribe(Spheric.PubSub, @presence_topic)
+    end
+
+    # Player identity
+    player_name = Presence.random_name()
+    player_color = Presence.random_color()
+    player_id = socket.id || "anon"
+
+    # Track presence (only when connected)
+    if connected?(socket) do
+      Presence.track(self(), @presence_topic, player_id, %{
+        name: player_name,
+        color: player_color,
+        camera: %{x: 0.0, y: 0.0, z: 3.5}
+      })
     end
 
     socket =
@@ -35,8 +57,12 @@ defmodule SphericWeb.GameLive do
       |> assign(:selected_building_type, nil)
       |> assign(:placement_orientation, 0)
       |> assign(:camera_pos, {0.0, 0.0, 3.5})
-      |> assign(:visible_faces, MapSet.new(0..29))
+      |> assign(:visible_faces, initial_faces)
+      |> assign(:subscribed_faces, initial_faces)
       |> assign(:building_types, Buildings.types())
+      |> assign(:player_id, player_id)
+      |> assign(:player_name, player_name)
+      |> assign(:player_color, player_color)
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
 
     {:ok, socket, layout: false}
@@ -54,6 +80,14 @@ defmodule SphericWeb.GameLive do
       data-terrain={Jason.encode!(@terrain_data)}
       style="width: 100vw; height: 100vh; overflow: hidden; margin: 0; padding: 0;"
     >
+    </div>
+
+    <div
+      id="player-info"
+      style="position: fixed; top: 16px; right: 16px; background: rgba(0,0,0,0.7); color: #fff; padding: 6px 12px; border-radius: 6px; font-family: monospace; font-size: 12px; pointer-events: none; display: flex; align-items: center; gap: 6px;"
+    >
+      <span style={"display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #{@player_color};"}></span>
+      {@player_name}
     </div>
 
     <div
@@ -289,10 +323,30 @@ defmodule SphericWeb.GameLive do
     camera_pos = {x, y, z}
     visible = Coordinate.visible_faces(camera_pos) |> MapSet.new()
 
+    # Dynamic face subscriptions: subscribe to new, unsubscribe from old
+    old_faces = socket.assigns.subscribed_faces
+    new_faces = visible
+    to_subscribe = MapSet.difference(new_faces, old_faces)
+    to_unsubscribe = MapSet.difference(old_faces, new_faces)
+
+    for face_id <- MapSet.to_list(to_subscribe) do
+      Phoenix.PubSub.subscribe(Spheric.PubSub, "world:face:#{face_id}")
+    end
+
+    for face_id <- MapSet.to_list(to_unsubscribe) do
+      Phoenix.PubSub.unsubscribe(Spheric.PubSub, "world:face:#{face_id}")
+    end
+
+    # Update presence with new camera position
+    Presence.update(self(), @presence_topic, socket.assigns.player_id, fn meta ->
+      Map.put(meta, :camera, %{x: x, y: y, z: z})
+    end)
+
     socket =
       socket
       |> assign(:camera_pos, camera_pos)
       |> assign(:visible_faces, visible)
+      |> assign(:subscribed_faces, new_faces)
 
     {:noreply, socket}
   end
@@ -345,6 +399,27 @@ defmodule SphericWeb.GameLive do
     else
       {:noreply, socket}
     end
+  end
+
+  # --- Presence Handlers ---
+
+  @impl true
+  def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff"}, socket) do
+    players =
+      Presence.list(@presence_topic)
+      |> Enum.reject(fn {id, _} -> id == socket.assigns.player_id end)
+      |> Enum.map(fn {_id, %{metas: [meta | _]}} ->
+        %{
+          name: meta.name,
+          color: meta.color,
+          x: meta.camera.x,
+          y: meta.camera.y,
+          z: meta.camera.z
+        }
+      end)
+
+    socket = push_event(socket, "players_update", %{players: players})
+    {:noreply, socket}
   end
 
   # --- Helpers ---

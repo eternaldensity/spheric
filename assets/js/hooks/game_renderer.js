@@ -69,6 +69,9 @@ const GameRenderer = {
     // Store per-face edge vectors for tile center computation
     this.faceEdges = [];
 
+    // Multiplayer: other players' markers
+    this.playerMarkers = new Map(); // name -> { group, sphere, label }
+
     this.initScene();
     this.buildSphereMesh();
     this.setupRaycasting();
@@ -398,6 +401,10 @@ const GameRenderer = {
       }
     });
 
+    this.handleEvent("players_update", ({ players }) => {
+      this.updatePlayerMarkers(players);
+    });
+
     this.handleEvent("place_error", ({ face, row, col, reason }) => {
       // Brief red flash on the tile via overlay
       this.setTileOverlay(face, row, col, "error");
@@ -688,6 +695,87 @@ const GameRenderer = {
     this.renderer.render(this.scene, this.camera);
   },
 
+  // --- Multiplayer player markers ---
+
+  updatePlayerMarkers(players) {
+    const activeNames = new Set();
+
+    for (const p of players) {
+      activeNames.add(p.name);
+      const cameraPos = new THREE.Vector3(p.x, p.y, p.z);
+
+      // Compute surface point: normalize camera direction to get point on sphere
+      const surfacePoint = cameraPos.clone().normalize();
+
+      let marker = this.playerMarkers.get(p.name);
+      if (!marker) {
+        marker = this.createPlayerMarker(p.name, p.color);
+        this.playerMarkers.set(p.name, marker);
+        this.scene.add(marker.group);
+      }
+
+      // Position marker slightly above sphere surface
+      marker.group.position.copy(surfacePoint).multiplyScalar(1.02);
+
+      // Orient label to face outward from sphere center
+      marker.group.lookAt(surfacePoint.clone().multiplyScalar(2));
+    }
+
+    // Remove markers for players who left
+    for (const [name, marker] of this.playerMarkers) {
+      if (!activeNames.has(name)) {
+        this.scene.remove(marker.group);
+        marker.label.material.map.dispose();
+        marker.label.material.dispose();
+        marker.sphere.material.dispose();
+        marker.sphere.geometry.dispose();
+        this.playerMarkers.delete(name);
+      }
+    }
+  },
+
+  createPlayerMarker(name, color) {
+    const group = new THREE.Group();
+
+    // Small sphere marker
+    const sphereGeo = new THREE.SphereGeometry(0.025, 8, 8);
+    const sphereMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(color) });
+    const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+    group.add(sphere);
+
+    // Text label sprite
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 32;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = color;
+    ctx.font = "bold 18px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(name, 64, 16);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const label = new THREE.Sprite(spriteMat);
+    label.scale.set(0.12, 0.03, 1);
+    label.position.set(0, 0.04, 0);
+    group.add(label);
+
+    return { group, sphere, label };
+  },
+
+  disposePlayerMarkers() {
+    for (const [, marker] of this.playerMarkers) {
+      this.scene.remove(marker.group);
+      marker.label.material.map.dispose();
+      marker.label.material.dispose();
+      marker.sphere.material.dispose();
+      marker.sphere.geometry.dispose();
+    }
+    this.playerMarkers.clear();
+  },
+
   onResize() {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
@@ -702,6 +790,7 @@ const GameRenderer = {
     this.renderer.domElement.removeEventListener("mousemove", this._onMouseMove);
     this.renderer.domElement.removeEventListener("contextmenu", this._onContextMenu);
     this.clearPreviewArrow();
+    this.disposePlayerMarkers();
     if (this.itemRenderer) this.itemRenderer.dispose();
     this.controls.dispose();
     this.renderer.dispose();
