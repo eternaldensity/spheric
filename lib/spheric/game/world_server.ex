@@ -66,7 +66,7 @@ defmodule Spheric.Game.WorldServer do
     Process.flag(:trap_exit, true)
 
     seed = Keyword.get(opts, :seed, @default_seed)
-    subdivisions = Application.get_env(:spheric, :subdivisions, 16)
+    subdivisions = Application.get_env(:spheric, :subdivisions, 64)
 
     Logger.info("WorldServer starting (seed=#{seed}, subdivisions=#{subdivisions})")
 

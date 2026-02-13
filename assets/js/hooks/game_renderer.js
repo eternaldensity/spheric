@@ -35,9 +35,6 @@ const GameRenderer = {
     const data = JSON.parse(this.el.dataset.geometry);
     this.subdivisions = data.subdivisions;
 
-    // Parse terrain data
-    this.terrainData = JSON.parse(this.el.dataset.terrain);
-
     // Unpack flat vertex array into vec3 array
     this.baseVertices = [];
     for (let i = 0; i < data.vertices.length; i += 3) {
@@ -136,16 +133,12 @@ const GameRenderer = {
       this.baseVertices,
       this.faceIndices,
       this.subdivisions,
-      this.terrainData,
       { terrainColors: TERRAIN_COLORS, resourceAccents: RESOURCE_ACCENTS }
     );
   },
 
   initTileTextures() {
-    this.tileTextures = new TileTextureGenerator(
-      this.subdivisions,
-      this.terrainData
-    );
+    this.tileTextures = new TileTextureGenerator(this.subdivisions);
   },
 
   // --- Spin rotation (Ctrl+drag) ---
@@ -278,8 +271,9 @@ const GameRenderer = {
     this.scene.add(mesh);
     this.buildingMeshes[key] = mesh;
 
-    // Regenerate tile texture for this face
-    this.regenerateFaceTexture(face);
+    // Regenerate tile texture for the affected cell
+    const { cellRow, cellCol } = this.chunkManager.toCellCoords(row, col);
+    this.regenerateCellTexture(face, cellRow, cellCol);
   },
 
   removeBuildingFromScene(face, row, col) {
@@ -291,29 +285,50 @@ const GameRenderer = {
     }
     this.buildingData.delete(key);
 
-    // Regenerate tile texture for this face
-    this.regenerateFaceTexture(face);
+    // Regenerate tile texture for the affected cell
+    const { cellRow, cellCol } = this.chunkManager.toCellCoords(row, col);
+    this.regenerateCellTexture(face, cellRow, cellCol);
   },
 
   /**
-   * Regenerate the Canvas2D texture for a face and apply it to the face mesh.
+   * Regenerate the Canvas2D texture for a cell and apply it to the cell mesh.
    */
-  regenerateFaceTexture(faceId) {
-    const N = this.chunkManager.getFaceLOD(faceId);
+  regenerateCellTexture(faceId, cellRow, cellCol) {
+    const N = this.chunkManager.getCellLOD(faceId, cellRow, cellCol);
     if (N === 0) return;
+    if (!this.chunkManager.terrainData[faceId]) return;
 
     const showIcons = this.buildingRenderMode === "icons";
-    const texture = this.tileTextures.generateTexture(faceId, N, showIcons ? this.buildingData : null);
-    const faceMesh = this.chunkManager.faceMeshes[faceId];
-    if (faceMesh) {
-      faceMesh.material.map = texture;
-      faceMesh.material.needsUpdate = true;
+    const texture = this.tileTextures.generateTexture(
+      faceId, cellRow, cellCol, N,
+      this.chunkManager.terrainData,
+      showIcons ? this.buildingData : null
+    );
+    const cellKey = this.chunkManager.cellKey(faceId, cellRow, cellCol);
+    const cellMesh = this.chunkManager.cellMeshes.get(cellKey);
+    if (cellMesh) {
+      cellMesh.material.map = texture;
+      cellMesh.material.needsUpdate = true;
     }
   },
 
   // --- LiveView event handlers ---
 
   setupEventHandlers() {
+    this.handleEvent("terrain_face", ({ face, terrain }) => {
+      this.chunkManager.terrainData[face] = terrain;
+      // Rebuild any visible cells on this face now that terrain is available
+      for (let cr = 0; cr < 4; cr++) {
+        for (let cc = 0; cc < 4; cc++) {
+          const N = this.chunkManager.getCellLOD(face, cr, cc);
+          if (N > 0) {
+            this.chunkManager.rebuildCell(face, cr, cc, N);
+            this.regenerateCellTexture(face, cr, cc);
+          }
+        }
+      }
+    });
+
     this.handleEvent("building_placed", ({ face, row, col, type, orientation }) => {
       this.addBuildingToScene(face, row, col, type, orientation);
     });
@@ -540,9 +555,13 @@ const GameRenderer = {
     }
     // Regenerate textures so icons appear/disappear
     for (let faceId = 0; faceId < 30; faceId++) {
-      const N = this.chunkManager.getFaceLOD(faceId);
-      if (N > 0) {
-        this.regenerateFaceTexture(faceId);
+      for (let cr = 0; cr < 4; cr++) {
+        for (let cc = 0; cc < 4; cc++) {
+          const N = this.chunkManager.getCellLOD(faceId, cr, cc);
+          if (N > 0) {
+            this.regenerateCellTexture(faceId, cr, cc);
+          }
+        }
       }
     }
   },
@@ -600,14 +619,11 @@ const GameRenderer = {
     this.controls.update();
 
     // Update LOD based on camera position (ChunkManager handles dirty checks)
-    const lodChanged = this.chunkManager.update(this.camera.position);
-    if (lodChanged) {
-      // Regenerate textures for faces that changed LOD
-      for (let faceId = 0; faceId < 30; faceId++) {
-        const N = this.chunkManager.getFaceLOD(faceId);
-        if (N > 0) {
-          this.regenerateFaceTexture(faceId);
-        }
+    const changedCells = this.chunkManager.update(this.camera.position);
+    if (changedCells.length > 0) {
+      // Regenerate textures only for cells that changed LOD
+      for (const { faceId, cellRow, cellCol } of changedCells) {
+        this.regenerateCellTexture(faceId, cellRow, cellCol);
       }
     }
 

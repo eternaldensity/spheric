@@ -82,7 +82,7 @@ defmodule Spheric.Game.TickProcessor do
   `movements` is a list of `{source_key, dest_key, item_type}`.
   """
   def resolve_pushes(buildings) do
-    n = Application.get_env(:spheric, :subdivisions, 16)
+    n = Application.get_env(:spheric, :subdivisions, 64)
 
     # Collect push requests from all buildings that have items to push
     push_requests =

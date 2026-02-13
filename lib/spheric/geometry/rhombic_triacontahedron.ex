@@ -153,7 +153,8 @@ defmodule Spheric.Geometry.RhombicTriacontahedron do
     %{
       vertices: flat_vertices,
       faces: faces(),
-      subdivisions: Application.get_env(:spheric, :subdivisions, 16)
+      subdivisions: Application.get_env(:spheric, :subdivisions, 64),
+      cells_per_axis: 4
     }
   end
 end

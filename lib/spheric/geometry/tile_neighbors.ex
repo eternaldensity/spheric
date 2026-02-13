@@ -34,7 +34,7 @@ defmodule Spheric.Geometry.TileNeighbors do
   Returns `{:ok, {face, row, col}}` or `:boundary` if no valid neighbor exists.
   """
   def neighbor(tile, direction),
-    do: neighbor(tile, direction, Application.get_env(:spheric, :subdivisions, 16))
+    do: neighbor(tile, direction, Application.get_env(:spheric, :subdivisions, 64))
 
   # Direction 0: col + 1 (interior)
   def neighbor({face, row, col}, 0, n) when col + 1 < n do

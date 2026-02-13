@@ -1,16 +1,14 @@
 import * as THREE from "three";
 
 /**
- * TileTextureGenerator creates Canvas2D-based textures for each face of the sphere.
+ * TileTextureGenerator creates Canvas2D-based textures for each cell of the sphere.
  *
  * Each texture encodes:
  * - Terrain base colors (biome-aware fill per tile)
  * - Grid lines (subtle dark borders between tiles)
  * - Building icons (simple glyphs for buildings placed on tiles)
  *
- * Resource rendering is handled by vertex colors in ChunkManager (smooth glow effect).
- *
- * Textures are applied as THREE.CanvasTexture on face materials.
+ * Textures are applied as THREE.CanvasTexture on cell materials.
  * Regenerated when terrain/buildings change, or on LOD transitions.
  */
 
@@ -44,46 +42,45 @@ const BUILDING_GLYPHS = {
 };
 
 const PIXELS_PER_TILE = 32;
+const TILES_PER_CELL = 16;
 
 export class TileTextureGenerator {
   /**
-   * @param {number} maxSubdivisions - full-resolution grid size (e.g. 16)
-   * @param {Array<Array<Array<{t:string, r:string|null}>>>} terrainData - per-face terrain
+   * @param {number} maxSubdivisions - full-resolution grid size (e.g. 64)
    */
-  constructor(maxSubdivisions, terrainData) {
+  constructor(maxSubdivisions) {
     this.maxSubdivisions = maxSubdivisions;
-    this.terrainData = terrainData;
-    this.textures = []; // THREE.CanvasTexture per face (or null)
-    this.canvases = []; // HTMLCanvasElement per face (or null)
-
-    for (let i = 0; i < 30; i++) {
-      this.textures.push(null);
-      this.canvases.push(null);
-    }
+    this.tilesPerCell = TILES_PER_CELL;
+    // Keyed by cellKey (faceId * 16 + cellRow * 4 + cellCol)
+    this.textures = new Map();
+    this.canvases = new Map();
   }
 
   /**
-   * Generate (or regenerate) the texture for a face at a given LOD subdivision.
+   * Generate (or regenerate) the texture for a cell at a given LOD subdivision.
    * @param {number} faceId
-   * @param {number} N - subdivision count at current LOD
-   * @param {object} buildings - Map of "face:row:col" -> {type, orientation}
+   * @param {number} cellRow - 0-3
+   * @param {number} cellCol - 0-3
+   * @param {number} N - subdivision count at current LOD within the cell
+   * @param {Array} terrainData - terrainData[faceId] = array[64][64] of {t, r}
+   * @param {Map|null} buildings - Map of "face:row:col" -> {type, orientation}
    * @returns {THREE.CanvasTexture}
    */
-  generateTexture(faceId, N, buildings) {
-    const fullN = this.maxSubdivisions;
+  generateTexture(faceId, cellRow, cellCol, N, terrainData, buildings) {
+    const cellKey = faceId * 16 + cellRow * 4 + cellCol;
     const pxPerTile = PIXELS_PER_TILE;
     const size = N * pxPerTile;
 
-    let canvas = this.canvases[faceId];
+    let canvas = this.canvases.get(cellKey);
     if (!canvas || canvas.width !== size || canvas.height !== size) {
       canvas = document.createElement("canvas");
       canvas.width = size;
       canvas.height = size;
-      this.canvases[faceId] = canvas;
+      this.canvases.set(cellKey, canvas);
     }
 
     const ctx = canvas.getContext("2d");
-    const faceTerrain = this.terrainData[faceId];
+    const faceTerrain = terrainData ? terrainData[faceId] : null;
 
     // Draw each tile
     for (let row = 0; row < N; row++) {
@@ -91,19 +88,30 @@ export class TileTextureGenerator {
         const x = col * pxPerTile;
         const y = row * pxPerTile;
 
-        // Map LOD tile to full-res terrain (center sample)
-        const fullRow = Math.min(Math.floor(((row + 0.5) / N) * fullN), fullN - 1);
-        const fullCol = Math.min(Math.floor(((col + 0.5) / N) * fullN), fullN - 1);
-        const td = faceTerrain[fullRow][fullCol];
+        // Map cell-local LOD tile to face-global full-res
+        const localFullRow = Math.min(
+          Math.floor(((row + 0.5) / N) * this.tilesPerCell),
+          this.tilesPerCell - 1
+        );
+        const localFullCol = Math.min(
+          Math.floor(((col + 0.5) / N) * this.tilesPerCell),
+          this.tilesPerCell - 1
+        );
+        const faceRow = cellRow * this.tilesPerCell + localFullRow;
+        const faceCol = cellCol * this.tilesPerCell + localFullCol;
 
         // Terrain base fill
-        const terrainColor = TERRAIN_FILLS[td.t] || TERRAIN_FILLS.grassland;
+        let terrainColor = TERRAIN_FILLS.grassland;
+        if (faceTerrain && faceTerrain[faceRow] && faceTerrain[faceRow][faceCol]) {
+          const td = faceTerrain[faceRow][faceCol];
+          terrainColor = TERRAIN_FILLS[td.t] || TERRAIN_FILLS.grassland;
+        }
         ctx.fillStyle = terrainColor;
         ctx.fillRect(x, y, pxPerTile, pxPerTile);
 
         // Building icon (only drawn when buildings data is provided)
         if (buildings) {
-          const buildingKey = `${faceId}:${fullRow}:${fullCol}`;
+          const buildingKey = `${faceId}:${faceRow}:${faceCol}`;
           const building = buildings.get ? buildings.get(buildingKey) : buildings[buildingKey];
           if (building) {
             drawBuildingIcon(ctx, x, y, pxPerTile, building.type, building.orientation);
@@ -118,8 +126,8 @@ export class TileTextureGenerator {
     }
 
     // Create or update texture
-    if (this.textures[faceId]) {
-      this.textures[faceId].dispose();
+    if (this.textures.has(cellKey)) {
+      this.textures.get(cellKey).dispose();
     }
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -127,35 +135,17 @@ export class TileTextureGenerator {
     texture.magFilter = THREE.LinearFilter;
     texture.wrapS = THREE.ClampToEdgeWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
-    this.textures[faceId] = texture;
+    this.textures.set(cellKey, texture);
 
     return texture;
   }
 
-  /**
-   * Mark a face's texture as needing update (e.g. after building change).
-   */
-  invalidate(faceId) {
-    if (this.textures[faceId]) {
-      this.textures[faceId].needsUpdate = true;
-    }
-  }
-
-  /**
-   * Get the texture for a face, or null if not generated.
-   */
-  getTexture(faceId) {
-    return this.textures[faceId];
-  }
-
   dispose() {
-    for (let i = 0; i < 30; i++) {
-      if (this.textures[i]) {
-        this.textures[i].dispose();
-        this.textures[i] = null;
-      }
-      this.canvases[i] = null;
+    for (const [, texture] of this.textures) {
+      texture.dispose();
     }
+    this.textures.clear();
+    this.canvases.clear();
   }
 }
 

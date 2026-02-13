@@ -1,58 +1,71 @@
 import * as THREE from "three";
 
 /**
- * ChunkManager handles LOD (Level of Detail) for each face of the sphere.
+ * ChunkManager handles LOD (Level of Detail) for each cell of the sphere.
  *
- * Based on camera distance to each face center:
- * - Close:  full 16×16 subdivision
+ * Each face is divided into a 4×4 grid of "cells". Each cell is independently
+ * managed for LOD based on camera distance to the cell center:
+ * - Close:  full 16×16 subdivision within the cell
  * - Medium: 8×8
  * - Far:    4×4
- * - Behind: unloaded (hidden)
+ * - Hidden: unloaded (0)
  *
- * Each face gets its geometry rebuilt when its LOD level changes.
+ * Cell key: faceId * 16 + cellRow * 4 + cellCol
  */
 
-// LOD thresholds (camera distance to face center on unit sphere)
-const LOD_CLOSE = 2.0;   // below this → full resolution
-const LOD_MEDIUM = 3.5;  // below this → medium
-const LOD_FAR = 5.5;     // below this → far; above → hidden
+// LOD thresholds (camera distance to cell center on unit sphere)
+const LOD_CLOSE = 1.6;
+const LOD_MEDIUM = 2.5;
+const LOD_FAR = 4.0;
 
-const LOD_LEVELS = {
-  close: 16,
-  medium: 8,
-  far: 4,
-};
+// Face-level cull threshold: if camera is farther than this from face center,
+// skip all 16 cells on that face
+const FACE_CULL_DIST = LOD_FAR + 1.5;
+
+const TILES_PER_CELL = 16;
 
 export class ChunkManager {
   /**
    * @param {THREE.Scene} scene
    * @param {Array<THREE.Vector3>} baseVertices - 32 base polyhedron vertices
    * @param {Array<Array<number>>} faceIndices - 30 faces, each [a,b,c,d]
-   * @param {number} maxSubdivisions - the full resolution subdivision count (e.g. 16)
-   * @param {Array<Array<Array<{t:string, r:string|null}>>>} terrainData - per-face terrain
+   * @param {number} maxSubdivisions - the full resolution subdivision count (e.g. 64)
    * @param {object} colorConfig - { terrainColors, resourceAccents }
    */
-  constructor(scene, baseVertices, faceIndices, maxSubdivisions, terrainData, colorConfig) {
+  constructor(scene, baseVertices, faceIndices, maxSubdivisions, colorConfig) {
     this.scene = scene;
     this.baseVertices = baseVertices;
     this.faceIndices = faceIndices;
     this.maxSubdivisions = maxSubdivisions;
-    this.terrainData = terrainData;
     this.terrainColors = colorConfig.terrainColors;
     this.resourceAccents = colorConfig.resourceAccents;
+    this.cellsPerAxis = 4;
 
-    // Per-face state
-    this.faceMeshes = [];      // THREE.Mesh per face (or null)
-    this.faceGridLines = [];   // THREE.LineSegments per face (or null)
-    this.faceEdges = [];       // { origin, e1, e2 } per face
-    this.faceLOD = [];         // current LOD subdivision count per face (0 = hidden)
-    this.faceColorArrays = []; // color attribute per face for overlay updates
-    this.faceBaseColors = [];  // per-tile base colors per face
-    this.faceOverlays = [];    // Map of overlays per face
+    // Terrain data: populated asynchronously via terrain_face events
+    // terrainData[faceId] = array[64][64] of {t, r} or null if not yet loaded
+    this.terrainData = [];
+    for (let i = 0; i < faceIndices.length; i++) {
+      this.terrainData.push(null);
+    }
 
-    // Compute face centers (normalized, as THREE.Vector3)
-    this.faceCenters = [];
+    // Per-face precomputed data
+    this.faceEdges = [];    // { origin, e1, e2 } per face
+    this.faceCenters = [];  // THREE.Vector3 per face (normalized)
 
+    // Per-cell state (keyed by cellKey)
+    this.cellMeshes = new Map();
+    this.cellGridLines = new Map();
+    this.cellLOD = new Map();
+    this.cellColorArrays = new Map();
+    this.cellBaseColors = new Map();
+    this.cellOverlays = new Map();
+    this.cellEdges = new Map();
+    this.cellCenters = new Map();
+
+    // Reverse lookup: mesh -> { faceId, cellRow, cellCol }
+    this.meshToCellInfo = new Map();
+
+    // Precompute face and cell geometry
     for (let faceId = 0; faceId < faceIndices.length; faceId++) {
       const [ai, bi, ci, di] = faceIndices[faceId];
       const A = baseVertices[ai];
@@ -72,46 +85,98 @@ export class ChunkManager {
       const e2 = new THREE.Vector3().subVectors(D, A);
       this.faceEdges.push({ origin: A.clone(), e1: e1.clone(), e2: e2.clone() });
 
-      this.faceMeshes.push(null);
-      this.faceGridLines.push(null);
-      this.faceLOD.push(0);
-      this.faceColorArrays.push(null);
-      this.faceBaseColors.push(null);
-      this.faceOverlays.push(new Map());
+      // Precompute cell edges and centers
+      for (let cr = 0; cr < this.cellsPerAxis; cr++) {
+        for (let cc = 0; cc < this.cellsPerAxis; cc++) {
+          const key = this.cellKey(faceId, cr, cc);
+
+          // Cell origin = face_origin + (cc/4)*e1 + (cr/4)*e2
+          const cellOrigin = A.clone()
+            .addScaledVector(e1, cc / this.cellsPerAxis)
+            .addScaledVector(e2, cr / this.cellsPerAxis);
+
+          const cellE1 = e1.clone().multiplyScalar(1 / this.cellsPerAxis);
+          const cellE2 = e2.clone().multiplyScalar(1 / this.cellsPerAxis);
+
+          this.cellEdges.set(key, { origin: cellOrigin, e1: cellE1, e2: cellE2 });
+
+          // Cell center (normalized to sphere surface)
+          const cellCenter = A.clone()
+            .addScaledVector(e1, (cc + 0.5) / this.cellsPerAxis)
+            .addScaledVector(e2, (cr + 0.5) / this.cellsPerAxis)
+            .normalize();
+          this.cellCenters.set(key, cellCenter);
+
+          this.cellLOD.set(key, 0);
+          this.cellOverlays.set(key, new Map());
+        }
+      }
     }
   }
 
   /**
-   * Update LOD levels based on camera position. Call each frame or throttled.
-   * Returns true if any face changed LOD, so the caller can update overlays etc.
+   * Compute a unique key for a cell.
+   */
+  cellKey(faceId, cellRow, cellCol) {
+    return faceId * 16 + cellRow * 4 + cellCol;
+  }
+
+  /**
+   * Convert face-global row/col (0-63) to cell coordinates.
+   */
+  toCellCoords(row, col) {
+    return {
+      cellRow: Math.floor(row / TILES_PER_CELL),
+      cellCol: Math.floor(col / TILES_PER_CELL),
+      localRow: row % TILES_PER_CELL,
+      localCol: col % TILES_PER_CELL,
+    };
+  }
+
+  /**
+   * Update LOD levels based on camera position.
+   * Returns array of { faceId, cellRow, cellCol } that changed LOD.
    * @param {THREE.Vector3} cameraPos
    */
   update(cameraPos) {
-    let changed = false;
+    const changed = [];
 
     for (let faceId = 0; faceId < this.faceIndices.length; faceId++) {
-      const dist = cameraPos.distanceTo(this.faceCenters[faceId]);
-      let targetN;
+      const faceDist = cameraPos.distanceTo(this.faceCenters[faceId]);
 
-      if (dist < LOD_CLOSE) {
-        targetN = LOD_LEVELS.close;
-      } else if (dist < LOD_MEDIUM) {
-        targetN = LOD_LEVELS.medium;
-      } else if (dist < LOD_FAR) {
-        targetN = LOD_LEVELS.far;
-      } else {
-        targetN = 0; // hidden
+      // Face-level pre-cull: if entire face is far away, hide all cells
+      if (faceDist > FACE_CULL_DIST) {
+        for (let cr = 0; cr < this.cellsPerAxis; cr++) {
+          for (let cc = 0; cc < this.cellsPerAxis; cc++) {
+            const key = this.cellKey(faceId, cr, cc);
+            if (this.cellLOD.get(key) !== 0) {
+              this.rebuildCell(faceId, cr, cc, 0);
+              this.cellLOD.set(key, 0);
+              changed.push({ faceId, cellRow: cr, cellCol: cc });
+            }
+          }
+        }
+        continue;
       }
 
-      // Clamp to maxSubdivisions
-      if (targetN > this.maxSubdivisions) {
-        targetN = this.maxSubdivisions;
-      }
+      // Per-cell LOD
+      for (let cr = 0; cr < this.cellsPerAxis; cr++) {
+        for (let cc = 0; cc < this.cellsPerAxis; cc++) {
+          const key = this.cellKey(faceId, cr, cc);
+          const dist = cameraPos.distanceTo(this.cellCenters.get(key));
 
-      if (targetN !== this.faceLOD[faceId]) {
-        this.rebuildFace(faceId, targetN);
-        this.faceLOD[faceId] = targetN;
-        changed = true;
+          let targetN;
+          if (dist < LOD_CLOSE) targetN = 16;
+          else if (dist < LOD_MEDIUM) targetN = 8;
+          else if (dist < LOD_FAR) targetN = 4;
+          else targetN = 0;
+
+          if (targetN !== this.cellLOD.get(key)) {
+            this.rebuildCell(faceId, cr, cc, targetN);
+            this.cellLOD.set(key, targetN);
+            changed.push({ faceId, cellRow: cr, cellCol: cc });
+          }
+        }
       }
     }
 
@@ -119,33 +184,43 @@ export class ChunkManager {
   }
 
   /**
-   * Rebuild geometry for a face at a given subdivision level.
+   * Rebuild geometry for a cell at a given subdivision level.
    * If N=0, remove the mesh (hidden).
    */
-  rebuildFace(faceId, N) {
+  rebuildCell(faceId, cellRow, cellCol, N) {
+    const key = this.cellKey(faceId, cellRow, cellCol);
+
     // Remove old mesh and grid lines
-    if (this.faceMeshes[faceId]) {
-      this.scene.remove(this.faceMeshes[faceId]);
-      this.faceMeshes[faceId].geometry.dispose();
-      this.faceMeshes[faceId].material.dispose();
-      this.faceMeshes[faceId] = null;
+    const oldMesh = this.cellMeshes.get(key);
+    if (oldMesh) {
+      this.scene.remove(oldMesh);
+      oldMesh.geometry.dispose();
+      oldMesh.material.dispose();
+      this.meshToCellInfo.delete(oldMesh);
+      this.cellMeshes.delete(key);
     }
-    if (this.faceGridLines[faceId]) {
-      this.scene.remove(this.faceGridLines[faceId]);
-      this.faceGridLines[faceId].geometry.dispose();
-      this.faceGridLines[faceId].material.dispose();
-      this.faceGridLines[faceId] = null;
+
+    const oldLines = this.cellGridLines.get(key);
+    if (oldLines) {
+      this.scene.remove(oldLines);
+      oldLines.geometry.dispose();
+      oldLines.material.dispose();
+      this.cellGridLines.delete(key);
     }
-    this.faceColorArrays[faceId] = null;
-    this.faceBaseColors[faceId] = null;
+
+    this.cellColorArrays.delete(key);
+    this.cellBaseColors.delete(key);
 
     if (N === 0) return;
 
-    const { origin, e1, e2 } = this.faceEdges[faceId];
+    // Guard: terrain data must be loaded for this face
+    if (!this.terrainData[faceId]) return;
 
-    // Compute per-tile terrain colors at this LOD's subdivision
-    const tileColors = this.computeTileColors(faceId, N);
-    this.faceBaseColors[faceId] = tileColors;
+    const { origin, e1, e2 } = this.cellEdges.get(key);
+
+    // Compute per-tile terrain colors at this LOD
+    const tileColors = this.computeCellTileColors(faceId, cellRow, cellCol, N);
+    this.cellBaseColors.set(key, tileColors);
 
     // Generate (N+1)^2 vertices
     const positions = [];
@@ -161,8 +236,6 @@ export class ChunkManager {
         point.normalize();
 
         positions.push(point.x, point.y, point.z);
-        // v/N is flipped to 1-v/N to compensate for CanvasTexture flipY=true,
-        // so that canvas row 0 (top) maps to vertex row 0 (low v).
         uvs.push(u / N, 1 - v / N);
 
         const color = this.vertexTerrainColor(v, u, N, tileColors);
@@ -170,8 +243,7 @@ export class ChunkManager {
       }
     }
 
-    // Generate triangle indices
-    const indices = [];
+    // Generate triangle indices (determine winding)
     const p0 = new THREE.Vector3(positions[0], positions[1], positions[2]);
     const p1idx = (N + 1) * 3;
     const p1 = new THREE.Vector3(positions[p1idx], positions[p1idx + 1], positions[p1idx + 2]);
@@ -181,6 +253,7 @@ export class ChunkManager {
     const testNormal = new THREE.Vector3().crossVectors(edgeA, edgeB);
     const needsFlip = testNormal.dot(p0) < 0;
 
+    const indices = [];
     for (let v = 0; v < N; v++) {
       for (let u = 0; u < N; u++) {
         const tl = v * (N + 1) + u;
@@ -213,37 +286,46 @@ export class ChunkManager {
 
     const mesh = new THREE.Mesh(geometry, material);
     this.scene.add(mesh);
-    this.faceMeshes[faceId] = mesh;
-    this.faceColorArrays[faceId] = colorAttr;
+    this.cellMeshes.set(key, mesh);
+    this.cellColorArrays.set(key, colorAttr);
+    this.meshToCellInfo.set(mesh, { faceId, cellRow, cellCol });
 
     // Grid lines
     const gridLines = this.buildGridLines(origin, e1, e2, N);
     this.scene.add(gridLines);
-    this.faceGridLines[faceId] = gridLines;
+    this.cellGridLines.set(key, gridLines);
 
-    // Re-apply any active overlays for this face
-    this.reapplyOverlays(faceId);
+    // Re-apply any active overlays for this cell
+    this.reapplyOverlays(faceId, cellRow, cellCol);
   }
 
   /**
-   * Compute per-tile terrain colors for a face at a given subdivision N.
-   * When N < maxSubdivisions, we sample the center of each LOD tile
-   * from the full-resolution terrain data.
+   * Compute per-tile terrain colors for a cell at a given LOD N.
+   * Maps LOD tiles to face-global full-resolution terrain data.
    */
-  computeTileColors(faceId, N) {
-    const fullN = this.maxSubdivisions;
+  computeCellTileColors(faceId, cellRow, cellCol, N) {
     const faceTerrain = this.terrainData[faceId];
+    if (!faceTerrain) return [];
+
     const tileColors = [];
 
     for (let row = 0; row < N; row++) {
       for (let col = 0; col < N; col++) {
-        // Map LOD tile to full-resolution tile (center sample)
-        const fullRow = Math.floor(((row + 0.5) / N) * fullN);
-        const fullCol = Math.floor(((col + 0.5) / N) * fullN);
-        const clampRow = Math.min(fullRow, fullN - 1);
-        const clampCol = Math.min(fullCol, fullN - 1);
+        // Map cell-local LOD tile to full-res tile within the cell
+        const localFullRow = Math.min(
+          Math.floor(((row + 0.5) / N) * TILES_PER_CELL),
+          TILES_PER_CELL - 1
+        );
+        const localFullCol = Math.min(
+          Math.floor(((col + 0.5) / N) * TILES_PER_CELL),
+          TILES_PER_CELL - 1
+        );
 
-        const td = faceTerrain[clampRow][clampCol];
+        // Convert to face-global coordinates
+        const faceRow = cellRow * TILES_PER_CELL + localFullRow;
+        const faceCol = cellCol * TILES_PER_CELL + localFullCol;
+
+        const td = faceTerrain[faceRow][faceCol];
         const baseColor = (this.terrainColors[td.t] || this.terrainColors.grassland).clone();
         if (td.r && this.resourceAccents[td.r]) {
           baseColor.lerp(this.resourceAccents[td.r], 0.55);
@@ -333,8 +415,8 @@ export class ChunkManager {
   }
 
   /**
-   * Get the tile center position on the sphere for a given face at its current LOD.
-   * Maps full-resolution (row, col) to the LOD-appropriate position.
+   * Get the tile center position on the sphere for a given face at full resolution.
+   * Uses face-level edge vectors with maxSubdivisions (64).
    */
   getTileCenter(faceId, row, col) {
     const N = this.maxSubdivisions;
@@ -348,10 +430,10 @@ export class ChunkManager {
   }
 
   /**
-   * Get the meshes array for raycasting. Only includes non-null meshes.
+   * Get all visible meshes for raycasting.
    */
   getRaycastMeshes() {
-    return this.faceMeshes.filter((m) => m !== null);
+    return Array.from(this.cellMeshes.values());
   }
 
   /**
@@ -359,77 +441,108 @@ export class ChunkManager {
    * Returns {face, row, col} or null.
    */
   hitToTile(hit) {
-    const faceId = this.faceMeshes.indexOf(hit.object);
-    if (faceId === -1) return null;
+    const cellInfo = this.meshToCellInfo.get(hit.object);
+    if (!cellInfo) return null;
 
-    const N = this.faceLOD[faceId];
+    const { faceId, cellRow, cellCol } = cellInfo;
+    const key = this.cellKey(faceId, cellRow, cellCol);
+    const N = this.cellLOD.get(key);
     if (N === 0) return null;
 
+    // Determine which tile within the cell mesh was hit
     const cellIndex = Math.floor(hit.faceIndex / 2);
     const lodRow = Math.floor(cellIndex / N);
     const lodCol = cellIndex % N;
 
-    // Map LOD tile back to full-resolution coordinates
-    const fullN = this.maxSubdivisions;
-    const fullRow = Math.floor(((lodRow + 0.5) / N) * fullN);
-    const fullCol = Math.floor(((lodCol + 0.5) / N) * fullN);
+    // Map LOD tile to full-res coordinates within the cell
+    const localRow = Math.min(
+      Math.floor(((lodRow + 0.5) / N) * TILES_PER_CELL),
+      TILES_PER_CELL - 1
+    );
+    const localCol = Math.min(
+      Math.floor(((lodCol + 0.5) / N) * TILES_PER_CELL),
+      TILES_PER_CELL - 1
+    );
+
+    // Convert to face-global coordinates
+    const fullRow = cellRow * TILES_PER_CELL + localRow;
+    const fullCol = cellCol * TILES_PER_CELL + localCol;
 
     return {
       face: faceId,
-      row: Math.min(fullRow, fullN - 1),
-      col: Math.min(fullCol, fullN - 1),
+      row: Math.min(fullRow, this.maxSubdivisions - 1),
+      col: Math.min(fullCol, this.maxSubdivisions - 1),
     };
   }
 
   /**
    * Set an overlay on a tile (selected, hover, error, or null).
-   * Maps full-resolution coords to current LOD coords.
+   * Maps full-resolution coords to the correct cell.
    */
   setTileOverlay(faceId, row, col, overlay) {
-    const N = this.faceLOD[faceId];
-    const fullN = this.maxSubdivisions;
+    const { cellRow, cellCol, localRow, localCol } = this.toCellCoords(row, col);
+    const key = this.cellKey(faceId, cellRow, cellCol);
+    const N = this.cellLOD.get(key);
 
     // Store at full-resolution key for persistence across LOD changes
-    const fullKey = row * fullN + col;
-    if (overlay) {
-      this.faceOverlays[faceId].set(fullKey, overlay);
-    } else {
-      this.faceOverlays[faceId].delete(fullKey);
+    const fullKey = row * this.maxSubdivisions + col;
+    const overlayMap = this.cellOverlays.get(key);
+    if (overlayMap) {
+      if (overlay) {
+        overlayMap.set(fullKey, overlay);
+      } else {
+        overlayMap.delete(fullKey);
+      }
     }
 
-    if (N === 0) return; // face not visible
+    if (!N || N === 0) return;
 
-    // Map to LOD tile
-    const lodRow = Math.floor((row / fullN) * N);
-    const lodCol = Math.floor((col / fullN) * N);
-    this.refreshTileVertices(faceId, lodRow, lodCol, N);
+    // Map to LOD tile within cell
+    const lodRow = Math.floor((localRow / TILES_PER_CELL) * N);
+    const lodCol = Math.floor((localCol / TILES_PER_CELL) * N);
+    this.refreshTileVertices(key, lodRow, lodCol, N);
   }
 
   getTileOverlay(faceId, row, col) {
-    const fullN = this.maxSubdivisions;
-    return this.faceOverlays[faceId].get(row * fullN + col) || null;
+    const { cellRow, cellCol } = this.toCellCoords(row, col);
+    const key = this.cellKey(faceId, cellRow, cellCol);
+    const overlayMap = this.cellOverlays.get(key);
+    if (!overlayMap) return null;
+    return overlayMap.get(row * this.maxSubdivisions + col) || null;
   }
 
   /**
-   * Re-apply all stored overlays after an LOD change.
+   * Get the current LOD for a cell.
    */
-  reapplyOverlays(faceId) {
-    const N = this.faceLOD[faceId];
-    if (N === 0) return;
+  getCellLOD(faceId, cellRow, cellCol) {
+    return this.cellLOD.get(this.cellKey(faceId, cellRow, cellCol)) || 0;
+  }
 
-    const fullN = this.maxSubdivisions;
+  /**
+   * Re-apply all stored overlays after an LOD change for a specific cell.
+   */
+  reapplyOverlays(faceId, cellRow, cellCol) {
+    const key = this.cellKey(faceId, cellRow, cellCol);
+    const N = this.cellLOD.get(key);
+    if (!N || N === 0) return;
+
+    const overlayMap = this.cellOverlays.get(key);
+    if (!overlayMap || overlayMap.size === 0) return;
+
     const refreshedLodTiles = new Set();
 
-    for (const [fullKey] of this.faceOverlays[faceId]) {
-      const fullRow = Math.floor(fullKey / fullN);
-      const fullCol = fullKey % fullN;
-      const lodRow = Math.floor((fullRow / fullN) * N);
-      const lodCol = Math.floor((fullCol / fullN) * N);
+    for (const [fullKey] of overlayMap) {
+      const fullRow = Math.floor(fullKey / this.maxSubdivisions);
+      const fullCol = fullKey % this.maxSubdivisions;
+      const localRow = fullRow - cellRow * TILES_PER_CELL;
+      const localCol = fullCol - cellCol * TILES_PER_CELL;
+      const lodRow = Math.floor((localRow / TILES_PER_CELL) * N);
+      const lodCol = Math.floor((localCol / TILES_PER_CELL) * N);
       const lodKey = lodRow * N + lodCol;
 
       if (!refreshedLodTiles.has(lodKey)) {
         refreshedLodTiles.add(lodKey);
-        this.refreshTileVertices(faceId, lodRow, lodCol, N);
+        this.refreshTileVertices(key, lodRow, lodCol, N);
       }
     }
   }
@@ -437,8 +550,8 @@ export class ChunkManager {
   /**
    * Refresh the 4 corner vertices of a LOD tile, with overlay blending.
    */
-  refreshTileVertices(faceId, lodRow, lodCol, N) {
-    const colorAttr = this.faceColorArrays[faceId];
+  refreshTileVertices(cellKey, lodRow, lodCol, N) {
+    const colorAttr = this.cellColorArrays.get(cellKey);
     if (!colorAttr) return;
 
     const arr = colorAttr.array;
@@ -448,7 +561,7 @@ export class ChunkManager {
         const v = lodRow + dv;
         const u = lodCol + du;
         const vi = v * (N + 1) + u;
-        const color = this.computeVertexColor(faceId, v, u, N);
+        const color = this.computeVertexColor(cellKey, v, u, N);
         arr[vi * 3] = color.r;
         arr[vi * 3 + 1] = color.g;
         arr[vi * 3 + 2] = color.b;
@@ -459,14 +572,13 @@ export class ChunkManager {
   }
 
   /**
-   * Compute a vertex color considering overlays. Blends adjacent tiles' effective colors.
+   * Compute a vertex color considering overlays.
    */
-  computeVertexColor(faceId, v, u, N) {
-    const tileColors = this.faceBaseColors[faceId];
+  computeVertexColor(cellKey, v, u, N) {
+    const tileColors = this.cellBaseColors.get(cellKey);
     if (!tileColors) return new THREE.Color(0x4a7c3f);
 
-    const fullN = this.maxSubdivisions;
-    const overlays = this.faceOverlays[faceId];
+    const overlays = this.cellOverlays.get(cellKey);
     const adjacent = [];
 
     for (let dv = -1; dv <= 0; dv++) {
@@ -475,9 +587,7 @@ export class ChunkManager {
         const col = u + du;
         if (row >= 0 && row < N && col >= 0 && col < N) {
           const base = tileColors[row * N + col];
-
-          // Check if any full-resolution tile in this LOD tile has an overlay
-          const overlay = this.lodTileOverlay(faceId, row, col, N, fullN, overlays);
+          const overlay = this.lodTileOverlay(cellKey, row, col, N, overlays);
           adjacent.push(this.applyOverlay(base, overlay));
         }
       }
@@ -498,24 +608,32 @@ export class ChunkManager {
   }
 
   /**
-   * Find the strongest overlay for a LOD tile (which may cover multiple full-res tiles).
+   * Find the strongest overlay for a LOD tile within a cell.
    */
-  lodTileOverlay(faceId, lodRow, lodCol, N, fullN, overlays) {
-    if (overlays.size === 0) return null;
+  lodTileOverlay(cellKey, lodRow, lodCol, N, overlays) {
+    if (!overlays || overlays.size === 0) return null;
+
+    // Decode cell from key
+    const faceId = Math.floor(cellKey / 16);
+    const rem = cellKey % 16;
+    const cellRow = Math.floor(rem / 4);
+    const cellCol = rem % 4;
 
     // Range of full-res tiles covered by this LOD tile
-    const startRow = Math.floor((lodRow / N) * fullN);
-    const endRow = Math.floor(((lodRow + 1) / N) * fullN);
-    const startCol = Math.floor((lodCol / N) * fullN);
-    const endCol = Math.floor(((lodCol + 1) / N) * fullN);
+    const startLocalRow = Math.floor((lodRow / N) * TILES_PER_CELL);
+    const endLocalRow = Math.floor(((lodRow + 1) / N) * TILES_PER_CELL);
+    const startLocalCol = Math.floor((lodCol / N) * TILES_PER_CELL);
+    const endLocalCol = Math.floor(((lodCol + 1) / N) * TILES_PER_CELL);
 
-    // Priority: error > selected > hover
-    let best = null;
     const priority = { error: 3, selected: 2, hover: 1 };
+    let best = null;
 
-    for (let r = startRow; r < endRow && r < fullN; r++) {
-      for (let c = startCol; c < endCol && c < fullN; c++) {
-        const ov = overlays.get(r * fullN + c);
+    for (let lr = startLocalRow; lr < endLocalRow && lr < TILES_PER_CELL; lr++) {
+      for (let lc = startLocalCol; lc < endLocalCol && lc < TILES_PER_CELL; lc++) {
+        const faceRow = cellRow * TILES_PER_CELL + lr;
+        const faceCol = cellCol * TILES_PER_CELL + lc;
+        const fullKey = faceRow * this.maxSubdivisions + faceCol;
+        const ov = overlays.get(fullKey);
         if (ov && (!best || (priority[ov] || 0) > (priority[best] || 0))) {
           best = ov;
         }
@@ -546,27 +664,21 @@ export class ChunkManager {
   }
 
   /**
-   * Get the current LOD for a face (0 = hidden).
-   */
-  getFaceLOD(faceId) {
-    return this.faceLOD[faceId];
-  }
-
-  /**
    * Dispose all GPU resources.
    */
   dispose() {
-    for (let i = 0; i < this.faceMeshes.length; i++) {
-      if (this.faceMeshes[i]) {
-        this.scene.remove(this.faceMeshes[i]);
-        this.faceMeshes[i].geometry.dispose();
-        this.faceMeshes[i].material.dispose();
-      }
-      if (this.faceGridLines[i]) {
-        this.scene.remove(this.faceGridLines[i]);
-        this.faceGridLines[i].geometry.dispose();
-        this.faceGridLines[i].material.dispose();
-      }
+    for (const [, mesh] of this.cellMeshes) {
+      this.scene.remove(mesh);
+      mesh.geometry.dispose();
+      mesh.material.dispose();
     }
+    for (const [, lines] of this.cellGridLines) {
+      this.scene.remove(lines);
+      lines.geometry.dispose();
+      lines.material.dispose();
+    }
+    this.cellMeshes.clear();
+    this.cellGridLines.clear();
+    this.meshToCellInfo.clear();
   }
 }

@@ -70,6 +70,9 @@ config :spheric, SphericWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :spheric, dev_routes: true
 
+# World grid: 64×64 tiles per face, organized as 4×4 cells of 16×16
+config :spheric, subdivisions: 64
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 

@@ -5,7 +5,7 @@ defmodule Spheric.Game.Schema.World do
   schema "worlds" do
     field :name, :string, default: "default"
     field :seed, :integer
-    field :subdivisions, :integer, default: 16
+    field :subdivisions, :integer, default: 64
 
     has_many :buildings, Spheric.Game.Schema.Building
     has_many :tile_resources, Spheric.Game.Schema.TileResource

@@ -13,10 +13,6 @@ defmodule SphericWeb.GameLive do
   @impl true
   def mount(_params, _session, socket) do
     geometry_data = RT.client_payload()
-    subdivisions = Application.get_env(:spheric, :subdivisions, 16)
-
-    # Build terrain payload: per-face list of {terrain, resource_type} for each tile
-    terrain_data = build_terrain_data(subdivisions)
 
     # Build initial buildings snapshot
     buildings_data = build_buildings_snapshot()
@@ -59,7 +55,6 @@ defmodule SphericWeb.GameLive do
       socket
       |> assign(:page_title, "Spheric")
       |> assign(:geometry_data, geometry_data)
-      |> assign(:terrain_data, terrain_data)
       |> assign(:selected_tile, nil)
       |> assign(:tile_info, nil)
       |> assign(:selected_building_type, nil)
@@ -76,12 +71,17 @@ defmodule SphericWeb.GameLive do
     # Tell the client to restore camera and persist any newly-generated identity
     socket =
       if connected?(socket) do
-        push_event(socket, "restore_player", %{
+        socket = push_event(socket, "restore_player", %{
           player_id: player_id,
           player_name: player_name,
           player_color: player_color,
           camera: camera
         })
+
+        # Stream terrain data per-face via push_event (too large for data-attribute at 64x64)
+        send(self(), :send_terrain)
+
+        socket
       else
         socket
       end
@@ -98,7 +98,6 @@ defmodule SphericWeb.GameLive do
       phx-update="ignore"
       phx-window-keydown="keydown"
       data-geometry={Jason.encode!(@geometry_data)}
-      data-terrain={Jason.encode!(@terrain_data)}
       style="width: 100vw; height: 100vh; overflow: hidden; margin: 0; padding: 0;"
     >
     </div>
@@ -436,6 +435,21 @@ defmodule SphericWeb.GameLive do
     end
   end
 
+  # --- Terrain Streaming ---
+
+  @impl true
+  def handle_info(:send_terrain, socket) do
+    subdivisions = Application.get_env(:spheric, :subdivisions, 64)
+
+    socket =
+      Enum.reduce(0..29, socket, fn face_id, sock ->
+        terrain = build_face_terrain(face_id, subdivisions)
+        push_event(sock, "terrain_face", %{face: face_id, terrain: terrain})
+      end)
+
+    {:noreply, socket}
+  end
+
   # --- Presence Handlers ---
 
   @impl true
@@ -459,20 +473,18 @@ defmodule SphericWeb.GameLive do
 
   # --- Helpers ---
 
-  defp build_terrain_data(subdivisions) do
-    for face_id <- 0..29 do
-      for row <- 0..(subdivisions - 1) do
-        for col <- 0..(subdivisions - 1) do
-          tile = WorldStore.get_tile({face_id, row, col})
+  defp build_face_terrain(face_id, subdivisions) do
+    for row <- 0..(subdivisions - 1) do
+      for col <- 0..(subdivisions - 1) do
+        tile = WorldStore.get_tile({face_id, row, col})
 
-          resource_type =
-            case tile.resource do
-              nil -> nil
-              {type, _amount} -> Atom.to_string(type)
-            end
+        resource_type =
+          case tile.resource do
+            nil -> nil
+            {type, _amount} -> Atom.to_string(type)
+          end
 
-          %{t: Atom.to_string(tile.terrain), r: resource_type}
-        end
+        %{t: Atom.to_string(tile.terrain), r: resource_type}
       end
     end
   end
