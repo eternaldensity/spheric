@@ -12,9 +12,7 @@ defmodule Spheric.Application do
       # Spheric.Repo,  # TODO: re-enable when PostgreSQL is available
       {DNSCluster, query: Application.get_env(:spheric, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Spheric.PubSub},
-      # Start a worker by calling: Spheric.Worker.start_link(arg)
-      # {Spheric.Worker, arg},
-      # Start to serve requests, typically the last entry
+      Spheric.Game.WorldServer,
       SphericWeb.Endpoint
     ]
 
