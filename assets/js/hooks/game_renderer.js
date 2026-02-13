@@ -56,6 +56,15 @@ const GameRenderer = {
     this.previewArrow = null;        // arrow mesh showing output direction on hover
     this.buildingRenderMode = "3d";  // "3d" = meshes visible, "icons" = texture icons visible
 
+    // Line-drawing mode state
+    this.lineMode = false;           // toggled by L key or Line button
+    this.lineStart = null;           // {face, row, col} or null — first click in line mode
+    this.linePreviewTiles = [];      // [{face, row, col, orientation}, ...] for clearing overlays
+    this.linePreviewMeshes = [];     // THREE.Group[] for preview arrows
+
+    // Build face adjacency map for cross-face neighbor resolution
+    this.adjacencyMap = this.buildAdjacencyMap();
+
     // Multiplayer: other players' markers
     this.playerMarkers = new Map(); // name -> { group, sphere, label }
 
@@ -348,13 +357,20 @@ const GameRenderer = {
     });
 
     this.handleEvent("placement_mode", ({ type, orientation }) => {
+      // Clear line-drawing state on any mode change
+      this.cancelLineDraw();
       this.placementType = type;
       this.placementOrientation = orientation ?? 0;
       this.clearPreviewArrow();
       // Re-show preview if currently hovering a tile
-      if (this.placementType && this.hoveredTile) {
+      if (this.placementType && this.hoveredTile && !this.lineMode) {
         this.showPreviewArrow(this.hoveredTile.face, this.hoveredTile.row, this.hoveredTile.col);
       }
+    });
+
+    this.handleEvent("line_mode", ({ enabled }) => {
+      this.cancelLineDraw();
+      this.lineMode = enabled;
     });
 
     this.handleEvent("restore_player", ({ player_id, player_name, player_color, camera }) => {
@@ -405,6 +421,10 @@ const GameRenderer = {
     this.renderer.domElement.addEventListener("contextmenu", this._onContextMenu);
 
     this._onKeyDown = (event) => {
+      if (event.key === "Escape" && this.lineStart) {
+        this.cancelLineDraw();
+        return;
+      }
       if (event.key === "t" || event.key === "T") {
         this.toggleBuildingRenderMode();
       }
@@ -430,7 +450,32 @@ const GameRenderer = {
     const tile = this.hitToTile(event);
     if (!tile) return;
 
-    // Clear previous selection
+    // Line-drawing mode: two-click workflow
+    if (this.lineMode && this.placementType) {
+      if (!this.lineStart) {
+        // First click: set start tile
+        this.lineStart = tile;
+        this.setTileOverlay(tile.face, tile.row, tile.col, "selected");
+        return;
+      } else {
+        // Second click: compute path and send batch placement
+        const path = this.computeLinePath(this.lineStart, tile);
+        if (path.length > 0) {
+          this.pushEvent("place_line", {
+            buildings: path.map(t => ({
+              face: t.face,
+              row: t.row,
+              col: t.col,
+              orientation: t.orientation,
+            })),
+          });
+        }
+        this.cancelLineDraw();
+        return;
+      }
+    }
+
+    // Normal mode: clear previous selection
     if (this.selectedTile) {
       this.setTileOverlay(this.selectedTile.face, this.selectedTile.row, this.selectedTile.col, null);
     }
@@ -449,6 +494,13 @@ const GameRenderer = {
   onTileRightClick(event) {
     event.preventDefault();
     if (this._spinning) return;
+
+    // Cancel line-drawing if active
+    if (this.lineStart) {
+      this.cancelLineDraw();
+      return;
+    }
+
     const tile = this.hitToTile(event);
     if (!tile) return;
 
@@ -476,6 +528,12 @@ const GameRenderer = {
     this.hoveredTile = tile;
 
     if (tile) {
+      // If in line-drawing mode with start set, show line preview
+      if (this.lineMode && this.lineStart) {
+        this.showLinePreview(tile);
+        return;
+      }
+
       const overlay = this.getTileOverlay(tile.face, tile.row, tile.col);
       if (overlay !== "selected") {
         this.setTileOverlay(tile.face, tile.row, tile.col, "hover");
@@ -534,6 +592,220 @@ const GameRenderer = {
     if (this.previewArrow) {
       this.scene.remove(this.previewArrow);
       this.previewArrow = null;
+    }
+  },
+
+  // --- Line-drawing mode ---
+
+  buildAdjacencyMap() {
+    const faces = this.faceIndices;
+    const edgeToFaces = new Map();
+
+    for (let faceId = 0; faceId < faces.length; faceId++) {
+      const [v0, v1, v2, v3] = faces[faceId];
+      const edges = [[v0, v1], [v1, v2], [v2, v3], [v3, v0]];
+
+      for (let edgeIdx = 0; edgeIdx < 4; edgeIdx++) {
+        const [a, b] = edges[edgeIdx];
+        const edgeKey = Math.min(a, b) * 10000 + Math.max(a, b);
+        if (!edgeToFaces.has(edgeKey)) edgeToFaces.set(edgeKey, []);
+        edgeToFaces.get(edgeKey).push({ faceId, edgeIdx, verts: [a, b] });
+      }
+    }
+
+    const adjacency = [];
+    for (let faceId = 0; faceId < faces.length; faceId++) {
+      const [v0, v1, v2, v3] = faces[faceId];
+      const edges = [[v0, v1], [v1, v2], [v2, v3], [v3, v0]];
+      const neighbors = [];
+
+      for (let edgeIdx = 0; edgeIdx < 4; edgeIdx++) {
+        const [a, b] = edges[edgeIdx];
+        const edgeKey = Math.min(a, b) * 10000 + Math.max(a, b);
+        const entries = edgeToFaces.get(edgeKey);
+        const other = entries.find(e => e.faceId !== faceId);
+
+        if (other) {
+          const theirVerts = other.verts;
+          const flipped = (a === theirVerts[1] && b === theirVerts[0]);
+          neighbors.push({ face: other.faceId, theirEdge: other.edgeIdx, flipped });
+        } else {
+          neighbors.push(null);
+        }
+      }
+      adjacency.push(neighbors);
+    }
+    return adjacency;
+  },
+
+  getNeighborTile(tile, direction) {
+    const N = this.subdivisions;
+    const { face, row, col } = tile;
+    const [dr, dc] = DIR_OFFSETS[direction];
+    const newRow = row + dr;
+    const newCol = col + dc;
+
+    if (newRow >= 0 && newRow < N && newCol >= 0 && newCol < N) {
+      return { face, row: newRow, col: newCol };
+    }
+    return this.crossFaceNeighbor(face, row, col, direction);
+  },
+
+  crossFaceNeighbor(face, row, col, direction) {
+    const max = this.subdivisions - 1;
+
+    let myEdge, posAlongEdge;
+    switch (direction) {
+      case 0: myEdge = 1; posAlongEdge = row; break;
+      case 1: myEdge = 2; posAlongEdge = max - col; break;
+      case 2: myEdge = 3; posAlongEdge = max - row; break;
+      case 3: myEdge = 0; posAlongEdge = col; break;
+    }
+
+    const neighborInfo = this.adjacencyMap[face][myEdge];
+    if (!neighborInfo) return null;
+
+    const pos = neighborInfo.flipped ? max - posAlongEdge : posAlongEdge;
+
+    let newRow, newCol;
+    switch (neighborInfo.theirEdge) {
+      case 0: newRow = 0; newCol = pos; break;
+      case 1: newRow = pos; newCol = max; break;
+      case 2: newRow = max; newCol = max - pos; break;
+      case 3: newRow = max - pos; newCol = 0; break;
+    }
+
+    return { face: neighborInfo.face, row: newRow, col: newCol };
+  },
+
+  bestDirectionToward(tile, targetPos) {
+    let bestDir = 0;
+    let bestDist = Infinity;
+
+    for (let dir = 0; dir < 4; dir++) {
+      const [dr, dc] = DIR_OFFSETS[dir];
+      const neighborPos = this.getTileCenter(tile.face, tile.row + dr, tile.col + dc);
+      const dist = neighborPos.distanceToSquared(targetPos);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestDir = dir;
+      }
+    }
+    return bestDir;
+  },
+
+  computeLinePath(start, end) {
+    const MAX_LINE_LENGTH = 128;
+    const path = [];
+    const visited = new Set();
+
+    let current = { face: start.face, row: start.row, col: start.col };
+    const targetPos = this.getTileCenter(end.face, end.row, end.col);
+
+    // Special case: start == end, place single tile with current orientation
+    if (start.face === end.face && start.row === end.row && start.col === end.col) {
+      return [{ ...current, orientation: this.placementOrientation }];
+    }
+
+    for (let step = 0; step < MAX_LINE_LENGTH; step++) {
+      const key = `${current.face}:${current.row}:${current.col}`;
+      if (visited.has(key)) break;
+      visited.add(key);
+
+      const isTarget =
+        current.face === end.face &&
+        current.row === end.row &&
+        current.col === end.col;
+
+      if (isTarget) {
+        // Last tile gets same orientation as previous
+        const prevOrientation = path.length > 0
+          ? path[path.length - 1].orientation
+          : this.placementOrientation;
+        path.push({ ...current, orientation: prevOrientation });
+        break;
+      }
+
+      const bestDir = this.bestDirectionToward(current, targetPos);
+      path.push({ ...current, orientation: bestDir });
+
+      const neighbor = this.getNeighborTile(current, bestDir);
+      if (!neighbor) break;
+      current = neighbor;
+    }
+
+    return path;
+  },
+
+  showLinePreview(endTile) {
+    this.clearLinePreview();
+
+    const path = this.computeLinePath(this.lineStart, endTile);
+    this.linePreviewTiles = path;
+
+    for (const tile of path) {
+      this.setTileOverlay(tile.face, tile.row, tile.col, "hover");
+      this.showPreviewArrowAt(tile.face, tile.row, tile.col, tile.orientation);
+    }
+  },
+
+  showPreviewArrowAt(face, row, col, orientation) {
+    const N = this.subdivisions;
+    const [dr, dc] = DIR_OFFSETS[orientation];
+
+    const from = this.getTileCenter(face, row, col);
+    const to = this.getTileCenter(face, row + dr, col + dc);
+    const normal = from.clone().normalize();
+
+    const dir = new THREE.Vector3().subVectors(to, from);
+    dir.addScaledVector(normal, -dir.dot(normal)).normalize();
+
+    const LIFT = 1.018;
+    const LEN = 0.6 / N;
+    const start = from.clone().multiplyScalar(LIFT);
+    const end = start.clone().addScaledVector(dir, LEN);
+
+    const shaftGeo = new THREE.BufferGeometry().setFromPoints([start, end]);
+    const shaftMat = new THREE.LineBasicMaterial({ color: 0x44ddff, linewidth: 2 });
+    const shaft = new THREE.Line(shaftGeo, shaftMat);
+
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(0.002, 0.005, 6),
+      new THREE.MeshBasicMaterial({ color: 0x44ddff })
+    );
+    cone.position.copy(end);
+    cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+
+    const group = new THREE.Group();
+    group.add(shaft);
+    group.add(cone);
+    this.scene.add(group);
+    this.linePreviewMeshes.push(group);
+  },
+
+  clearLinePreview() {
+    for (const group of this.linePreviewMeshes) {
+      this.scene.remove(group);
+    }
+    this.linePreviewMeshes = [];
+
+    for (const tile of this.linePreviewTiles) {
+      const overlay = this.getTileOverlay(tile.face, tile.row, tile.col);
+      if (overlay === "hover") {
+        this.setTileOverlay(tile.face, tile.row, tile.col, null);
+      }
+    }
+    this.linePreviewTiles = [];
+  },
+
+  cancelLineDraw() {
+    this.clearLinePreview();
+    if (this.lineStart) {
+      const overlay = this.getTileOverlay(this.lineStart.face, this.lineStart.row, this.lineStart.col);
+      if (overlay === "selected") {
+        this.setTileOverlay(this.lineStart.face, this.lineStart.row, this.lineStart.col, null);
+      }
+      this.lineStart = null;
     }
   },
 
@@ -740,6 +1012,7 @@ const GameRenderer = {
     this.renderer.domElement.removeEventListener("mousemove", this._onMouseMove);
     this.renderer.domElement.removeEventListener("contextmenu", this._onContextMenu);
     this.clearPreviewArrow();
+    this.clearLinePreview();
     this.disposePlayerMarkers();
     if (this.itemRenderer) this.itemRenderer.dispose();
     if (this.chunkManager) this.chunkManager.dispose();

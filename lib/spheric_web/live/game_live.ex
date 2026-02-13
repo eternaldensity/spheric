@@ -63,6 +63,7 @@ defmodule SphericWeb.GameLive do
       |> assign(:visible_faces, initial_faces)
       |> assign(:subscribed_faces, initial_faces)
       |> assign(:building_types, Buildings.types())
+      |> assign(:line_mode, false)
       |> assign(:player_id, player_id)
       |> assign(:player_name, player_name)
       |> assign(:player_color, player_color)
@@ -193,6 +194,13 @@ defmodule SphericWeb.GameLive do
           {direction_label(@placement_orientation)}
         </button>
         <button
+          phx-click="toggle_line_mode"
+          style={"padding: 8px 12px; border: 2px solid #{if @line_mode, do: "#44ddff", else: "#77aaff"}; border-radius: 6px; background: #{if @line_mode, do: "rgba(68,221,255,0.25)", else: "rgba(119,170,255,0.15)"}; color: #{if @line_mode, do: "#44ddff", else: "#aaddff"}; cursor: pointer; font-family: monospace; font-size: 13px; font-weight: #{if @line_mode, do: "bold", else: "normal"};"}
+          title="Line draw mode (L key)"
+        >
+          Line
+        </button>
+        <button
           phx-click="select_building"
           phx-value-type="none"
           style="padding: 8px 16px; border: 2px solid #888; border-radius: 6px; background: rgba(255,255,255,0.1); color: #aaa; cursor: pointer; font-family: monospace; font-size: 13px;"
@@ -211,7 +219,9 @@ defmodule SphericWeb.GameLive do
     socket =
       socket
       |> assign(:selected_building_type, nil)
+      |> assign(:line_mode, false)
       |> push_event("placement_mode", %{type: nil, orientation: nil})
+      |> push_event("line_mode", %{enabled: false})
 
     {:noreply, socket}
   end
@@ -247,6 +257,64 @@ defmodule SphericWeb.GameLive do
       })
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_line_mode", _params, socket) do
+    if socket.assigns.selected_building_type do
+      new_line_mode = !socket.assigns.line_mode
+
+      socket =
+        socket
+        |> assign(:line_mode, new_line_mode)
+        |> push_event("line_mode", %{enabled: new_line_mode})
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("place_line", %{"buildings" => buildings_list}, socket) do
+    case socket.assigns.selected_building_type do
+      nil ->
+        {:noreply, socket}
+
+      building_type ->
+        owner = %{id: socket.assigns.player_id, name: socket.assigns.player_name}
+
+        placements =
+          Enum.map(buildings_list, fn %{"face" => face, "row" => row, "col" => col, "orientation" => orientation} ->
+            {{face, row, col}, building_type, orientation, owner}
+          end)
+
+        results = WorldServer.place_buildings(placements)
+
+        socket =
+          Enum.reduce(results, socket, fn
+            {{face, row, col}, :ok}, sock ->
+              building = WorldStore.get_building({face, row, col})
+
+              push_event(sock, "building_placed", %{
+                face: face,
+                row: row,
+                col: col,
+                type: Atom.to_string(building.type),
+                orientation: building.orientation
+              })
+
+            {{face, row, col}, {:error, reason}}, sock ->
+              push_event(sock, "place_error", %{
+                face: face,
+                row: row,
+                col: col,
+                reason: Atom.to_string(reason)
+              })
+          end)
+
+        {:noreply, socket}
+    end
   end
 
   @impl true
@@ -340,6 +408,22 @@ defmodule SphericWeb.GameLive do
           type: Atom.to_string(socket.assigns.selected_building_type),
           orientation: new_orientation
         })
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("keydown", %{"key" => "l"}, socket) do
+    if socket.assigns.selected_building_type do
+      new_line_mode = !socket.assigns.line_mode
+
+      socket =
+        socket
+        |> assign(:line_mode, new_line_mode)
+        |> push_event("line_mode", %{enabled: new_line_mode})
 
       {:noreply, socket}
     else

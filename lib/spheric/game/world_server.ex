@@ -29,6 +29,11 @@ defmodule Spheric.Game.WorldServer do
     GenServer.call(__MODULE__, {:place_building, key, type, orientation, owner})
   end
 
+  @doc "Place multiple buildings atomically. Returns list of {key, :ok | {:error, reason}}."
+  def place_buildings(placements) when is_list(placements) do
+    GenServer.call(__MODULE__, {:place_buildings, placements})
+  end
+
   @doc "Remove a building at the given tile. Returns :ok or {:error, :no_building}."
   def remove_building({_face_id, _row, _col} = key, player_id \\ nil) do
     GenServer.call(__MODULE__, {:remove_building, key, player_id})
@@ -132,6 +137,49 @@ defmodule Spheric.Game.WorldServer do
 
         {:reply, :ok, state}
     end
+  end
+
+  @impl true
+  def handle_call({:place_buildings, placements}, _from, state) do
+    results =
+      Enum.map(placements, fn {key, type, orientation, owner} ->
+        {face_id, _row, _col} = key
+        tile = WorldStore.get_tile(key)
+
+        cond do
+          tile == nil ->
+            {key, {:error, :invalid_tile}}
+
+          not Buildings.valid_type?(type) ->
+            {key, {:error, :invalid_building_type}}
+
+          WorldStore.has_building?(key) ->
+            {key, {:error, :tile_occupied}}
+
+          not Buildings.can_place_on?(type, tile) ->
+            {key, {:error, :invalid_placement}}
+
+          true ->
+            building = %{
+              type: type,
+              orientation: orientation,
+              state: Buildings.initial_state(type),
+              owner_id: owner[:id]
+            }
+
+            WorldStore.put_building(key, building)
+
+            Phoenix.PubSub.broadcast(
+              Spheric.PubSub,
+              "world:face:#{face_id}",
+              {:building_placed, key, building}
+            )
+
+            {key, :ok}
+        end
+      end)
+
+    {:reply, results, state}
   end
 
   @impl true
