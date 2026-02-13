@@ -326,23 +326,28 @@ const GameRenderer = {
     // Position slightly above surface
     mesh.position.copy(normal).multiplyScalar(1.005);
 
-    // Build orientation from face grid vectors so the arrow aligns with
-    // the actual tile directions (orientation 0 = e1 = col+1 = "Right")
-    const { e1, e2 } = this.faceEdges[face];
+    // Compute forward direction from this tile toward the neighbor in the
+    // orientation direction, so buildings point exactly at their output tile.
+    // Direction offsets: 0=col+1, 1=row+1, 2=col-1, 3=row-1
+    const N = this.subdivisions;
+    const dirOffsets = [
+      [0, 1],   // orientation 0: col+1
+      [1, 0],   // orientation 1: row+1
+      [0, -1],  // orientation 2: col-1
+      [-1, 0],  // orientation 3: row-1
+    ];
+    const [dr, dc] = dirOffsets[orientation];
+    const neighborCenter = this.getTileCenter(face,
+      (row + dr + N) % N,
+      (col + dc + N) % N
+    );
 
-    // Project e1 onto the tangent plane at this tile center
-    const tangentX = e1.clone().addScaledVector(normal, -e1.dot(normal)).normalize();
+    // Project neighbor direction onto tangent plane at this tile
+    const toNeighbor = new THREE.Vector3().subVectors(neighborCenter, normal);
+    const tangentX = toNeighbor.addScaledVector(normal, -toNeighbor.dot(normal)).normalize();
     const tangentZ = new THREE.Vector3().crossVectors(tangentX, normal).normalize();
 
-    // Rotation matrix: mesh local X -> tangentX, Y -> normal, Z -> tangentZ
     const m = new THREE.Matrix4().makeBasis(tangentX, normal, tangentZ);
-
-    // Apply orientation rotation around the normal (0=Right, 1=Down, 2=Left, 3=Up)
-    if (orientation > 0) {
-      const rot = new THREE.Matrix4().makeRotationAxis(normal, (orientation * Math.PI) / 2);
-      m.premultiply(rot);
-    }
-
     mesh.quaternion.setFromRotationMatrix(m);
 
     this.scene.add(mesh);
