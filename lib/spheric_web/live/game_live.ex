@@ -31,7 +31,9 @@ defmodule SphericWeb.GameLive do
       |> assign(:geometry_data, geometry_data)
       |> assign(:terrain_data, terrain_data)
       |> assign(:selected_tile, nil)
+      |> assign(:tile_info, nil)
       |> assign(:selected_building_type, nil)
+      |> assign(:placement_orientation, 0)
       |> assign(:camera_pos, {0.0, 0.0, 3.5})
       |> assign(:visible_faces, MapSet.new(0..29))
       |> assign(:building_types, Buildings.types())
@@ -47,6 +49,7 @@ defmodule SphericWeb.GameLive do
       id="game-container"
       phx-hook="GameRenderer"
       phx-update="ignore"
+      phx-window-keydown="keydown"
       data-geometry={Jason.encode!(@geometry_data)}
       data-terrain={Jason.encode!(@terrain_data)}
       style="width: 100vw; height: 100vh; overflow: hidden; margin: 0; padding: 0;"
@@ -54,10 +57,46 @@ defmodule SphericWeb.GameLive do
     </div>
 
     <div
-      :if={@selected_tile}
-      style="position: fixed; top: 16px; left: 16px; background: rgba(0,0,0,0.7); color: #fff; padding: 8px 14px; border-radius: 6px; font-family: monospace; font-size: 14px; pointer-events: none;"
+      :if={@tile_info}
+      style="position: fixed; top: 16px; left: 16px; background: rgba(0,0,0,0.8); color: #fff; padding: 10px 14px; border-radius: 6px; font-family: monospace; font-size: 13px; line-height: 1.6; pointer-events: auto; min-width: 180px;"
     >
-      Face {@selected_tile.face} &middot; Row {@selected_tile.row} &middot; Col {@selected_tile.col}
+      <div style="color: #aaa; font-size: 11px; margin-bottom: 4px;">
+        Face {@tile_info.face} &middot; Row {@tile_info.row} &middot; Col {@tile_info.col}
+      </div>
+      <div>
+        Terrain: <span style="color: #8cd">{@tile_info.terrain}</span>
+      </div>
+      <div :if={@tile_info.resource}>
+        Resource: <span style="color: #fc8">{@tile_info.resource_type}</span>
+        ({@tile_info.resource_amount})
+      </div>
+      <div :if={@tile_info.resource == nil} style="color: #666;">
+        No resources
+      </div>
+      <div :if={@tile_info.building} style="margin-top: 4px; border-top: 1px solid #444; padding-top: 4px;">
+        <div>
+          Building: <span style="color: #fd4">{@tile_info.building_name}</span>
+        </div>
+        <div style="color: #aaa; font-size: 11px;">
+          Orientation: {@tile_info.building_orientation}
+          ({direction_label(@tile_info.building_orientation)})
+        </div>
+        <div :if={@tile_info.building_status} style="color: #aaa; font-size: 11px;">
+          {@tile_info.building_status}
+        </div>
+        <button
+          phx-click="remove_building"
+          phx-value-face={@tile_info.face}
+          phx-value-row={@tile_info.row}
+          phx-value-col={@tile_info.col}
+          style="margin-top: 6px; padding: 4px 10px; border: 1px solid #a44; border-radius: 4px; background: rgba(170,68,68,0.3); color: #f88; cursor: pointer; font-family: monospace; font-size: 11px;"
+        >
+          Remove
+        </button>
+      </div>
+      <div :if={@tile_info.building == nil} style="color: #666; margin-top: 4px;">
+        No building
+      </div>
     </div>
 
     <div style="position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; padding: 12px; background: rgba(0,0,0,0.75); pointer-events: auto;">
@@ -79,14 +118,22 @@ defmodule SphericWeb.GameLive do
       >
         {Buildings.display_name(type)}
       </button>
-      <button
-        :if={@selected_building_type}
-        phx-click="select_building"
-        phx-value-type="none"
-        style="padding: 8px 16px; border: 2px solid #888; border-radius: 6px; background: rgba(255,255,255,0.1); color: #aaa; cursor: pointer; font-family: monospace; font-size: 13px;"
-      >
-        Cancel
-      </button>
+      <div :if={@selected_building_type} style="display: flex; align-items: center; gap: 4px; margin-left: 8px; padding-left: 8px; border-left: 1px solid #555;">
+        <button
+          phx-click="rotate_building"
+          style="padding: 8px 12px; border: 2px solid #77aaff; border-radius: 6px; background: rgba(119,170,255,0.15); color: #aaddff; cursor: pointer; font-family: monospace; font-size: 13px;"
+          title="Rotate (R key)"
+        >
+          {direction_label(@placement_orientation)}
+        </button>
+        <button
+          phx-click="select_building"
+          phx-value-type="none"
+          style="padding: 8px 16px; border: 2px solid #888; border-radius: 6px; background: rgba(255,255,255,0.1); color: #aaa; cursor: pointer; font-family: monospace; font-size: 13px;"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
     """
   end
@@ -110,24 +157,40 @@ defmodule SphericWeb.GameLive do
   end
 
   @impl true
+  def handle_event("rotate_building", _params, socket) do
+    new_orientation = rem(socket.assigns.placement_orientation + 1, 4)
+    {:noreply, assign(socket, :placement_orientation, new_orientation)}
+  end
+
+  @impl true
   def handle_event("tile_click", %{"face" => face, "row" => row, "col" => col}, socket) do
+    key = {face, row, col}
     tile = %{face: face, row: row, col: col}
     Logger.debug("Tile clicked: face=#{face} row=#{row} col=#{col}")
 
     case socket.assigns.selected_building_type do
       nil ->
-        {:noreply, assign(socket, :selected_tile, tile)}
+        tile_info = build_tile_info(key)
+
+        socket =
+          socket
+          |> assign(:selected_tile, tile)
+          |> assign(:tile_info, tile_info)
+
+        {:noreply, socket}
 
       building_type ->
-        key = {face, row, col}
+        orientation = socket.assigns.placement_orientation
 
-        case WorldServer.place_building(key, building_type) do
+        case WorldServer.place_building(key, building_type, orientation) do
           :ok ->
             building = WorldStore.get_building(key)
+            tile_info = build_tile_info(key)
 
             socket =
               socket
               |> assign(:selected_tile, tile)
+              |> assign(:tile_info, tile_info)
               |> push_event("building_placed", %{
                 face: face,
                 row: row,
@@ -159,8 +222,11 @@ defmodule SphericWeb.GameLive do
 
     case WorldServer.remove_building(key) do
       :ok ->
+        tile_info = build_tile_info(key)
+
         socket =
           socket
+          |> assign(:tile_info, tile_info)
           |> push_event("building_removed", %{face: face, row: row, col: col})
 
         {:noreply, socket}
@@ -168,6 +234,21 @@ defmodule SphericWeb.GameLive do
       {:error, _reason} ->
         {:noreply, socket}
     end
+  end
+
+  @impl true
+  def handle_event("keydown", %{"key" => "r"}, socket) do
+    if socket.assigns.selected_building_type do
+      new_orientation = rem(socket.assigns.placement_orientation + 1, 4)
+      {:noreply, assign(socket, :placement_orientation, new_orientation)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("keydown", _params, socket) do
+    {:noreply, socket}
   end
 
   @impl true
@@ -252,6 +333,69 @@ defmodule SphericWeb.GameLive do
       end
     end
   end
+
+  defp direction_label(0), do: "Right"
+  defp direction_label(1), do: "Down"
+  defp direction_label(2), do: "Left"
+  defp direction_label(3), do: "Up"
+
+  defp build_tile_info({face, row, col} = key) do
+    tile = WorldStore.get_tile(key)
+    building = WorldStore.get_building(key)
+
+    {resource_type, resource_amount} =
+      case tile do
+        %{resource: {type, amount}} -> {Atom.to_string(type), amount}
+        _ -> {nil, nil}
+      end
+
+    base = %{
+      face: face,
+      row: row,
+      col: col,
+      terrain: Atom.to_string(tile.terrain),
+      resource: tile.resource,
+      resource_type: resource_type,
+      resource_amount: resource_amount,
+      building: building
+    }
+
+    if building do
+      Map.merge(base, %{
+        building_name: Buildings.display_name(building.type),
+        building_orientation: building.orientation,
+        building_status: building_status_text(building)
+      })
+    else
+      Map.merge(base, %{
+        building_name: nil,
+        building_orientation: nil,
+        building_status: nil
+      })
+    end
+  end
+
+  defp building_status_text(%{type: :miner, state: state}) do
+    cond do
+      state[:output_buffer] != nil -> "Output: #{state.output_buffer}"
+      state[:progress] > 0 -> "Mining... #{state.progress}/#{state.rate}"
+      true -> "Idle"
+    end
+  end
+
+  defp building_status_text(%{type: :smelter, state: state}) do
+    cond do
+      state[:output_buffer] != nil -> "Output: #{state.output_buffer}"
+      state[:input_buffer] != nil -> "Smelting... #{state.progress}/#{state.rate}"
+      true -> "Idle"
+    end
+  end
+
+  defp building_status_text(%{type: :conveyor, state: state}) do
+    if state[:item], do: "Carrying: #{state.item}", else: "Empty"
+  end
+
+  defp building_status_text(_building), do: nil
 
   defp build_buildings_snapshot do
     for face_id <- 0..29,

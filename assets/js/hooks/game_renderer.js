@@ -398,8 +398,10 @@ const GameRenderer = {
 
     this._onClick = (event) => this.onTileClick(event);
     this._onMouseMove = (event) => this.onTileHover(event);
+    this._onContextMenu = (event) => this.onTileRightClick(event);
     this.renderer.domElement.addEventListener("click", this._onClick);
     this.renderer.domElement.addEventListener("mousemove", this._onMouseMove);
+    this.renderer.domElement.addEventListener("contextmenu", this._onContextMenu);
   },
 
   hitToTile(event) {
@@ -437,6 +439,18 @@ const GameRenderer = {
 
     // Send to server — server decides whether this is a selection or building placement
     this.pushEvent("tile_click", {
+      face: tile.face,
+      row: tile.row,
+      col: tile.col,
+    });
+  },
+
+  onTileRightClick(event) {
+    event.preventDefault();
+    const tile = this.hitToTile(event);
+    if (!tile) return;
+
+    this.pushEvent("remove_building", {
       face: tile.face,
       row: tile.row,
       col: tile.col,
@@ -603,6 +617,7 @@ const GameRenderer = {
     window.removeEventListener("resize", this._onResize);
     this.renderer.domElement.removeEventListener("click", this._onClick);
     this.renderer.domElement.removeEventListener("mousemove", this._onMouseMove);
+    this.renderer.domElement.removeEventListener("contextmenu", this._onContextMenu);
     if (this.itemRenderer) this.itemRenderer.dispose();
     this.controls.dispose();
     this.renderer.dispose();
