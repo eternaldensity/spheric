@@ -33,10 +33,11 @@ defmodule SphericWeb.GameLive do
       Phoenix.PubSub.subscribe(Spheric.PubSub, @presence_topic)
     end
 
-    # Player identity
+    # Player identity — use a unique ID per LiveView process since socket.id
+    # is nil without authentication (no live_socket_id in session)
     player_name = Presence.random_name()
     player_color = Presence.random_color()
-    player_id = socket.id || "anon"
+    player_id = "player:#{Base.encode16(:crypto.strong_rand_bytes(8))}"
 
     # Track presence (only when connected)
     if connected?(socket) do
@@ -405,8 +406,10 @@ defmodule SphericWeb.GameLive do
 
   @impl true
   def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff"}, socket) do
+    presences = Presence.list(@presence_topic)
+
     players =
-      Presence.list(@presence_topic)
+      presences
       |> Enum.reject(fn {id, _} -> id == socket.assigns.player_id end)
       |> Enum.map(fn {_id, %{metas: [meta | _]}} ->
         %{
@@ -417,6 +420,10 @@ defmodule SphericWeb.GameLive do
           z: meta.camera.z
         }
       end)
+
+    Logger.debug(
+      "Presence diff: #{map_size(presences)} total, #{length(players)} others (self=#{socket.assigns.player_id})"
+    )
 
     socket = push_event(socket, "players_update", %{players: players})
     {:noreply, socket}

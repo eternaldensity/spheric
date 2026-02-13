@@ -402,6 +402,7 @@ const GameRenderer = {
     });
 
     this.handleEvent("players_update", ({ players }) => {
+      console.log("[Spheric] players_update received:", players);
       this.updatePlayerMarkers(players);
     });
 
