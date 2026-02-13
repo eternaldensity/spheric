@@ -102,7 +102,7 @@ defmodule Spheric.Game.TickProcessor do
       Enum.flat_map(by_dest, fn {dest_key, requests} ->
         dest_building = Map.get(buildings, dest_key)
 
-        case try_accept(dest_building, requests) do
+        case try_accept(dest_key, dest_building, requests, n) do
           nil -> []
           winner -> [winner]
         end
@@ -167,17 +167,50 @@ defmodule Spheric.Game.TickProcessor do
   defp get_push_request(_key, _building, _n), do: nil
 
   # Try to accept an item at the destination building
-  defp try_accept(nil, _requests), do: nil
+  defp try_accept(_key, nil, _requests, _n), do: nil
 
-  defp try_accept(%{type: :conveyor, state: %{item: nil}}, [winner | _]), do: winner
+  defp try_accept(_key, %{type: :conveyor, state: %{item: nil}}, [winner | _], _n), do: winner
 
-  defp try_accept(%{type: :smelter, state: %{input_buffer: nil}}, [winner | _]), do: winner
+  defp try_accept(_key, %{type: :smelter, state: %{input_buffer: nil}}, [winner | _], _n),
+    do: winner
 
-  defp try_accept(%{type: :splitter, state: %{item: nil}}, [winner | _]), do: winner
+  # Splitter: only accepts from the rear (opposite of orientation)
+  defp try_accept(dest_key, %{type: :splitter, orientation: dir, state: %{item: nil}}, requests, n) do
+    rear_dir = rem(dir + 2, 4)
+    accept_from_direction(dest_key, rear_dir, requests, n)
+  end
 
-  defp try_accept(%{type: :merger, state: %{item: nil}}, [winner | _]), do: winner
+  # Merger: accepts from the two side inputs (left and right of orientation)
+  defp try_accept(dest_key, %{type: :merger, orientation: dir, state: %{item: nil}}, requests, n) do
+    left_dir = rem(dir + 3, 4)
+    right_dir = rem(dir + 1, 4)
 
-  defp try_accept(_building, _requests), do: nil
+    accept_from_directions(dest_key, [left_dir, right_dir], requests, n)
+  end
+
+  defp try_accept(_key, _building, _requests, _n), do: nil
+
+  # Accept the first request whose source is the neighbor in the given direction
+  defp accept_from_direction(dest_key, direction, requests, n) do
+    case TileNeighbors.neighbor(dest_key, direction, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, _item} -> src == valid_src end)
+
+      :boundary ->
+        nil
+    end
+  end
+
+  # Accept the first request whose source is a neighbor in any of the given directions
+  defp accept_from_directions(dest_key, directions, requests, n) do
+    valid_sources =
+      for dir <- directions,
+          {:ok, src} <- [TileNeighbors.neighbor(dest_key, dir, n)],
+          into: MapSet.new(),
+          do: src
+
+    Enum.find(requests, fn {src, _dest, _item} -> MapSet.member?(valid_sources, src) end)
+  end
 
   defp apply_pushes(buildings, accepted) do
     Enum.reduce(accepted, buildings, fn {src_key, dest_key, item}, acc ->
