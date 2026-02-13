@@ -62,7 +62,17 @@ const GameRenderer = {
     // Multiplayer: other players' markers
     this.playerMarkers = new Map(); // name -> { group, sphere, label }
 
+    // Spin rotation state (Ctrl+drag to spin around a point on the sphere)
+    this._spinning = false;
+    this._spinAxis = new THREE.Vector3();
+    this._spinLastX = 0;
+    this._spinVelocity = 0;
+    this._suppressClick = false;
+    this._spinQuat = new THREE.Quaternion();
+    this._spinPointerId = null;
+
     this.initScene();
+    this.setupSpinControl();
     this.initChunkManager();
     this.initTileTextures();
     this.setupRaycasting();
@@ -136,6 +146,91 @@ const GameRenderer = {
       this.subdivisions,
       this.terrainData
     );
+  },
+
+  // --- Spin rotation (Ctrl+drag) ---
+
+  setupSpinControl() {
+    this._onSpinPointerDown = (event) => this.onSpinPointerDown(event);
+    this._onSpinPointerMove = (event) => this.onSpinPointerMove(event);
+    this._onSpinPointerUp = (event) => this.onSpinPointerUp(event);
+    // Capture phase fires before TrackballControls' bubble-phase listener
+    this.renderer.domElement.addEventListener("pointerdown", this._onSpinPointerDown, true);
+  },
+
+  onSpinPointerDown(event) {
+    if (event.button !== 0 || !event.ctrlKey) return;
+
+    // Raycast to find the sphere point under the cursor
+    this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const meshes = this.chunkManager.getRaycastMeshes();
+    const intersects = this.raycaster.intersectObjects(meshes);
+
+    if (intersects.length === 0) return; // miss — let TrackballControls handle it
+
+    // Spin axis = direction from origin through the hit point on the unit sphere
+    this._spinAxis.copy(intersects[0].point).normalize();
+    this._spinning = true;
+    this._spinLastX = event.clientX;
+    this._spinVelocity = 0;
+
+    // Prevent TrackballControls from seeing this event
+    event.stopPropagation();
+    event.preventDefault();
+
+    // Disable TrackballControls and kill any residual damping
+    this.controls.enabled = false;
+    this.controls._lastAngle = 0;
+
+    // Capture pointer for reliable tracking outside the canvas
+    this.renderer.domElement.setPointerCapture(event.pointerId);
+    this._spinPointerId = event.pointerId;
+    document.addEventListener("pointermove", this._onSpinPointerMove);
+    document.addEventListener("pointerup", this._onSpinPointerUp);
+  },
+
+  onSpinPointerMove(event) {
+    if (!this._spinning) return;
+
+    const deltaX = event.clientX - this._spinLastX;
+    this._spinLastX = event.clientX;
+
+    const sensitivity = 0.005;
+    const angle = deltaX * sensitivity;
+
+    if (Math.abs(angle) > 0.0001) {
+      this.applySpinRotation(angle);
+      this._spinVelocity = angle;
+    }
+  },
+
+  onSpinPointerUp(event) {
+    if (!this._spinning) return;
+    this._spinning = false;
+
+    try {
+      this.renderer.domElement.releasePointerCapture(this._spinPointerId);
+    } catch (_e) { /* already released */ }
+
+    document.removeEventListener("pointermove", this._onSpinPointerMove);
+    document.removeEventListener("pointerup", this._onSpinPointerUp);
+
+    // Re-enable TrackballControls and sync its state to the new camera position
+    this.controls.enabled = true;
+    this.controls._lastPosition.copy(this.camera.position);
+
+    // Suppress the click event that fires after pointerup
+    this._suppressClick = true;
+    requestAnimationFrame(() => { this._suppressClick = false; });
+  },
+
+  applySpinRotation(angle) {
+    this._spinQuat.setFromAxisAngle(this._spinAxis, angle);
+    this.camera.position.applyQuaternion(this._spinQuat);
+    this.camera.up.applyQuaternion(this._spinQuat);
+    this.camera.lookAt(this.controls.target);
   },
 
   // --- Tile center computation (always at full resolution) ---
@@ -316,6 +411,7 @@ const GameRenderer = {
   },
 
   onTileClick(event) {
+    if (this._suppressClick) return;
     const tile = this.hitToTile(event);
     if (!tile) return;
 
@@ -337,6 +433,7 @@ const GameRenderer = {
 
   onTileRightClick(event) {
     event.preventDefault();
+    if (this._spinning) return;
     const tile = this.hitToTile(event);
     if (!tile) return;
 
@@ -348,6 +445,7 @@ const GameRenderer = {
   },
 
   onTileHover(event) {
+    if (this._spinning) return;
     const tile = this.hitToTile(event);
 
     // Clear previous hover
@@ -489,6 +587,16 @@ const GameRenderer = {
 
   animate() {
     this._animId = requestAnimationFrame(() => this.animate());
+
+    // Spin damping: coast to a stop after Ctrl+drag release
+    if (!this._spinning && Math.abs(this._spinVelocity) > 0.0001) {
+      this.applySpinRotation(this._spinVelocity);
+      this._spinVelocity *= (1.0 - this.controls.dynamicDampingFactor);
+      if (Math.abs(this._spinVelocity) < 0.00005) {
+        this._spinVelocity = 0;
+      }
+    }
+
     this.controls.update();
 
     // Update LOD based on camera position (ChunkManager handles dirty checks)
@@ -604,6 +712,9 @@ const GameRenderer = {
     if (this._cameraTrackTimer) clearInterval(this._cameraTrackTimer);
     window.removeEventListener("resize", this._onResize);
     window.removeEventListener("keydown", this._onKeyDown);
+    this.renderer.domElement.removeEventListener("pointerdown", this._onSpinPointerDown, true);
+    document.removeEventListener("pointermove", this._onSpinPointerMove);
+    document.removeEventListener("pointerup", this._onSpinPointerUp);
     this.renderer.domElement.removeEventListener("click", this._onClick);
     this.renderer.domElement.removeEventListener("mousemove", this._onMouseMove);
     this.renderer.domElement.removeEventListener("contextmenu", this._onContextMenu);
