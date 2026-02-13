@@ -141,6 +141,29 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
+  defp get_push_request(
+         key,
+         %{type: :splitter, orientation: dir, state: %{item: item, next_output: side}},
+         n
+       )
+       when not is_nil(item) do
+    {left, right} = Behaviors.Splitter.output_directions(dir)
+    output_dir = if side == :left, do: left, else: right
+
+    case TileNeighbors.neighbor(key, output_dir, n) do
+      {:ok, dest_key} -> {key, dest_key, item}
+      :boundary -> nil
+    end
+  end
+
+  defp get_push_request(key, %{type: :merger, orientation: dir, state: %{item: item}}, n)
+       when not is_nil(item) do
+    case TileNeighbors.neighbor(key, dir, n) do
+      {:ok, dest_key} -> {key, dest_key, item}
+      :boundary -> nil
+    end
+  end
+
   defp get_push_request(_key, _building, _n), do: nil
 
   # Try to accept an item at the destination building
@@ -149,6 +172,10 @@ defmodule Spheric.Game.TickProcessor do
   defp try_accept(%{type: :conveyor, state: %{item: nil}}, [winner | _]), do: winner
 
   defp try_accept(%{type: :smelter, state: %{input_buffer: nil}}, [winner | _]), do: winner
+
+  defp try_accept(%{type: :splitter, state: %{item: nil}}, [winner | _]), do: winner
+
+  defp try_accept(%{type: :merger, state: %{item: nil}}, [winner | _]), do: winner
 
   defp try_accept(_building, _requests), do: nil
 
@@ -161,6 +188,10 @@ defmodule Spheric.Game.TickProcessor do
             :conveyor -> %{b | state: %{b.state | item: nil}}
             :miner -> %{b | state: %{b.state | output_buffer: nil}}
             :smelter -> %{b | state: %{b.state | output_buffer: nil}}
+            :splitter ->
+              next = if b.state.next_output == :left, do: :right, else: :left
+              %{b | state: %{b.state | item: nil, next_output: next}}
+            :merger -> %{b | state: %{b.state | item: nil}}
             _ -> b
           end
         end)
@@ -170,6 +201,8 @@ defmodule Spheric.Game.TickProcessor do
         case b.type do
           :conveyor -> %{b | state: %{b.state | item: item}}
           :smelter -> %{b | state: %{b.state | input_buffer: item}}
+          :splitter -> %{b | state: %{b.state | item: item}}
+          :merger -> %{b | state: %{b.state | item: item}}
           _ -> b
         end
       end)
@@ -232,6 +265,40 @@ defmodule Spheric.Game.TickProcessor do
        )
        when not is_nil(item) do
     [%{face: face, row: row, col: col, item: item, from_face: nil, from_row: nil, from_col: nil}]
+  end
+
+  defp items_from_building({face, row, col}, %{type: :splitter, state: %{item: item}}, sources)
+       when not is_nil(item) do
+    from = Map.get(sources, {face, row, col})
+
+    [
+      %{
+        face: face,
+        row: row,
+        col: col,
+        item: item,
+        from_face: if(from, do: elem(from, 0)),
+        from_row: if(from, do: elem(from, 1)),
+        from_col: if(from, do: elem(from, 2))
+      }
+    ]
+  end
+
+  defp items_from_building({face, row, col}, %{type: :merger, state: %{item: item}}, sources)
+       when not is_nil(item) do
+    from = Map.get(sources, {face, row, col})
+
+    [
+      %{
+        face: face,
+        row: row,
+        col: col,
+        item: item,
+        from_face: if(from, do: elem(from, 0)),
+        from_row: if(from, do: elem(from, 1)),
+        from_col: if(from, do: elem(from, 2))
+      }
+    ]
   end
 
   defp items_from_building(_key, _building, _sources), do: []

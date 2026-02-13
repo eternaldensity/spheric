@@ -99,14 +99,14 @@ function createSplitter() {
   base.position.y = s * 0.2;
   group.add(base);
 
-  // Left output chute
-  const left = new THREE.Mesh(new THREE.BoxGeometry(s * 0.3, s * 0.3, s * 0.6), mat);
-  left.position.set(-s * 0.35, s * 0.55, s * 0.5);
+  // Left output chute (toward +X = output direction, offset along Z)
+  const left = new THREE.Mesh(new THREE.BoxGeometry(s * 0.6, s * 0.3, s * 0.3), mat);
+  left.position.set(s * 0.5, s * 0.55, -s * 0.35);
   group.add(left);
 
-  // Right output chute
-  const right = new THREE.Mesh(new THREE.BoxGeometry(s * 0.3, s * 0.3, s * 0.6), mat);
-  right.position.set(s * 0.35, s * 0.55, s * 0.5);
+  // Right output chute (toward +X = output direction, offset along Z)
+  const right = new THREE.Mesh(new THREE.BoxGeometry(s * 0.6, s * 0.3, s * 0.3), mat);
+  right.position.set(s * 0.5, s * 0.55, s * 0.35);
   group.add(right);
 
   return group;
@@ -122,9 +122,9 @@ function createMerger() {
   base.position.y = s * 0.2;
   group.add(base);
 
-  // Single output chute
-  const output = new THREE.Mesh(new THREE.BoxGeometry(s * 0.4, s * 0.3, s * 0.6), mat);
-  output.position.set(0, s * 0.55, s * 0.5);
+  // Single output chute (toward +X = output direction)
+  const output = new THREE.Mesh(new THREE.BoxGeometry(s * 0.6, s * 0.3, s * 0.4), mat);
+  output.position.set(s * 0.5, s * 0.55, 0);
   group.add(output);
 
   return group;

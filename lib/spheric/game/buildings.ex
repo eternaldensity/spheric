@@ -37,5 +37,7 @@ defmodule Spheric.Game.Buildings do
   def initial_state(:miner), do: Spheric.Game.Behaviors.Miner.initial_state()
   def initial_state(:conveyor), do: Spheric.Game.Behaviors.Conveyor.initial_state()
   def initial_state(:smelter), do: Spheric.Game.Behaviors.Smelter.initial_state()
+  def initial_state(:splitter), do: Spheric.Game.Behaviors.Splitter.initial_state()
+  def initial_state(:merger), do: Spheric.Game.Behaviors.Merger.initial_state()
   def initial_state(_type), do: %{}
 end
