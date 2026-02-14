@@ -27,17 +27,17 @@ defmodule Spheric.Game.Research do
   @l1_case_files [
     %{
       id: "l1_iron_delivery",
-      name: "Iron Standardization",
+      name: "Ferric Standardization",
       clearance: 1,
       requirements: %{iron_ingot: 50},
-      description: "Deliver 50 iron ingots to demonstrate basic smelting capability."
+      description: "Deliver 50 Ferric Standards to demonstrate basic processing capability."
     },
     %{
       id: "l1_copper_delivery",
-      name: "Copper Requisition",
+      name: "Paraelectric Requisition",
       clearance: 1,
       requirements: %{copper_ingot: 30},
-      description: "Deliver 30 copper ingots for Bureau wiring projects."
+      description: "Deliver 30 Paraelectric Bars for Bureau conduit projects."
     }
   ]
 
@@ -46,17 +46,17 @@ defmodule Spheric.Game.Research do
   @l2_case_files [
     %{
       id: "l2_wire_delivery",
-      name: "Component Fabrication Alpha",
+      name: "Fabrication Protocol Alpha",
       clearance: 2,
       requirements: %{wire: 40, plate: 40},
-      description: "Deliver 40 wires and 40 plates to prove assembly readiness."
+      description: "Deliver 40 Conductive Filaments and 40 Structural Plates to prove fabrication readiness."
     },
     %{
       id: "l2_titanium_delivery",
-      name: "Astral Ore Processing",
+      name: "Astral Ore Refinement",
       clearance: 2,
       requirements: %{titanium_ingot: 30},
-      description: "Deliver 30 titanium ingots from volcanic regions."
+      description: "Deliver 30 Astral Ingots sourced from Astral Rift sectors."
     }
   ]
 
@@ -68,7 +68,7 @@ defmodule Spheric.Game.Research do
       name: "Paranatural Engineering",
       clearance: 3,
       requirements: %{circuit: 30, frame: 20, polycarbonate: 20},
-      description: "Deliver advanced components to unlock paranatural containment technology."
+      description: "Deliver 30 Resonance Circuits, 20 Astral Frames, and 20 Stabilized Polymers to unlock paranatural containment technology."
     }
   ]
 
