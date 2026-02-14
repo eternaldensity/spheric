@@ -4,13 +4,14 @@ defmodule Spheric.Game.BuildingsTest do
   alias Spheric.Game.Buildings
 
   describe "types/0" do
-    test "returns all 6 building types" do
+    test "returns all 7 building types" do
       types = Buildings.types()
-      assert length(types) == 6
+      assert length(types) == 7
       assert :conveyor in types
       assert :miner in types
       assert :smelter in types
       assert :assembler in types
+      assert :refinery in types
       assert :splitter in types
       assert :merger in types
     end
@@ -35,6 +36,7 @@ defmodule Spheric.Game.BuildingsTest do
       assert Buildings.display_name(:miner) == "Miner"
       assert Buildings.display_name(:smelter) == "Smelter"
       assert Buildings.display_name(:assembler) == "Assembler"
+      assert Buildings.display_name(:refinery) == "Refinery"
       assert Buildings.display_name(:splitter) == "Splitter"
       assert Buildings.display_name(:merger) == "Merger"
     end
@@ -53,7 +55,7 @@ defmodule Spheric.Game.BuildingsTest do
     test "non-miner buildings can be placed on any tile" do
       tile = %{terrain: :grassland, resource: nil}
 
-      for type <- [:conveyor, :smelter, :assembler, :splitter, :merger] do
+      for type <- [:conveyor, :smelter, :assembler, :refinery, :splitter, :merger] do
         assert Buildings.can_place_on?(type, tile), "Expected #{type} to be placeable"
       end
     end
@@ -61,7 +63,7 @@ defmodule Spheric.Game.BuildingsTest do
     test "non-miner buildings can also go on resource tiles" do
       tile = %{terrain: :desert, resource: {:iron, 300}}
 
-      for type <- [:conveyor, :smelter, :assembler, :splitter, :merger] do
+      for type <- [:conveyor, :smelter, :assembler, :refinery, :splitter, :merger] do
         assert Buildings.can_place_on?(type, tile), "Expected #{type} to be placeable on resource"
       end
     end

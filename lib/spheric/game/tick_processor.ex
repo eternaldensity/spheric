@@ -22,7 +22,7 @@ defmodule Spheric.Game.TickProcessor do
   def process_tick(tick) do
     buildings = gather_all_buildings()
 
-    {miners, _conveyors, smelters, _others} = classify(buildings)
+    {miners, _conveyors, smelters, assemblers, refineries, _others} = classify(buildings)
 
     # Phase 1: Miners tick
     miner_updates =
@@ -36,8 +36,24 @@ defmodule Spheric.Game.TickProcessor do
         {key, Behaviors.Smelter.tick(key, building)}
       end)
 
+    # Phase 2b: Refineries tick
+    refinery_updates =
+      Enum.map(refineries, fn {key, building} ->
+        {key, Behaviors.Refinery.tick(key, building)}
+      end)
+
+    # Phase 2c: Assemblers tick
+    assembler_updates =
+      Enum.map(assemblers, fn {key, building} ->
+        {key, Behaviors.Assembler.tick(key, building)}
+      end)
+
     # Merge updates into the full building map
-    all_buildings = merge_updates(buildings, miner_updates ++ smelter_updates)
+    all_buildings =
+      merge_updates(
+        buildings,
+        miner_updates ++ smelter_updates ++ refinery_updates ++ assembler_updates
+      )
 
     # Phase 3: Push resolution — move items between buildings
     {final_buildings, movements} = resolve_pushes(all_buildings)
@@ -60,12 +76,14 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   defp classify(buildings) do
-    Enum.reduce(buildings, {[], [], [], []}, fn {key, building}, {m, c, s, o} ->
+    Enum.reduce(buildings, {[], [], [], [], [], []}, fn {key, building}, {m, c, s, a, r, o} ->
       case building.type do
-        :miner -> {[{key, building} | m], c, s, o}
-        :conveyor -> {m, [{key, building} | c], s, o}
-        :smelter -> {m, c, [{key, building} | s], o}
-        _ -> {m, c, s, [{key, building} | o]}
+        :miner -> {[{key, building} | m], c, s, a, r, o}
+        :conveyor -> {m, [{key, building} | c], s, a, r, o}
+        :smelter -> {m, c, [{key, building} | s], a, r, o}
+        :assembler -> {m, c, s, [{key, building} | a], r, o}
+        :refinery -> {m, c, s, a, [{key, building} | r], o}
+        _ -> {m, c, s, a, r, [{key, building} | o]}
       end
     end)
   end
@@ -164,6 +182,30 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
+  defp get_push_request(
+         key,
+         %{type: :assembler, orientation: dir, state: %{output_buffer: item}},
+         n
+       )
+       when not is_nil(item) do
+    case TileNeighbors.neighbor(key, dir, n) do
+      {:ok, dest_key} -> {key, dest_key, item}
+      :boundary -> nil
+    end
+  end
+
+  defp get_push_request(
+         key,
+         %{type: :refinery, orientation: dir, state: %{output_buffer: item}},
+         n
+       )
+       when not is_nil(item) do
+    case TileNeighbors.neighbor(key, dir, n) do
+      {:ok, dest_key} -> {key, dest_key, item}
+      :boundary -> nil
+    end
+  end
+
   defp get_push_request(_key, _building, _n), do: nil
 
   # Try to accept an item at the destination building
@@ -174,8 +216,31 @@ defmodule Spheric.Game.TickProcessor do
   defp try_accept(_key, %{type: :smelter, state: %{input_buffer: nil}}, [winner | _], _n),
     do: winner
 
+  defp try_accept(_key, %{type: :refinery, state: %{input_buffer: nil}}, [winner | _], _n),
+    do: winner
+
+  # Assembler: accepts from rear, routes item to correct input slot via dual-input logic
+  defp try_accept(dest_key, %{type: :assembler, orientation: dir, state: state}, requests, n) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.Assembler.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
+
   # Splitter: only accepts from the rear (opposite of orientation)
-  defp try_accept(dest_key, %{type: :splitter, orientation: dir, state: %{item: nil}}, requests, n) do
+  defp try_accept(
+         dest_key,
+         %{type: :splitter, orientation: dir, state: %{item: nil}},
+         requests,
+         n
+       ) do
     rear_dir = rem(dir + 2, 4)
     accept_from_direction(dest_key, rear_dir, requests, n)
   end
@@ -218,25 +283,59 @@ defmodule Spheric.Game.TickProcessor do
       acc =
         Map.update!(acc, src_key, fn b ->
           case b.type do
-            :conveyor -> %{b | state: %{b.state | item: nil}}
-            :miner -> %{b | state: %{b.state | output_buffer: nil}}
-            :smelter -> %{b | state: %{b.state | output_buffer: nil}}
+            :conveyor ->
+              %{b | state: %{b.state | item: nil}}
+
+            :miner ->
+              %{b | state: %{b.state | output_buffer: nil}}
+
+            :smelter ->
+              %{b | state: %{b.state | output_buffer: nil}}
+
+            :assembler ->
+              %{b | state: %{b.state | output_buffer: nil}}
+
+            :refinery ->
+              %{b | state: %{b.state | output_buffer: nil}}
+
             :splitter ->
               next = if b.state.next_output == :left, do: :right, else: :left
               %{b | state: %{b.state | item: nil, next_output: next}}
-            :merger -> %{b | state: %{b.state | item: nil}}
-            _ -> b
+
+            :merger ->
+              %{b | state: %{b.state | item: nil}}
+
+            _ ->
+              b
           end
         end)
 
       # Set destination input
       Map.update!(acc, dest_key, fn b ->
         case b.type do
-          :conveyor -> %{b | state: %{b.state | item: item}}
-          :smelter -> %{b | state: %{b.state | input_buffer: item}}
-          :splitter -> %{b | state: %{b.state | item: item}}
-          :merger -> %{b | state: %{b.state | item: item}}
-          _ -> b
+          :conveyor ->
+            %{b | state: %{b.state | item: item}}
+
+          :smelter ->
+            %{b | state: %{b.state | input_buffer: item}}
+
+          :refinery ->
+            %{b | state: %{b.state | input_buffer: item}}
+
+          :assembler ->
+            case Behaviors.Assembler.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
+
+          :splitter ->
+            %{b | state: %{b.state | item: item}}
+
+          :merger ->
+            %{b | state: %{b.state | item: item}}
+
+          _ ->
+            b
         end
       end)
     end)
@@ -332,6 +431,24 @@ defmodule Spheric.Game.TickProcessor do
         from_col: if(from, do: elem(from, 2))
       }
     ]
+  end
+
+  defp items_from_building(
+         {face, row, col},
+         %{type: :assembler, state: %{output_buffer: item}},
+         _
+       )
+       when not is_nil(item) do
+    [%{face: face, row: row, col: col, item: item, from_face: nil, from_row: nil, from_col: nil}]
+  end
+
+  defp items_from_building(
+         {face, row, col},
+         %{type: :refinery, state: %{output_buffer: item}},
+         _
+       )
+       when not is_nil(item) do
+    [%{face: face, row: row, col: col, item: item, from_face: nil, from_row: nil, from_col: nil}]
   end
 
   defp items_from_building(_key, _building, _sources), do: []

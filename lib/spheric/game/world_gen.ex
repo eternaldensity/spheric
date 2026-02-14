@@ -4,7 +4,8 @@ defmodule Spheric.Game.WorldGen do
 
   Uses seeded RNG for reproducibility. Terrain biomes are assigned per cell
   (4x4 cells per face) based on cell center latitude (Y component).
-  Resource deposits (iron, copper) are placed randomly with configurable density.
+  Resource deposits (iron, copper, quartz, titanium, oil, sulfur) are placed
+  randomly with configurable density and biome-weighted distribution.
 
   Generates all 122,880 tiles (30 faces x 64x64 grid) on startup.
   """
@@ -136,19 +137,66 @@ defmodule Spheric.Game.WorldGen do
 
   defp pick_resource_type(rng, biome) do
     {roll, rng} = :rand.uniform_s(rng)
-
-    # Volcanic/desert biomes favor iron, forest/tundra favor copper
-    iron_weight =
-      case biome do
-        :volcanic -> 0.7
-        :desert -> 0.6
-        :grassland -> 0.5
-        :forest -> 0.4
-        :tundra -> 0.3
-      end
-
-    type = if roll < iron_weight, do: :iron, else: :copper
+    weights = resource_weights(biome)
+    type = pick_weighted(roll, weights)
     {type, rng}
+  end
+
+  # Biome-specific resource distribution weights (must sum to 1.0)
+  defp resource_weights(:volcanic),
+    do: [
+      {:iron, 0.30},
+      {:copper, 0.10},
+      {:titanium, 0.25},
+      {:sulfur, 0.20},
+      {:oil, 0.05},
+      {:quartz, 0.10}
+    ]
+
+  defp resource_weights(:desert),
+    do: [
+      {:iron, 0.25},
+      {:copper, 0.15},
+      {:oil, 0.25},
+      {:sulfur, 0.15},
+      {:titanium, 0.10},
+      {:quartz, 0.10}
+    ]
+
+  defp resource_weights(:grassland),
+    do: [
+      {:iron, 0.25},
+      {:copper, 0.25},
+      {:quartz, 0.15},
+      {:titanium, 0.10},
+      {:oil, 0.15},
+      {:sulfur, 0.10}
+    ]
+
+  defp resource_weights(:forest),
+    do: [
+      {:copper, 0.25},
+      {:quartz, 0.25},
+      {:iron, 0.15},
+      {:titanium, 0.10},
+      {:oil, 0.10},
+      {:sulfur, 0.15}
+    ]
+
+  defp resource_weights(:tundra),
+    do: [
+      {:quartz, 0.30},
+      {:copper, 0.25},
+      {:iron, 0.15},
+      {:titanium, 0.15},
+      {:oil, 0.05},
+      {:sulfur, 0.10}
+    ]
+
+  defp pick_weighted(_roll, [{type, _weight}]), do: type
+
+  defp pick_weighted(roll, [{type, weight} | rest]) do
+    if roll < weight, do: type, else: pick_weighted(roll - weight, rest)
   end
 
   defp random_amount(rng) do

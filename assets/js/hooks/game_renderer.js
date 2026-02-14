@@ -19,6 +19,10 @@ const TERRAIN_COLORS = {
 const RESOURCE_ACCENTS = {
   iron: new THREE.Color(0xd4722a),
   copper: new THREE.Color(0x30c9a8),
+  quartz: new THREE.Color(0xd4b8ff),
+  titanium: new THREE.Color(0x556677),
+  oil: new THREE.Color(0x1a1a2e),
+  sulfur: new THREE.Color(0xcccc22),
 };
 
 // Direction offsets: orientation -> [dRow, dCol]

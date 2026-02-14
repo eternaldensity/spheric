@@ -1,25 +1,25 @@
-defmodule Spheric.Game.Behaviors.Smelter do
+defmodule Spheric.Game.Behaviors.Refinery do
   @moduledoc """
-  Smelter building behavior.
+  Refinery building behavior.
 
-  Accepts ore in its input buffer, processes it over several ticks,
-  then places the resulting ingot in the output buffer.
+  Processes raw materials into refined products over several ticks.
+  Follows the same single-input pattern as Smelter but handles
+  different recipe types (liquids and compounds).
   """
 
-  @default_rate 10
+  @default_rate 12
 
   @recipes %{
-    iron_ore: :iron_ingot,
-    copper_ore: :copper_ingot,
-    titanium_ore: :titanium_ingot
+    crude_oil: :polycarbonate,
+    raw_sulfur: :sulfur_compound
   }
 
-  @doc "Returns the initial state for a newly placed smelter."
+  @doc "Returns the initial state for a newly placed refinery."
   def initial_state do
     %{input_buffer: nil, output_buffer: nil, progress: 0, rate: @default_rate}
   end
 
-  @doc "Process one tick for a smelter. Returns updated building map."
+  @doc "Process one tick for a refinery. Returns updated building map."
   def tick(_key, building) do
     state = building.state
 
@@ -39,6 +39,6 @@ defmodule Spheric.Game.Behaviors.Smelter do
     end
   end
 
-  @doc "Returns the smelting recipe map."
+  @doc "Returns the refinery recipe map."
   def recipes, do: @recipes
 end

@@ -59,4 +59,8 @@ defmodule Spheric.Game.Behaviors.Miner do
 
   defp resource_to_item(:iron), do: :iron_ore
   defp resource_to_item(:copper), do: :copper_ore
+  defp resource_to_item(:quartz), do: :raw_quartz
+  defp resource_to_item(:titanium), do: :titanium_ore
+  defp resource_to_item(:oil), do: :crude_oil
+  defp resource_to_item(:sulfur), do: :raw_sulfur
 end

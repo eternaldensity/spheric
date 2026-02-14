@@ -7,6 +7,7 @@ const COLORS = {
   conveyor: 0x888888,
   smelter: 0xcc4411,
   assembler: 0x3366aa,
+  refinery: 0x2288aa,
   splitter: 0x22aa88,
   merger: 0x8844aa,
 };
@@ -130,11 +131,37 @@ function createMerger() {
   return group;
 }
 
+function createRefinery() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.refinery);
+
+  // Main tank (cylinder)
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.6, s * 0.6, s * 1.0, 8), mat);
+  tank.position.y = s * 0.5;
+  group.add(tank);
+
+  // Secondary tank (smaller, offset)
+  const tank2 = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.35, s * 0.35, s * 0.7, 8), mat);
+  tank2.position.set(-s * 0.5, s * 0.35, s * 0.3);
+  group.add(tank2);
+
+  // Pipe connecting tanks
+  const pipeMat = makeMaterial(0x555555);
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.08, s * 0.08, s * 0.6, 6), pipeMat);
+  pipe.rotation.z = Math.PI / 2;
+  pipe.position.set(-s * 0.2, s * 0.8, s * 0.15);
+  group.add(pipe);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
   smelter: createSmelter,
   assembler: createAssembler,
+  refinery: createRefinery,
   splitter: createSplitter,
   merger: createMerger,
 };

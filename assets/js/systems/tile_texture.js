@@ -27,6 +27,7 @@ const BUILDING_FILLS = {
   conveyor: "#888888",
   smelter: "#cc4411",
   assembler: "#3366aa",
+  refinery: "#2288aa",
   splitter: "#22aa88",
   merger: "#8844aa",
 };
@@ -37,6 +38,7 @@ const BUILDING_GLYPHS = {
   conveyor: drawConveyorGlyph,
   smelter: drawSmelterGlyph,
   assembler: drawAssemblerGlyph,
+  refinery: drawRefineryGlyph,
   splitter: drawSplitterGlyph,
   merger: drawMergerGlyph,
 };
@@ -221,6 +223,27 @@ function drawSmelterGlyph(ctx, r) {
   // Chimney
   ctx.fillRect(r * 0.2, -r * 0.9, r * 0.3, r * 0.5);
   ctx.strokeRect(r * 0.2, -r * 0.9, r * 0.3, r * 0.5);
+}
+
+function drawRefineryGlyph(ctx, r) {
+  // Two circles (tanks) connected by a line (pipe)
+  ctx.beginPath();
+  ctx.arc(-r * 0.3, 0, r * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(r * 0.4, 0, r * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Pipe
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.3, -r * 0.4);
+  ctx.lineTo(r * 0.4, -r * 0.4);
+  ctx.lineWidth = r * 0.15;
+  ctx.stroke();
+  ctx.lineWidth = 1.5;
 }
 
 function drawAssemblerGlyph(ctx, r) {

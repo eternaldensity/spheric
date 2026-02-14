@@ -6,7 +6,7 @@ defmodule Spheric.Game.Buildings do
   Miners require a resource tile; all others can be placed on any terrain.
   """
 
-  @types [:conveyor, :miner, :smelter, :assembler, :splitter, :merger]
+  @types [:conveyor, :miner, :smelter, :assembler, :refinery, :splitter, :merger]
 
   @doc "Returns the list of all building type atoms."
   def types, do: @types
@@ -19,6 +19,7 @@ defmodule Spheric.Game.Buildings do
   def display_name(:miner), do: "Miner"
   def display_name(:smelter), do: "Smelter"
   def display_name(:assembler), do: "Assembler"
+  def display_name(:refinery), do: "Refinery"
   def display_name(:splitter), do: "Splitter"
   def display_name(:merger), do: "Merger"
 
@@ -37,6 +38,8 @@ defmodule Spheric.Game.Buildings do
   def initial_state(:miner), do: Spheric.Game.Behaviors.Miner.initial_state()
   def initial_state(:conveyor), do: Spheric.Game.Behaviors.Conveyor.initial_state()
   def initial_state(:smelter), do: Spheric.Game.Behaviors.Smelter.initial_state()
+  def initial_state(:assembler), do: Spheric.Game.Behaviors.Assembler.initial_state()
+  def initial_state(:refinery), do: Spheric.Game.Behaviors.Refinery.initial_state()
   def initial_state(:splitter), do: Spheric.Game.Behaviors.Splitter.initial_state()
   def initial_state(:merger), do: Spheric.Game.Behaviors.Merger.initial_state()
   def initial_state(_type), do: %{}

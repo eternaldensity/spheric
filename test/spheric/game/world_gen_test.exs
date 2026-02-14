@@ -29,7 +29,7 @@ defmodule Spheric.Game.WorldGenTest do
             :ok
 
           {type, amount} ->
-            assert type in [:iron, :copper]
+            assert type in [:iron, :copper, :quartz, :titanium, :oil, :sulfur]
             assert is_integer(amount)
             assert amount >= 100 and amount <= 500
         end

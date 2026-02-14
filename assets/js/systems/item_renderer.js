@@ -5,6 +5,17 @@ const ITEM_COLORS = {
   copper_ore: 0x30c9a8,
   iron_ingot: 0xaaaaaa,
   copper_ingot: 0xdd8844,
+  raw_quartz: 0xd4b8ff,
+  titanium_ore: 0x556677,
+  titanium_ingot: 0x8899aa,
+  crude_oil: 0x1a1a2e,
+  raw_sulfur: 0xcccc22,
+  polycarbonate: 0x88bbdd,
+  sulfur_compound: 0xaaaa44,
+  wire: 0xdd8844,
+  plate: 0xbbbbbb,
+  circuit: 0x44ff88,
+  frame: 0x667788,
 };
 
 const ITEM_SCALE = 0.003;

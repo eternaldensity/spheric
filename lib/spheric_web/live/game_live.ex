@@ -72,12 +72,13 @@ defmodule SphericWeb.GameLive do
     # Tell the client to restore camera and persist any newly-generated identity
     socket =
       if connected?(socket) do
-        socket = push_event(socket, "restore_player", %{
-          player_id: player_id,
-          player_name: player_name,
-          player_color: player_color,
-          camera: camera
-        })
+        socket =
+          push_event(socket, "restore_player", %{
+            player_id: player_id,
+            player_name: player_name,
+            player_color: player_color,
+            camera: camera
+          })
 
         # Stream terrain data per-face via push_event (too large for data-attribute at 64x64)
         send(self(), :send_terrain)
@@ -285,7 +286,12 @@ defmodule SphericWeb.GameLive do
         owner = %{id: socket.assigns.player_id, name: socket.assigns.player_name}
 
         placements =
-          Enum.map(buildings_list, fn %{"face" => face, "row" => row, "col" => col, "orientation" => orientation} ->
+          Enum.map(buildings_list, fn %{
+                                        "face" => face,
+                                        "row" => row,
+                                        "col" => col,
+                                        "orientation" => orientation
+                                      } ->
             {{face, row, col}, building_type, orientation, owner}
           end)
 
@@ -638,6 +644,33 @@ defmodule SphericWeb.GameLive do
 
   defp building_status_text(%{type: :conveyor, state: state}) do
     if state[:item], do: "Carrying: #{state.item}", else: "Empty"
+  end
+
+  defp building_status_text(%{type: :assembler, state: state}) do
+    cond do
+      state[:output_buffer] != nil ->
+        "Output: #{state.output_buffer}"
+
+      state[:input_a] != nil and state[:input_b] != nil ->
+        "Assembling... #{state.progress}/#{state.rate}"
+
+      state[:input_a] != nil ->
+        "Input A: #{state.input_a} (waiting for B)"
+
+      state[:input_b] != nil ->
+        "Input B: #{state.input_b} (waiting for A)"
+
+      true ->
+        "Idle"
+    end
+  end
+
+  defp building_status_text(%{type: :refinery, state: state}) do
+    cond do
+      state[:output_buffer] != nil -> "Output: #{state.output_buffer}"
+      state[:input_buffer] != nil -> "Refining... #{state.progress}/#{state.rate}"
+      true -> "Idle"
+    end
   end
 
   defp building_status_text(_building), do: nil
