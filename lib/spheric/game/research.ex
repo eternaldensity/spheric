@@ -62,7 +62,7 @@ defmodule Spheric.Game.Research do
   ]
 
   # Clearance Level 3: Research Clearance
-  # Unlocks: containment_trap, purification_beacon, defense_turret
+  # Unlocks: containment_trap, purification_beacon, defense_turret, shadow_panel, lamp
   @l3_case_files [
     %{
       id: "l3_advanced_components",
@@ -201,7 +201,7 @@ defmodule Spheric.Game.Research do
       :crossover
     ],
     2 => [:assembler, :refinery, :conveyor_mk3, :balancer, :underground_conduit],
-    3 => [:containment_trap, :purification_beacon, :defense_turret],
+    3 => [:containment_trap, :purification_beacon, :defense_turret, :shadow_panel, :lamp],
     4 => [:bio_generator, :substation, :transfer_station, :advanced_smelter],
     5 => [:advanced_assembler, :fabrication_plant, :essence_extractor],
     6 => [:particle_collider, :nuclear_refinery],

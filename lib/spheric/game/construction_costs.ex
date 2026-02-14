@@ -34,6 +34,8 @@ defmodule Spheric.Game.ConstructionCosts do
     containment_trap: %{frame: 2, circuit: 2, wire: 5},
     purification_beacon: %{frame: 3, circuit: 3, quartz_crystal: 5},
     defense_turret: %{frame: 3, plate: 5, circuit: 2},
+    shadow_panel: %{frame: 2, quartz_crystal: 3, wire: 2},
+    lamp: %{copper_ingot: 3, wire: 2, circuit: 1},
 
     # Tier 4
     bio_generator: %{frame: 3, motor: 2, cable: 3},
@@ -80,6 +82,8 @@ defmodule Spheric.Game.ConstructionCosts do
     containment_trap: 3,
     purification_beacon: 3,
     defense_turret: 3,
+    shadow_panel: 3,
+    lamp: 3,
     bio_generator: 4,
     substation: 4,
     transfer_station: 4,

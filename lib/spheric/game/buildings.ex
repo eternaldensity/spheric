@@ -32,6 +32,8 @@ defmodule Spheric.Game.Buildings do
     :gathering_post,
     :essence_extractor,
     :bio_generator,
+    :shadow_panel,
+    :lamp,
     :substation,
     :transfer_station,
     :advanced_smelter,
@@ -74,6 +76,8 @@ defmodule Spheric.Game.Buildings do
   def display_name(:gathering_post), do: "Post"
   def display_name(:essence_extractor), do: "Extractor"
   def display_name(:bio_generator), do: "Generator"
+  def display_name(:shadow_panel), do: "Shadow Panel"
+  def display_name(:lamp), do: "Lamp"
   def display_name(:substation), do: "Substation"
   def display_name(:transfer_station), do: "Transfer"
   def display_name(:advanced_smelter), do: "Adv Smelter"
@@ -155,6 +159,12 @@ defmodule Spheric.Game.Buildings do
 
   def initial_state(:bio_generator),
     do: Spheric.Game.Behaviors.BioGenerator.initial_state()
+
+  def initial_state(:shadow_panel),
+    do: Spheric.Game.Behaviors.ShadowPanel.initial_state()
+
+  def initial_state(:lamp),
+    do: Spheric.Game.Behaviors.Lamp.initial_state()
 
   def initial_state(:substation),
     do: Spheric.Game.Behaviors.Substation.initial_state()

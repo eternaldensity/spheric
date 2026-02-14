@@ -9,7 +9,7 @@ defmodule Spheric.Game.Power do
   """
 
   alias Spheric.Game.WorldStore
-  alias Spheric.Game.Behaviors.{BioGenerator, Substation, TransferStation}
+  alias Spheric.Game.Behaviors.{BioGenerator, ShadowPanel, Substation, TransferStation}
 
   @table :spheric_power_cache
   @resolve_interval 5
@@ -56,7 +56,11 @@ defmodule Spheric.Game.Power do
     # Find fueled generators
     fueled_generators =
       Enum.filter(generators, fn {_key, building} ->
-        BioGenerator.producing_power?(building.state)
+        case building.type do
+          :bio_generator -> BioGenerator.producing_power?(building.state)
+          :shadow_panel -> ShadowPanel.producing_power?(building.state)
+          _ -> false
+        end
       end)
 
     if fueled_generators == [] do
@@ -100,7 +104,7 @@ defmodule Spheric.Game.Power do
   defp gather_power_buildings do
     all = gather_all_buildings()
 
-    generators = Enum.filter(all, fn {_k, b} -> b.type == :bio_generator end)
+    generators = Enum.filter(all, fn {_k, b} -> b.type in [:bio_generator, :shadow_panel] end)
     substations = Enum.filter(all, fn {_k, b} -> b.type == :substation end)
     transfers = Enum.filter(all, fn {_k, b} -> b.type == :transfer_station end)
 

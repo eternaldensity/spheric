@@ -29,11 +29,13 @@ defmodule Spheric.Game.ShiftCycle do
   }
 
   @phase_lighting %{
-    dawn: %{ambient: 0x334455, directional: 0xFFCC88, intensity: 0.7, bg: 0x0A0A1A},
-    zenith: %{ambient: 0x556677, directional: 0xFFFFDD, intensity: 1.0, bg: 0x0F0F1F},
-    dusk: %{ambient: 0x443344, directional: 0xFF8866, intensity: 0.6, bg: 0x0A0510},
-    nadir: %{ambient: 0x222233, directional: 0x6688AA, intensity: 0.4, bg: 0x050508}
+    dawn: %{ambient: 0x2A3344, directional: 0xFFCC88, intensity: 0.5, bg: 0x080812},
+    zenith: %{ambient: 0x667788, directional: 0xFFFFDD, intensity: 1.0, bg: 0x121222},
+    dusk: %{ambient: 0x332233, directional: 0xFF8866, intensity: 0.4, bg: 0x06040C},
+    nadir: %{ambient: 0x111118, directional: 0x334466, intensity: 0.15, bg: 0x020204}
   }
+
+  @dark_phases [:nadir, :dusk]
 
   # --- Public API ---
 
@@ -99,6 +101,9 @@ defmodule Spheric.Game.ShiftCycle do
   def current_lighting do
     Map.get(@phase_lighting, current_phase(), Map.get(@phase_lighting, :dawn))
   end
+
+  @doc "Returns true during dark phases (dusk, nadir) when shadow panels can generate."
+  def dark?, do: current_phase() in @dark_phases
 
   @doc """
   Apply the shift cycle modifier to a building's tick rate.

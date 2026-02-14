@@ -144,6 +144,13 @@ defmodule Spheric.Game.TickProcessor do
         {key, updated}
       end)
 
+    # Phase 2k2: Shadow panels tick
+    shadow_panel_updates =
+      Enum.map(classified.shadow_panels, fn {key, building} ->
+        updated = Behaviors.ShadowPanel.tick(key, building)
+        {key, updated}
+      end)
+
     # Phase 2l: Gathering posts tick
     gathering_updates =
       Enum.map(classified.gathering_posts, fn {key, building} ->
@@ -198,6 +205,7 @@ defmodule Spheric.Game.TickProcessor do
         synthesizer_updates ++
         board_updates ++
         bio_gen_updates ++
+        shadow_panel_updates ++
         gathering_updates ++
         essence_updates ++
         terminal_updates ++ trade_terminal_updates
@@ -257,6 +265,7 @@ defmodule Spheric.Game.TickProcessor do
       paranatural_synthesizers: [],
       board_interfaces: [],
       bio_generators: [],
+      shadow_panels: [],
       gathering_posts: [],
       essence_extractors: [],
       others: []
@@ -281,6 +290,8 @@ defmodule Spheric.Game.TickProcessor do
         :paranatural_synthesizer -> %{acc | paranatural_synthesizers: [pair | acc.paranatural_synthesizers]}
         :board_interface -> %{acc | board_interfaces: [pair | acc.board_interfaces]}
         :bio_generator -> %{acc | bio_generators: [pair | acc.bio_generators]}
+        :shadow_panel -> %{acc | shadow_panels: [pair | acc.shadow_panels]}
+        :lamp -> acc
         :gathering_post -> %{acc | gathering_posts: [pair | acc.gathering_posts]}
         :essence_extractor -> %{acc | essence_extractors: [pair | acc.essence_extractors]}
         _ -> %{acc | others: [pair | acc.others]}
