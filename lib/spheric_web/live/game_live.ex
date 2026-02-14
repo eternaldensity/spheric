@@ -118,6 +118,8 @@ defmodule SphericWeb.GameLive do
       |> assign(:recipes, RecipeBrowser.all_recipes())
       |> assign(:show_stats, false)
       |> assign(:stats_summary, [])
+      |> assign(:blueprint_mode, nil)
+      |> assign(:blueprint_count, 0)
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
 
     # Tell the client to restore camera and persist any newly-generated identity
@@ -690,6 +692,42 @@ defmodule SphericWeb.GameLive do
         Report
       </button>
       <button
+        phx-click="blueprint_capture"
+        style={"
+          padding: 8px 12px;
+          border: 1px solid #{if @blueprint_mode == :capture, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
+          background: #{if @blueprint_mode == :capture, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
+          color: #{if @blueprint_mode == :capture, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
+          cursor: pointer;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          margin-right: 8px;
+        "}
+        title="Capture blueprint (select area)"
+      >
+        Capture
+      </button>
+      <button
+        :if={@blueprint_count > 0}
+        phx-click="blueprint_stamp"
+        style={"
+          padding: 8px 12px;
+          border: 1px solid #{if @blueprint_mode == :stamp, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
+          background: #{if @blueprint_mode == :stamp, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
+          color: #{if @blueprint_mode == :stamp, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
+          cursor: pointer;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        "}
+        title="Stamp last blueprint"
+      >
+        Stamp
+      </button>
+      <button
         :for={type <- @building_types}
         phx-click="select_building"
         phx-value-type={type}
@@ -746,8 +784,10 @@ defmodule SphericWeb.GameLive do
       socket
       |> assign(:selected_building_type, nil)
       |> assign(:line_mode, false)
+      |> assign(:blueprint_mode, nil)
       |> push_event("placement_mode", %{type: nil, orientation: nil})
       |> push_event("line_mode", %{enabled: false})
+      |> push_event("blueprint_mode", %{mode: nil})
 
     {:noreply, socket}
   end
@@ -762,7 +802,9 @@ defmodule SphericWeb.GameLive do
       socket =
         socket
         |> assign(:selected_building_type, type)
+        |> assign(:blueprint_mode, nil)
         |> push_event("placement_mode", %{type: type_str, orientation: orientation})
+        |> push_event("blueprint_mode", %{mode: nil})
 
       {:noreply, socket}
     else
@@ -1243,6 +1285,82 @@ defmodule SphericWeb.GameLive do
       else
         assign(socket, :show_stats, false)
       end
+
+    {:noreply, socket}
+  end
+
+  # --- Blueprint events ---
+
+  @impl true
+  def handle_event("blueprint_capture", _params, socket) do
+    socket =
+      socket
+      |> assign(:blueprint_mode, :capture)
+      |> assign(:selected_building_type, nil)
+      |> push_event("blueprint_mode", %{mode: "capture"})
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("blueprint_stamp", _params, socket) do
+    socket =
+      socket
+      |> assign(:blueprint_mode, :stamp)
+      |> assign(:selected_building_type, nil)
+      |> push_event("blueprint_mode", %{mode: "stamp"})
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("blueprint_captured", %{"name" => _name, "count" => _count}, socket) do
+    socket =
+      socket
+      |> assign(:blueprint_mode, :stamp)
+      |> assign(:blueprint_count, socket.assigns.blueprint_count + 1)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("blueprint_cancelled", _params, socket) do
+    {:noreply, assign(socket, :blueprint_mode, nil)}
+  end
+
+  @impl true
+  def handle_event("place_blueprint", %{"buildings" => buildings_list}, socket) do
+    owner = %{id: socket.assigns.player_id, name: socket.assigns.player_name}
+
+    placements =
+      Enum.map(buildings_list, fn %{
+                                    "face" => face,
+                                    "row" => row,
+                                    "col" => col,
+                                    "orientation" => orientation,
+                                    "type" => type_str
+                                  } ->
+        {{face, row, col}, String.to_existing_atom(type_str), orientation, owner}
+      end)
+
+    results = WorldServer.place_buildings(placements)
+
+    socket =
+      Enum.reduce(results, socket, fn
+        {{face, row, col}, :ok}, sock ->
+          building = WorldStore.get_building({face, row, col})
+
+          push_event(sock, "building_placed", %{
+            face: face,
+            row: row,
+            col: col,
+            type: Atom.to_string(building.type),
+            orientation: building.orientation
+          })
+
+        {{_face, _row, _col}, {:error, _reason}}, sock ->
+          sock
+      end)
 
     {:noreply, socket}
   end

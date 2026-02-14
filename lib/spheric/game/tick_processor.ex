@@ -13,7 +13,7 @@ defmodule Spheric.Game.TickProcessor do
   `face_id => [item_update]` for broadcasting to clients.
   """
 
-  alias Spheric.Game.{WorldStore, Behaviors, Creatures, ObjectsOfPower}
+  alias Spheric.Game.{WorldStore, Behaviors, Creatures, ObjectsOfPower, Statistics}
   alias Spheric.Geometry.TileNeighbors
 
   require Logger
@@ -30,31 +30,41 @@ defmodule Spheric.Game.TickProcessor do
     # Phase 1: Miners tick (with creature boost)
     miner_updates =
       Enum.map(miners, fn {key, building} ->
-        {key, Behaviors.Miner.tick(key, apply_creature_boost(key, building))}
+        updated = Behaviors.Miner.tick(key, apply_creature_boost(key, building))
+        record_production_stats(key, building, updated)
+        {key, updated}
       end)
 
     # Phase 2: Smelters tick (with creature boost)
     smelter_updates =
       Enum.map(smelters, fn {key, building} ->
-        {key, Behaviors.Smelter.tick(key, apply_creature_boost(key, building))}
+        updated = Behaviors.Smelter.tick(key, apply_creature_boost(key, building))
+        record_production_stats(key, building, updated)
+        {key, updated}
       end)
 
     # Phase 2b: Refineries tick (with creature boost)
     refinery_updates =
       Enum.map(refineries, fn {key, building} ->
-        {key, Behaviors.Refinery.tick(key, apply_creature_boost(key, building))}
+        updated = Behaviors.Refinery.tick(key, apply_creature_boost(key, building))
+        record_production_stats(key, building, updated)
+        {key, updated}
       end)
 
     # Phase 2c: Assemblers tick (with creature boost)
     assembler_updates =
       Enum.map(assemblers, fn {key, building} ->
-        {key, Behaviors.Assembler.tick(key, apply_creature_boost(key, building))}
+        updated = Behaviors.Assembler.tick(key, apply_creature_boost(key, building))
+        record_production_stats(key, building, updated)
+        {key, updated}
       end)
 
     # Phase 2d: Submission terminals tick (consume items, report submissions)
     {terminal_updates, submissions} =
       Enum.reduce(terminals, {[], []}, fn {key, building}, {updates, subs} ->
         {updated, consumed_item} = Behaviors.SubmissionTerminal.tick(key, building)
+
+        if consumed_item, do: Statistics.record_consumption(key, consumed_item)
 
         new_updates = [{key, updated} | updates]
 
@@ -204,6 +214,24 @@ defmodule Spheric.Game.TickProcessor do
           winner -> [winner]
         end
       end)
+
+    # Record throughput for items moving through logistics buildings
+    Enum.each(accepted, fn {src_key, _dest_key, item} ->
+      src = Map.get(buildings, src_key)
+
+      if src &&
+           src.type in [
+             :conveyor,
+             :conveyor_mk2,
+             :conveyor_mk3,
+             :splitter,
+             :merger,
+             :balancer,
+             :crossover
+           ] do
+        Statistics.record_throughput(src_key, item)
+      end
+    end)
 
     # Apply accepted pushes
     final = apply_pushes(buildings, accepted)
@@ -968,6 +996,31 @@ defmodule Spheric.Game.TickProcessor do
         acc
       end
     end)
+  end
+
+  # Record production/consumption stats by comparing building state before and after tick.
+  defp record_production_stats(key, old_building, new_building) do
+    old_state = old_building.state
+    new_state = new_building.state
+
+    # Detect production: output_buffer went from nil to a value
+    if old_state[:output_buffer] == nil and new_state[:output_buffer] != nil do
+      Statistics.record_production(key, new_state.output_buffer)
+    end
+
+    # Detect consumption for single-input buildings (smelter, refinery)
+    if old_state[:input_buffer] != nil and new_state[:input_buffer] == nil and
+         new_state[:output_buffer] != nil do
+      Statistics.record_consumption(key, old_state.input_buffer)
+    end
+
+    # Detect consumption for dual-input buildings (assembler)
+    if old_state[:input_a] != nil and old_state[:input_b] != nil and
+         new_state[:input_a] == nil and new_state[:input_b] == nil and
+         new_state[:output_buffer] != nil do
+      Statistics.record_consumption(key, old_state.input_a)
+      Statistics.record_consumption(key, old_state.input_b)
+    end
   end
 
   # Apply creature boost and altered item effects to a building's tick rate.

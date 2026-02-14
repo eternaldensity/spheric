@@ -7,9 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Phase 7: Advanced Logistics & Polish (#49)
+- Add blueprint tool for stamp-placing building patterns (#52)
 - Add deep production chains: Assembler activation, Refinery, 4 new resources, multi-tier recipes (#40)
 
 ### Fixed
+- Wire production statistics into tick processor (#51)
 - Fix resource rendering: remove hatched overlay, keep vertex-color glow (#20)
 
 ### Changed

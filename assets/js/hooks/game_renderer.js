@@ -73,6 +73,13 @@ const GameRenderer = {
     // Multiplayer: other players' markers
     this.playerMarkers = new Map(); // name -> { group, sphere, label }
 
+    // Blueprint tool state
+    this.blueprintMode = null;         // null | "capture" | "stamp"
+    this.blueprintCaptureStart = null;  // {face, row, col} for capture selection
+    this.blueprintPattern = null;       // [{dr, dc, type, orientation}, ...] relative offsets
+    this.blueprintPreviewMeshes = [];   // THREE.Mesh[] for stamp preview
+    this.savedBlueprints = this.loadBlueprints(); // [{name, pattern}, ...]
+
     // Spin rotation state (Ctrl+drag to spin around a point on the sphere)
     this._spinning = false;
     this._spinAxis = new THREE.Vector3();
@@ -641,6 +648,33 @@ const GameRenderer = {
         this.setTileOverlay(face, row, col, null);
       }, 200);
     });
+
+    // Blueprint tool events from LiveView
+    this.handleEvent("blueprint_mode", ({ mode }) => {
+      this.cancelLineDraw();
+      this.clearPreviewArrow();
+      this.clearBlueprintPreview();
+      this.blueprintCaptureStart = null;
+
+      if (mode === "capture") {
+        this.blueprintMode = "capture";
+        this.placementType = null;
+      } else if (mode === "stamp") {
+        this.blueprintMode = "stamp";
+        this.placementType = null;
+      } else {
+        this.blueprintMode = null;
+      }
+    });
+
+    this.handleEvent("blueprint_select", ({ index }) => {
+      const bp = this.savedBlueprints[index];
+      if (bp) {
+        this.blueprintPattern = bp.pattern;
+        this.blueprintMode = "stamp";
+        this.placementType = null;
+      }
+    });
   },
 
   // --- Raycasting for tile selection ---
@@ -657,9 +691,18 @@ const GameRenderer = {
     this.renderer.domElement.addEventListener("contextmenu", this._onContextMenu);
 
     this._onKeyDown = (event) => {
-      if (event.key === "Escape" && this.lineStart) {
-        this.cancelLineDraw();
-        return;
+      if (event.key === "Escape") {
+        if (this.blueprintMode) {
+          this.clearBlueprintPreview();
+          this.blueprintMode = null;
+          this.blueprintCaptureStart = null;
+          this.pushEvent("blueprint_cancelled", {});
+          return;
+        }
+        if (this.lineStart) {
+          this.cancelLineDraw();
+          return;
+        }
       }
       if (event.key === "t" || event.key === "T") {
         this.toggleBuildingRenderMode();
@@ -685,6 +728,11 @@ const GameRenderer = {
     if (this._suppressClick) return;
     const tile = this.hitToTile(event);
     if (!tile) return;
+
+    // Blueprint mode: capture or stamp
+    if (this.blueprintMode) {
+      if (this.onBlueprintClick(tile)) return;
+    }
 
     // Line-drawing mode: two-click workflow
     if (this.lineMode && this.placementType) {
@@ -764,6 +812,12 @@ const GameRenderer = {
     this.hoveredTile = tile;
 
     if (tile) {
+      // Blueprint stamp preview
+      if (this.blueprintMode === "stamp" && this.blueprintPattern) {
+        this.showBlueprintPreview(tile);
+        return;
+      }
+
       // If in line-drawing mode with start set, show line preview
       if (this.lineMode && this.lineStart) {
         this.showLinePreview(tile);
@@ -1042,6 +1096,184 @@ const GameRenderer = {
         this.setTileOverlay(this.lineStart.face, this.lineStart.row, this.lineStart.col, null);
       }
       this.lineStart = null;
+    }
+  },
+
+  // --- Blueprint tool ---
+
+  loadBlueprints() {
+    try {
+      const raw = localStorage.getItem("spheric_blueprints");
+      return raw ? JSON.parse(raw) : [];
+    } catch (_e) {
+      return [];
+    }
+  },
+
+  saveBlueprints() {
+    try {
+      localStorage.setItem("spheric_blueprints", JSON.stringify(this.savedBlueprints));
+    } catch (_e) { /* localStorage unavailable */ }
+  },
+
+  onBlueprintClick(tile) {
+    if (this.blueprintMode === "capture") {
+      this.handleBlueprintCapture(tile);
+      return true;
+    }
+    if (this.blueprintMode === "stamp" && this.blueprintPattern) {
+      this.handleBlueprintStamp(tile);
+      return true;
+    }
+    return false;
+  },
+
+  handleBlueprintCapture(tile) {
+    if (!this.blueprintCaptureStart) {
+      // First click: set capture origin
+      this.blueprintCaptureStart = tile;
+      this.setTileOverlay(tile.face, tile.row, tile.col, "selected");
+      return;
+    }
+
+    // Second click: capture rectangle on same face
+    const start = this.blueprintCaptureStart;
+    if (start.face !== tile.face) {
+      // Cross-face capture not supported, reset
+      this.setTileOverlay(start.face, start.row, start.col, null);
+      this.blueprintCaptureStart = null;
+      return;
+    }
+
+    const minRow = Math.min(start.row, tile.row);
+    const maxRow = Math.max(start.row, tile.row);
+    const minCol = Math.min(start.col, tile.col);
+    const maxCol = Math.max(start.col, tile.col);
+
+    // Extract buildings in the rectangle
+    const pattern = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const key = `${start.face}:${r}:${c}`;
+        const data = this.buildingData.get(key);
+        if (data) {
+          pattern.push({
+            dr: r - minRow,
+            dc: c - minCol,
+            type: data.type,
+            orientation: data.orientation,
+          });
+        }
+      }
+    }
+
+    // Clear capture overlay
+    this.setTileOverlay(start.face, start.row, start.col, null);
+    this.blueprintCaptureStart = null;
+
+    if (pattern.length === 0) {
+      return;
+    }
+
+    this.blueprintPattern = pattern;
+
+    // Save blueprint with auto-generated name
+    const name = `Blueprint ${this.savedBlueprints.length + 1} (${pattern.length} buildings)`;
+    this.savedBlueprints.push({ name, pattern });
+    this.saveBlueprints();
+
+    // Notify LiveView to update blueprint list
+    this.pushEvent("blueprint_captured", {
+      name,
+      count: pattern.length,
+      index: this.savedBlueprints.length - 1,
+    });
+
+    // Switch to stamp mode
+    this.blueprintMode = "stamp";
+  },
+
+  handleBlueprintStamp(tile) {
+    const pattern = this.blueprintPattern;
+    if (!pattern || pattern.length === 0) return;
+
+    // Map relative offsets to absolute tile positions from the click point
+    const buildings = [];
+    for (const entry of pattern) {
+      // Walk from origin tile by dr rows and dc cols using neighbor resolution
+      let current = { face: tile.face, row: tile.row, col: tile.col };
+
+      // Move by dr rows (direction 1 = +row)
+      for (let i = 0; i < entry.dr; i++) {
+        const next = this.getNeighborTile(current, 1);
+        if (!next) { current = null; break; }
+        current = next;
+      }
+      if (!current) continue;
+
+      // Move by dc cols (direction 0 = +col)
+      for (let i = 0; i < entry.dc; i++) {
+        const next = this.getNeighborTile(current, 0);
+        if (!next) { current = null; break; }
+        current = next;
+      }
+      if (!current) continue;
+
+      buildings.push({
+        face: current.face,
+        row: current.row,
+        col: current.col,
+        orientation: entry.orientation,
+        type: entry.type,
+      });
+    }
+
+    if (buildings.length > 0) {
+      // Set placement type temporarily for the batch to work
+      this.pushEvent("place_blueprint", { buildings });
+    }
+  },
+
+  showBlueprintPreview(tile) {
+    this.clearBlueprintPreview();
+    if (!this.blueprintPattern) return;
+
+    for (const entry of this.blueprintPattern) {
+      let current = { face: tile.face, row: tile.row, col: tile.col };
+
+      for (let i = 0; i < entry.dr; i++) {
+        const next = this.getNeighborTile(current, 1);
+        if (!next) { current = null; break; }
+        current = next;
+      }
+      if (!current) continue;
+
+      for (let i = 0; i < entry.dc; i++) {
+        const next = this.getNeighborTile(current, 0);
+        if (!next) { current = null; break; }
+        current = next;
+      }
+      if (!current) continue;
+
+      this.setTileOverlay(current.face, current.row, current.col, "hover");
+      this.blueprintPreviewMeshes.push(current);
+    }
+  },
+
+  clearBlueprintPreview() {
+    for (const tile of this.blueprintPreviewMeshes) {
+      const overlay = this.getTileOverlay(tile.face, tile.row, tile.col);
+      if (overlay === "hover") {
+        this.setTileOverlay(tile.face, tile.row, tile.col, null);
+      }
+    }
+    this.blueprintPreviewMeshes = [];
+  },
+
+  deleteBlueprint(index) {
+    if (index >= 0 && index < this.savedBlueprints.length) {
+      this.savedBlueprints.splice(index, 1);
+      this.saveBlueprints();
     }
   },
 
@@ -1533,6 +1765,7 @@ const GameRenderer = {
     this.renderer.domElement.removeEventListener("contextmenu", this._onContextMenu);
     this.clearPreviewArrow();
     this.clearLinePreview();
+    this.clearBlueprintPreview();
     this.disposePlayerMarkers();
     this.disposeAlteredItems();
     this.disposeCorruption();
