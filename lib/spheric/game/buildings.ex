@@ -17,7 +17,9 @@ defmodule Spheric.Game.Buildings do
     :submission_terminal,
     :containment_trap,
     :purification_beacon,
-    :defense_turret
+    :defense_turret,
+    :claim_beacon,
+    :trade_terminal
   ]
 
   @doc "Returns the list of all building type atoms."
@@ -38,6 +40,8 @@ defmodule Spheric.Game.Buildings do
   def display_name(:containment_trap), do: "Trap"
   def display_name(:purification_beacon), do: "Beacon"
   def display_name(:defense_turret), do: "Turret"
+  def display_name(:claim_beacon), do: "Beacon"
+  def display_name(:trade_terminal), do: "Trade"
 
   @doc """
   Check if a building type can be placed on the given tile data.
@@ -51,6 +55,7 @@ defmodule Spheric.Game.Buildings do
   def can_place_on?(type, _tile)
       when type in [:purification_beacon, :defense_turret] and type in @types,
       do: true
+
   def can_place_on?(type, _tile) when type in @types, do: true
   def can_place_on?(_type, _tile), do: false
 
@@ -74,6 +79,12 @@ defmodule Spheric.Game.Buildings do
 
   def initial_state(:defense_turret),
     do: Spheric.Game.Behaviors.DefenseTurret.initial_state()
+
+  def initial_state(:claim_beacon),
+    do: Spheric.Game.Behaviors.ClaimBeacon.initial_state()
+
+  def initial_state(:trade_terminal),
+    do: Spheric.Game.Behaviors.TradeTerminal.initial_state()
 
   def initial_state(_type), do: %{}
 end

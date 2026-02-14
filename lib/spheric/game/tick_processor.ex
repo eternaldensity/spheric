@@ -24,7 +24,7 @@ defmodule Spheric.Game.TickProcessor do
   def process_tick(tick) do
     buildings = gather_all_buildings()
 
-    {miners, _conveyors, smelters, assemblers, refineries, terminals, _others} =
+    {miners, _conveyors, smelters, assemblers, refineries, terminals, trade_terminals, _others} =
       classify(buildings)
 
     # Phase 1: Miners tick (with creature boost)
@@ -68,12 +68,21 @@ defmodule Spheric.Game.TickProcessor do
         {new_updates, new_subs}
       end)
 
+    # Phase 2e: Trade terminals tick (submit items to trades)
+    trade_terminal_updates =
+      Enum.map(trade_terminals, fn {key, building} ->
+        {updated, _consumed} = Behaviors.TradeTerminal.tick(key, building)
+        {key, updated}
+      end)
+
     # Merge updates into the full building map
     all_buildings =
       merge_updates(
         buildings,
         miner_updates ++
-          smelter_updates ++ refinery_updates ++ assembler_updates ++ terminal_updates
+          smelter_updates ++
+          refinery_updates ++
+          assembler_updates ++ terminal_updates ++ trade_terminal_updates
       )
 
     # Phase 3: Push resolution — move items between buildings
@@ -100,16 +109,17 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   defp classify(buildings) do
-    Enum.reduce(buildings, {[], [], [], [], [], [], []}, fn {key, building},
-                                                            {m, c, s, a, r, t, o} ->
+    Enum.reduce(buildings, {[], [], [], [], [], [], [], []}, fn {key, building},
+                                                                {m, c, s, a, r, t, tt, o} ->
       case building.type do
-        :miner -> {[{key, building} | m], c, s, a, r, t, o}
-        :conveyor -> {m, [{key, building} | c], s, a, r, t, o}
-        :smelter -> {m, c, [{key, building} | s], a, r, t, o}
-        :assembler -> {m, c, s, [{key, building} | a], r, t, o}
-        :refinery -> {m, c, s, a, [{key, building} | r], t, o}
-        :submission_terminal -> {m, c, s, a, r, [{key, building} | t], o}
-        _ -> {m, c, s, a, r, t, [{key, building} | o]}
+        :miner -> {[{key, building} | m], c, s, a, r, t, tt, o}
+        :conveyor -> {m, [{key, building} | c], s, a, r, t, tt, o}
+        :smelter -> {m, c, [{key, building} | s], a, r, t, tt, o}
+        :assembler -> {m, c, s, [{key, building} | a], r, t, tt, o}
+        :refinery -> {m, c, s, a, [{key, building} | r], t, tt, o}
+        :submission_terminal -> {m, c, s, a, r, [{key, building} | t], tt, o}
+        :trade_terminal -> {m, c, s, a, r, t, [{key, building} | tt], o}
+        _ -> {m, c, s, a, r, t, tt, [{key, building} | o]}
       end
     end)
   end
@@ -244,6 +254,18 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
+  defp get_push_request(
+         key,
+         %{type: :trade_terminal, orientation: dir, state: %{output_buffer: item}},
+         n
+       )
+       when not is_nil(item) do
+    case TileNeighbors.neighbor(key, dir, n) do
+      {:ok, dest_key} -> {key, dest_key, item}
+      :boundary -> nil
+    end
+  end
+
   defp get_push_request(_key, _building, _n), do: nil
 
   # Try to accept an item at the destination building
@@ -302,6 +324,17 @@ defmodule Spheric.Game.TickProcessor do
     accept_from_directions(dest_key, [left_dir, right_dir], requests, n)
   end
 
+  # Trade terminal: accepts any item into input_buffer from the rear
+  defp try_accept(
+         dest_key,
+         %{type: :trade_terminal, orientation: dir, state: %{input_buffer: nil}},
+         requests,
+         n
+       ) do
+    rear_dir = rem(dir + 2, 4)
+    accept_from_direction(dest_key, rear_dir, requests, n)
+  end
+
   defp try_accept(_key, _building, _requests, _n), do: nil
 
   # Accept the first request whose source is the neighbor in the given direction
@@ -350,6 +383,9 @@ defmodule Spheric.Game.TickProcessor do
             :defense_turret ->
               %{b | state: %{b.state | output_buffer: nil}}
 
+            :trade_terminal ->
+              %{b | state: %{b.state | output_buffer: nil}}
+
             :splitter ->
               next = if b.state.next_output == :left, do: :right, else: :left
               %{b | state: %{b.state | item: nil, next_output: next}}
@@ -387,6 +423,9 @@ defmodule Spheric.Game.TickProcessor do
             %{b | state: %{b.state | item: item}}
 
           :submission_terminal ->
+            %{b | state: %{b.state | input_buffer: item}}
+
+          :trade_terminal ->
             %{b | state: %{b.state | input_buffer: item}}
 
           _ ->
@@ -509,6 +548,15 @@ defmodule Spheric.Game.TickProcessor do
   defp items_from_building(
          {face, row, col},
          %{type: :defense_turret, state: %{output_buffer: item}},
+         _
+       )
+       when not is_nil(item) do
+    [%{face: face, row: row, col: col, item: item, from_face: nil, from_row: nil, from_col: nil}]
+  end
+
+  defp items_from_building(
+         {face, row, col},
+         %{type: :trade_terminal, state: %{output_buffer: item}},
          _
        )
        when not is_nil(item) do

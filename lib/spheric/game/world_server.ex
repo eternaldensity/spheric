@@ -21,7 +21,9 @@ defmodule Spheric.Game.WorldServer do
     Research,
     Creatures,
     AlteredItems,
-    Hiss
+    Hiss,
+    Territory,
+    Trading
   }
 
   require Logger
@@ -92,6 +94,8 @@ defmodule Spheric.Game.WorldServer do
     AlteredItems.init()
     Spheric.Game.ObjectsOfPower.init()
     Hiss.init()
+    Territory.init()
+    Trading.init()
 
     # Try to load an existing world from the database
     {world_id, actual_seed} =
@@ -141,6 +145,9 @@ defmodule Spheric.Game.WorldServer do
       Hiss.blocks_placement?(key) and type not in [:purification_beacon, :defense_turret] ->
         {:reply, {:error, :corrupted_tile}, state}
 
+      not Territory.can_build?(owner[:id], key) ->
+        {:reply, {:error, :territory_blocked}, state}
+
       true ->
         initial_state = Buildings.initial_state(type)
 
@@ -159,6 +166,12 @@ defmodule Spheric.Game.WorldServer do
         }
 
         WorldStore.put_building(key, building)
+
+        # If this is a claim beacon, establish territory
+        if type == :claim_beacon do
+          Territory.claim(state.world_id, owner[:id], key)
+          broadcast_territory_update(key)
+        end
 
         Phoenix.PubSub.broadcast(
           Spheric.PubSub,
@@ -196,6 +209,9 @@ defmodule Spheric.Game.WorldServer do
           Hiss.blocks_placement?(key) and type not in [:purification_beacon, :defense_turret] ->
             {key, {:error, :corrupted_tile}}
 
+          not Territory.can_build?(owner[:id], key) ->
+            {key, {:error, :territory_blocked}}
+
           true ->
             initial_state = Buildings.initial_state(type)
 
@@ -213,6 +229,11 @@ defmodule Spheric.Game.WorldServer do
             }
 
             WorldStore.put_building(key, building)
+
+            if type == :claim_beacon do
+              Territory.claim(state.world_id, owner[:id], key)
+              broadcast_territory_update(key)
+            end
 
             Phoenix.PubSub.broadcast(
               Spheric.PubSub,
@@ -240,6 +261,12 @@ defmodule Spheric.Game.WorldServer do
         {:reply, {:error, :not_owner}, state}
 
       true ->
+        # Release territory if this is a claim beacon
+        if building.type == :claim_beacon do
+          Territory.release(key)
+          broadcast_territory_update(key)
+        end
+
         WorldStore.remove_building(key)
 
         Phoenix.PubSub.broadcast(
@@ -527,7 +554,12 @@ defmodule Spheric.Game.WorldServer do
       building = WorldStore.get_building(turret_key)
 
       if building && building.state[:output_buffer] == nil do
-        new_state = %{building.state | output_buffer: item, kills: (building.state[:kills] || 0) + 1}
+        new_state = %{
+          building.state
+          | output_buffer: item,
+            kills: (building.state[:kills] || 0) + 1
+        }
+
         WorldStore.put_building(turret_key, %{building | state: new_state})
       end
     end
@@ -555,6 +587,16 @@ defmodule Spheric.Game.WorldServer do
         {:hiss_sync, face_id, entities}
       )
     end
+  end
+
+  defp broadcast_territory_update({face_id, _row, _col}) do
+    territories = Territory.territories_on_face(face_id)
+
+    Phoenix.PubSub.broadcast(
+      Spheric.PubSub,
+      "world:face:#{face_id}",
+      {:territory_update, face_id, territories}
+    )
   end
 
   @impl true

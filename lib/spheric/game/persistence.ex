@@ -11,8 +11,18 @@ defmodule Spheric.Game.Persistence do
   import Ecto.Query
 
   alias Spheric.Repo
-  alias Spheric.Game.Schema.{World, Building, TileResource, Player, Creature, Corruption, HissEntity}
-  alias Spheric.Game.{WorldStore, WorldGen, Creatures, Hiss}
+
+  alias Spheric.Game.Schema.{
+    World,
+    Building,
+    TileResource,
+    Player,
+    Creature,
+    Corruption,
+    HissEntity
+  }
+
+  alias Spheric.Game.{WorldStore, WorldGen, Creatures, Hiss, Territory, Trading}
 
   require Logger
 
@@ -72,6 +82,12 @@ defmodule Spheric.Game.Persistence do
         # Load corruption state
         load_corruption(world.id)
 
+        # Load territory claims
+        Territory.load_territories(world.id)
+
+        # Load active trades
+        Trading.load_trades(world.id)
+
         {:ok, world}
     end
   end
@@ -91,6 +107,8 @@ defmodule Spheric.Game.Persistence do
     delete_buildings(world_id, removed_buildings)
     save_creatures(world_id, now)
     save_corruption(world_id, now)
+    Territory.save_territories(world_id, now)
+    Trading.save_trades(world_id, now)
 
     :ok
   end

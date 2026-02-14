@@ -49,7 +49,8 @@ defmodule Spheric.Game.Research do
       name: "Fabrication Protocol Alpha",
       clearance: 2,
       requirements: %{wire: 40, plate: 40},
-      description: "Deliver 40 Conductive Filaments and 40 Structural Plates to prove fabrication readiness."
+      description:
+        "Deliver 40 Conductive Filaments and 40 Structural Plates to prove fabrication readiness."
     },
     %{
       id: "l2_titanium_delivery",
@@ -68,7 +69,8 @@ defmodule Spheric.Game.Research do
       name: "Paranatural Engineering",
       clearance: 3,
       requirements: %{circuit: 30, frame: 20, polycarbonate: 20},
-      description: "Deliver 30 Resonance Circuits, 20 Astral Frames, and 20 Stabilized Polymers to unlock paranatural containment technology."
+      description:
+        "Deliver 30 Resonance Circuits, 20 Astral Frames, and 20 Stabilized Polymers to unlock paranatural containment technology."
     }
   ]
 
@@ -79,7 +81,7 @@ defmodule Spheric.Game.Research do
   # Buildings unlocked at each clearance level
   @clearance_unlocks %{
     0 => [:conveyor, :miner, :smelter, :submission_terminal],
-    1 => [:splitter, :merger],
+    1 => [:splitter, :merger, :claim_beacon, :trade_terminal],
     2 => [:assembler, :refinery],
     3 => [:containment_trap, :purification_beacon, :defense_turret]
   }

@@ -14,6 +14,8 @@ const COLORS = {
   containment_trap: 0x664488,
   purification_beacon: 0x44aadd,
   defense_turret: 0xcc3333,
+  claim_beacon: 0x33aa55,
+  trade_terminal: 0xddaa33,
 };
 
 function makeMaterial(color) {
@@ -274,6 +276,68 @@ function createDefenseTurret() {
   return group;
 }
 
+function createClaimBeacon() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.claim_beacon);
+
+  // Wide hexagonal base (territory foundation)
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(s * 1.0, s * 1.1, s * 0.25, 6), mat);
+  base.position.y = s * 0.125;
+  group.add(base);
+
+  // Central pillar
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.2, s * 0.3, s * 1.2, 6), mat);
+  pillar.position.y = s * 0.85;
+  group.add(pillar);
+
+  // Top flag/banner (diamond shape)
+  const flagMat = new THREE.MeshLambertMaterial({ color: 0x55dd77, emissive: 0x228844, emissiveIntensity: 0.3 });
+  const flag = new THREE.Mesh(new THREE.OctahedronGeometry(s * 0.35, 0), flagMat);
+  flag.position.y = s * 1.7;
+  flag.rotation.y = Math.PI / 4;
+  group.add(flag);
+
+  // Territory ring (floating, indicates claimed area)
+  const ringMat = new THREE.MeshLambertMaterial({ color: 0x44cc66, transparent: true, opacity: 0.4 });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(s * 0.8, s * 0.05, 6, 12), ringMat);
+  ring.position.y = s * 1.2;
+  ring.rotation.x = Math.PI / 2;
+  group.add(ring);
+
+  return group;
+}
+
+function createTradeTerminal() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.trade_terminal);
+
+  // Base platform
+  const base = new THREE.Mesh(new THREE.BoxGeometry(s * 1.2, s * 0.4, s * 1.0), mat);
+  base.position.y = s * 0.2;
+  group.add(base);
+
+  // Left exchange slot
+  const slotMat = makeMaterial(0xbb8822);
+  const slotL = new THREE.Mesh(new THREE.BoxGeometry(s * 0.3, s * 0.6, s * 0.5), slotMat);
+  slotL.position.set(-s * 0.35, s * 0.7, 0);
+  group.add(slotL);
+
+  // Right exchange slot
+  const slotR = new THREE.Mesh(new THREE.BoxGeometry(s * 0.3, s * 0.6, s * 0.5), slotMat);
+  slotR.position.set(s * 0.35, s * 0.7, 0);
+  group.add(slotR);
+
+  // Exchange arrows indicator (gold bar between slots)
+  const arrowMat = new THREE.MeshLambertMaterial({ color: 0xffcc44, emissive: 0xddaa22, emissiveIntensity: 0.2 });
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(s * 0.4, s * 0.1, s * 0.15), arrowMat);
+  bar.position.set(0, s * 0.7, 0);
+  group.add(bar);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
@@ -286,6 +350,8 @@ const BUILDERS = {
   containment_trap: createContainmentTrap,
   purification_beacon: createPurificationBeacon,
   defense_turret: createDefenseTurret,
+  claim_beacon: createClaimBeacon,
+  trade_terminal: createTradeTerminal,
 };
 
 /**

@@ -109,6 +109,10 @@ const GameRenderer = {
     this.alteredMeshes = new Map(); // "face:row:col" -> THREE.Mesh
     this.alteredTime = 0;
 
+    // Territory rendering state
+    this.territoryData = new Map(); // face_id -> [{ owner_id, center_face, center_row, center_col, radius }]
+    this.territoryMeshes = new Map(); // "face:row:col" -> THREE.Mesh (border overlays)
+
     // Hiss corruption rendering state
     this.corruptionData = new Map(); // "face:row:col" -> { intensity }
     this.corruptionMeshes = new Map(); // "face:row:col" -> THREE.Mesh
@@ -577,6 +581,18 @@ const GameRenderer = {
       for (const tile of tiles) {
         this.removeCorruptionOverlay(tile.face, tile.row, tile.col);
       }
+    });
+
+    // --- Territory ---
+
+    this.handleEvent("territory_update", ({ face, territories }) => {
+      this.territoryData.set(face, territories);
+      this.rebuildTerritoryOverlays(face);
+    });
+
+    this.handleEvent("territory_sync", ({ face, territories }) => {
+      this.territoryData.set(face, territories);
+      this.rebuildTerritoryOverlays(face);
     });
 
     this.handleEvent("hiss_sync", ({ face, entities }) => {
@@ -1334,6 +1350,81 @@ const GameRenderer = {
     this.corruptionMeshes.set(key, mesh);
   },
 
+  rebuildTerritoryOverlays(faceId) {
+    // Remove existing territory meshes for this face
+    for (const [key, mesh] of this.territoryMeshes) {
+      if (key.startsWith(`${faceId}:`)) {
+        this.scene.remove(mesh);
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+        this.territoryMeshes.delete(key);
+      }
+    }
+
+    const territories = this.territoryData.get(faceId);
+    if (!territories || territories.length === 0) return;
+
+    const N = this.subdivisions;
+
+    // For each territory on this face, draw border tiles
+    for (const t of territories) {
+      const r = t.radius;
+      // Hash owner_id to a color
+      const color = this.ownerIdToColor(t.owner_id);
+
+      // Draw only the border tiles (edges of the radius box)
+      for (let row = t.center_row - r; row <= t.center_row + r; row++) {
+        for (let col = t.center_col - r; col <= t.center_col + r; col++) {
+          if (row < 0 || row >= N || col < 0 || col >= N) continue;
+
+          // Only draw if on the border (edge of the claimed rectangle)
+          const onBorder =
+            row === t.center_row - r || row === t.center_row + r ||
+            col === t.center_col - r || col === t.center_col + r;
+          if (!onBorder) continue;
+
+          const key = `${faceId}:${row}:${col}`;
+          if (this.territoryMeshes.has(key)) continue;
+
+          const center = this.getTileCenter(faceId, row, col);
+          if (!center) continue;
+
+          const normal = center.clone().normalize();
+          const tileSize = 1.0 / N * 0.9;
+
+          const geo = new THREE.PlaneGeometry(tileSize, tileSize);
+          const mat = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.2,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+          });
+
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.position.copy(normal).multiplyScalar(1.001);
+          mesh.quaternion.setFromUnitVectors(
+            new THREE.Vector3(0, 0, 1), normal
+          );
+
+          this.scene.add(mesh);
+          this.territoryMeshes.set(key, mesh);
+        }
+      }
+    }
+  },
+
+  ownerIdToColor(ownerId) {
+    // Simple hash to generate a consistent color per player
+    let hash = 0;
+    for (let i = 0; i < ownerId.length; i++) {
+      hash = ((hash << 5) - hash) + ownerId.charCodeAt(i);
+      hash |= 0;
+    }
+    const hue = Math.abs(hash % 360);
+    return new THREE.Color(`hsl(${hue}, 60%, 50%)`);
+  },
+
   removeCorruptionOverlay(face, row, col) {
     const key = `${face}:${row}:${col}`;
     const mesh = this.corruptionMeshes.get(key);
@@ -1392,6 +1483,16 @@ const GameRenderer = {
         this.hissEntityMeshes.delete(id);
       }
     }
+  },
+
+  disposeTerritory() {
+    for (const [, mesh] of this.territoryMeshes) {
+      this.scene.remove(mesh);
+      mesh.geometry.dispose();
+      mesh.material.dispose();
+    }
+    this.territoryMeshes.clear();
+    this.territoryData.clear();
   },
 
   disposeCorruption() {

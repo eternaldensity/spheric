@@ -46,6 +46,8 @@ defmodule Spheric.Game.Lore do
   def display_name(:containment_trap), do: "Trap"
   def display_name(:purification_beacon), do: "Purification Beacon"
   def display_name(:defense_turret), do: "Defense Array"
+  def display_name(:claim_beacon), do: "Jurisdiction Beacon"
+  def display_name(:trade_terminal), do: "Exchange Terminal"
 
   # Biomes
   def display_name(:grassland), do: "Threshold Plain"

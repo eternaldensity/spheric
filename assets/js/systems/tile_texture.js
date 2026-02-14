@@ -34,6 +34,8 @@ const BUILDING_FILLS = {
   containment_trap: "#664488",
   purification_beacon: "#44aadd",
   defense_turret: "#cc3333",
+  claim_beacon: "#33aa55",
+  trade_terminal: "#ddaa33",
 };
 
 // Building icon glyphs (drawn procedurally)
@@ -49,6 +51,8 @@ const BUILDING_GLYPHS = {
   containment_trap: drawContainmentTrapGlyph,
   purification_beacon: drawPurificationBeaconGlyph,
   defense_turret: drawDefenseTurretGlyph,
+  claim_beacon: drawClaimBeaconGlyph,
+  trade_terminal: drawTradeTerminalGlyph,
 };
 
 const PIXELS_PER_TILE = 32;
@@ -366,4 +370,51 @@ function drawDefenseTurretGlyph(ctx, r) {
   ctx.arc(r * 0.9, 0, r * 0.12, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(255,50,50,0.8)";
   ctx.fill();
+}
+
+function drawClaimBeaconGlyph(ctx, r) {
+  // Hexagonal base with a flag/diamond on top
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(angle) * r * 0.7;
+    const y = Math.sin(angle) * r * 0.7;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Flag diamond in center
+  ctx.beginPath();
+  ctx.moveTo(0, -r * 0.4);
+  ctx.lineTo(r * 0.25, 0);
+  ctx.lineTo(0, r * 0.4);
+  ctx.lineTo(-r * 0.25, 0);
+  ctx.closePath();
+  ctx.strokeStyle = "rgba(255,255,255,0.9)";
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+}
+
+function drawTradeTerminalGlyph(ctx, r) {
+  // Two boxes with arrows between them (exchange)
+  ctx.fillRect(-r * 0.8, -r * 0.4, r * 0.6, r * 0.8);
+  ctx.strokeRect(-r * 0.8, -r * 0.4, r * 0.6, r * 0.8);
+
+  ctx.fillRect(r * 0.2, -r * 0.4, r * 0.6, r * 0.8);
+  ctx.strokeRect(r * 0.2, -r * 0.4, r * 0.6, r * 0.8);
+
+  // Exchange arrows (bidirectional)
+  ctx.strokeStyle = "rgba(255,255,255,0.8)";
+  ctx.lineWidth = r * 0.15;
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.15, -r * 0.15);
+  ctx.lineTo(r * 0.15, -r * 0.15);
+  ctx.moveTo(r * 0.15, r * 0.15);
+  ctx.lineTo(-r * 0.15, r * 0.15);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+  ctx.lineWidth = 1.5;
 }

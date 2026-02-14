@@ -14,7 +14,9 @@ defmodule SphericWeb.GameLive do
     Lore,
     AlteredItems,
     ObjectsOfPower,
-    Hiss
+    Hiss,
+    Territory,
+    Trading
   }
 
   alias SphericWeb.Presence
@@ -105,6 +107,10 @@ defmodule SphericWeb.GameLive do
       |> assign(:show_creatures, false)
       |> assign(:creature_roster, Creatures.get_player_roster(player_id))
       |> assign(:objects_of_power, ObjectsOfPower.player_objects(player_id))
+      |> assign(:show_trading, false)
+      |> assign(:open_trades, [])
+      |> assign(:my_trades, [])
+      |> assign(:trade_form, %{offered: %{}, requested: %{}})
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
 
     # Tell the client to restore camera and persist any newly-generated identity
@@ -199,6 +205,17 @@ defmodule SphericWeb.GameLive do
         <div style="background: #331111; height: 4px; margin-top: 2px;">
           <div style={"background: #ff2222; height: 4px; width: #{@tile_info.corruption * 10}%;"}>
           </div>
+        </div>
+      </div>
+      <div
+        :if={@tile_info[:territory]}
+        style="margin-top: 4px; border-top: 1px solid #226633; padding-top: 4px;"
+      >
+        <div style="color: #44cc66; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;">
+          Jurisdiction Zone
+        </div>
+        <div style="color: #66dd88; font-size: 11px;">
+          Operator: {@tile_info.territory.owner_name}
         </div>
       </div>
       <div
@@ -356,6 +373,119 @@ defmodule SphericWeb.GameLive do
       </div>
     </div>
 
+    <%!-- === TRADE EXCHANGE PANEL (top-right) === --%>
+    <div
+      :if={@show_trading}
+      style="position: fixed; top: 50px; right: 16px; background: var(--fbc-panel); color: var(--fbc-text); padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 280px; max-width: 360px; max-height: 70vh; overflow-y: auto; border: 1px solid var(--fbc-border);"
+    >
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--fbc-border); padding-bottom: 8px;">
+        <span style="font-size: 13px; color: var(--fbc-cream); text-transform: uppercase; letter-spacing: 0.15em;">
+          Exchange Requisitions
+        </span>
+        <span style="font-size: 10px; color: var(--fbc-text-dim);">
+          {length(@open_trades)} open
+        </span>
+      </div>
+      <%!-- My active trades --%>
+      <div
+        :if={@my_trades != []}
+        style="margin-bottom: 12px;"
+      >
+        <div style="font-size: 10px; color: var(--fbc-accent); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">
+          Your Requisitions
+        </div>
+        <div
+          :for={trade <- @my_trades}
+          style={"margin-bottom: 8px; padding: 8px; border: 1px solid #{trade_status_color(trade.status)}; background: rgba(255,255,255,0.02);"}
+        >
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style={"color: #{trade_status_color(trade.status)}; font-size: 10px; text-transform: uppercase;"}>
+              {trade.status}
+            </span>
+            <button
+              :if={trade.status in ["open", "accepted"] and trade.offerer_id == @player_id}
+              phx-click="cancel_trade"
+              phx-value-trade_id={trade.id}
+              style="padding: 2px 6px; border: 1px solid var(--fbc-accent-dim); background: rgba(136,34,34,0.15); color: var(--fbc-accent); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"
+            >
+              Cancel
+            </button>
+          </div>
+          <div style="margin-top: 4px; font-size: 11px;">
+            <span style="color: var(--fbc-text-dim);">Offering:</span>
+            <span
+              :for={{item, count} <- trade.offered_items}
+              style="color: var(--fbc-highlight); margin-left: 4px;"
+            >
+              {Lore.display_name_str(item)} x{count}
+            </span>
+          </div>
+          <div style="font-size: 11px;">
+            <span style="color: var(--fbc-text-dim);">Requesting:</span>
+            <span
+              :for={{item, count} <- trade.requested_items}
+              style="color: var(--fbc-info); margin-left: 4px;"
+            >
+              {Lore.display_name_str(item)} x{count}
+            </span>
+          </div>
+          <%!-- Link to trade terminal button --%>
+          <button
+            :if={
+              (trade.status == "accepted" and @tile_info) && @tile_info.building &&
+                @tile_info.building.type == :trade_terminal
+            }
+            phx-click="link_trade"
+            phx-value-trade_id={trade.id}
+            phx-value-face={@tile_info.face}
+            phx-value-row={@tile_info.row}
+            phx-value-col={@tile_info.col}
+            style="margin-top: 4px; padding: 3px 8px; border: 1px solid var(--fbc-success); background: rgba(102,136,68,0.12); color: var(--fbc-success); cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase;"
+          >
+            Link to selected terminal
+          </button>
+        </div>
+      </div>
+      <%!-- Open trades from other players --%>
+      <div style="font-size: 10px; color: var(--fbc-info); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">
+        Open Requisitions
+      </div>
+      <div :if={@open_trades == []} style="color: var(--fbc-text-dim); font-size: 11px;">
+        No open requisitions available.
+      </div>
+      <div
+        :for={trade <- @open_trades}
+        :if={trade.offerer_id != @player_id}
+        style="margin-bottom: 8px; padding: 8px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.02);"
+      >
+        <div style="font-size: 11px;">
+          <span style="color: var(--fbc-text-dim);">Offering:</span>
+          <span
+            :for={{item, count} <- trade.offered_items}
+            style="color: var(--fbc-highlight); margin-left: 4px;"
+          >
+            {Lore.display_name_str(item)} x{count}
+          </span>
+        </div>
+        <div style="font-size: 11px;">
+          <span style="color: var(--fbc-text-dim);">Wants:</span>
+          <span
+            :for={{item, count} <- trade.requested_items}
+            style="color: var(--fbc-info); margin-left: 4px;"
+          >
+            {Lore.display_name_str(item)} x{count}
+          </span>
+        </div>
+        <button
+          phx-click="accept_trade"
+          phx-value-trade_id={trade.id}
+          style="margin-top: 4px; padding: 3px 8px; border: 1px solid var(--fbc-success); background: rgba(102,136,68,0.12); color: var(--fbc-success); cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase;"
+        >
+          Accept Requisition
+        </button>
+      </div>
+    </div>
+
     <%!-- === BOTTOM TOOLBAR === --%>
     <div style="position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; padding: 12px; background: var(--fbc-panel); border-top: 1px solid var(--fbc-border); pointer-events: auto;">
       <button
@@ -392,6 +522,24 @@ defmodule SphericWeb.GameLive do
         title="Containment Records (C key)"
       >
         Entities
+      </button>
+      <button
+        phx-click="toggle_trading"
+        style={"
+          padding: 8px 12px;
+          border: 1px solid #{if @show_trading, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
+          background: #{if @show_trading, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
+          color: #{if @show_trading, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
+          cursor: pointer;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          margin-right: 8px;
+        "}
+        title="Exchange Requisitions (T key)"
+      >
+        Trades
       </button>
       <button
         :for={type <- @building_types}
@@ -639,6 +787,7 @@ defmodule SphericWeb.GameLive do
       socket
       |> assign(:show_research, opening)
       |> then(fn s -> if opening, do: assign(s, :show_creatures, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
 
     {:noreply, socket}
   end
@@ -653,6 +802,7 @@ defmodule SphericWeb.GameLive do
       |> assign(:show_creatures, opening)
       |> assign(:creature_roster, roster)
       |> then(fn s -> if opening, do: assign(s, :show_research, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
 
     {:noreply, socket}
   end
@@ -688,6 +838,123 @@ defmodule SphericWeb.GameLive do
   end
 
   @impl true
+  def handle_event("toggle_trading", _params, socket) do
+    opening = !socket.assigns.show_trading
+    world_id = socket.assigns.world_id
+    player_id = socket.assigns.player_id
+
+    socket =
+      if opening and world_id do
+        open_trades = Trading.open_trades(world_id)
+        my_trades = Trading.player_trades(world_id, player_id)
+
+        socket
+        |> assign(:show_trading, true)
+        |> assign(:open_trades, open_trades)
+        |> assign(:my_trades, my_trades)
+        |> assign(:show_research, false)
+        |> assign(:show_creatures, false)
+      else
+        assign(socket, :show_trading, false)
+      end
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("create_trade", %{"offered" => offered, "requested" => requested}, socket) do
+    world_id = socket.assigns.world_id
+    player_id = socket.assigns.player_id
+
+    if world_id do
+      case Trading.create_trade(world_id, player_id, offered, requested) do
+        {:ok, _trade} ->
+          open_trades = Trading.open_trades(world_id)
+          my_trades = Trading.player_trades(world_id, player_id)
+
+          socket =
+            socket
+            |> assign(:open_trades, open_trades)
+            |> assign(:my_trades, my_trades)
+
+          {:noreply, socket}
+
+        {:error, _reason} ->
+          {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("accept_trade", %{"trade_id" => trade_id_str}, socket) do
+    trade_id = String.to_integer(trade_id_str)
+    player_id = socket.assigns.player_id
+    world_id = socket.assigns.world_id
+
+    case Trading.accept_trade(trade_id, player_id) do
+      {:ok, _trade} ->
+        open_trades = Trading.open_trades(world_id)
+        my_trades = Trading.player_trades(world_id, player_id)
+
+        socket =
+          socket
+          |> assign(:open_trades, open_trades)
+          |> assign(:my_trades, my_trades)
+
+        {:noreply, socket}
+
+      {:error, _reason} ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_trade", %{"trade_id" => trade_id_str}, socket) do
+    trade_id = String.to_integer(trade_id_str)
+    player_id = socket.assigns.player_id
+    world_id = socket.assigns.world_id
+
+    case Trading.cancel_trade(trade_id, player_id) do
+      {:ok, _trade} ->
+        open_trades = Trading.open_trades(world_id)
+        my_trades = Trading.player_trades(world_id, player_id)
+
+        socket =
+          socket
+          |> assign(:open_trades, open_trades)
+          |> assign(:my_trades, my_trades)
+
+        {:noreply, socket}
+
+      {:error, _reason} ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "link_trade",
+        %{"trade_id" => trade_id_str, "face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    trade_id = String.to_integer(trade_id_str)
+    key = {to_int(face), to_int(row), to_int(col)}
+    building = WorldStore.get_building(key)
+
+    if building && building.type == :trade_terminal &&
+         building.owner_id == socket.assigns.player_id do
+      new_state = %{building.state | trade_id: trade_id}
+      WorldStore.put_building(key, %{building | state: new_state})
+      tile_info = build_tile_info(key)
+      {:noreply, assign(socket, :tile_info, tile_info)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
   def handle_event("keydown", %{"key" => "f"}, socket) do
     opening = !socket.assigns.show_research
 
@@ -695,6 +962,7 @@ defmodule SphericWeb.GameLive do
       socket
       |> assign(:show_research, opening)
       |> then(fn s -> if opening, do: assign(s, :show_creatures, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
 
     {:noreply, socket}
   end
@@ -709,8 +977,14 @@ defmodule SphericWeb.GameLive do
       |> assign(:show_creatures, opening)
       |> assign(:creature_roster, roster)
       |> then(fn s -> if opening, do: assign(s, :show_research, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("keydown", %{"key" => "t"}, socket) do
+    handle_event("toggle_trading", %{}, socket)
   end
 
   @impl true
@@ -1009,6 +1283,20 @@ defmodule SphericWeb.GameLive do
     {:noreply, socket}
   end
 
+  # --- Territory Handlers ---
+
+  @impl true
+  def handle_info({:territory_update, face_id, territories}, socket) do
+    if MapSet.member?(socket.assigns.visible_faces, face_id) do
+      socket =
+        push_event(socket, "territory_update", %{face: face_id, territories: territories})
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
   # --- Terrain Streaming ---
 
   @impl true
@@ -1034,11 +1322,14 @@ defmodule SphericWeb.GameLive do
             %{id: id, face: e.face, row: e.row, col: e.col, health: e.health}
           end)
 
+        territories = Territory.territories_on_face(face_id)
+
         sock
         |> push_event("terrain_face", %{face: face_id, terrain: terrain})
         |> push_event("altered_items", %{face: face_id, items: altered})
         |> push_event("corruption_sync", %{face: face_id, tiles: corruption})
         |> push_event("hiss_sync", %{face: face_id, entities: hiss_entities})
+        |> push_event("territory_sync", %{face: face_id, territories: territories})
       end)
 
     {:noreply, socket}
@@ -1121,6 +1412,15 @@ defmodule SphericWeb.GameLive do
 
     altered_item = AlteredItems.get(key)
     corruption = Hiss.corruption_at(key)
+    territory = Territory.territory_at(key)
+
+    territory_info =
+      if territory do
+        owner_name = Persistence.get_player_name(territory.owner_id)
+        %{owner_id: territory.owner_id, owner_name: owner_name || "Unknown"}
+      else
+        nil
+      end
 
     base = %{
       face: face,
@@ -1132,7 +1432,8 @@ defmodule SphericWeb.GameLive do
       resource_amount: resource_amount,
       building: building,
       altered_item: altered_item,
-      corruption: corruption
+      corruption: corruption,
+      territory: territory_info
     }
 
     if building do
@@ -1243,6 +1544,23 @@ defmodule SphericWeb.GameLive do
     end
   end
 
+  defp building_status_text(%{type: :claim_beacon, state: state}) do
+    "Active — Radius #{state[:radius] || 8}"
+  end
+
+  defp building_status_text(%{type: :trade_terminal, state: state}) do
+    cond do
+      state[:output_buffer] != nil ->
+        "Output: #{Lore.display_name(state.output_buffer)}"
+
+      state[:trade_id] != nil ->
+        "Linked — #{state.total_sent} sent, #{state.total_received} received"
+
+      true ->
+        "No requisition linked"
+    end
+  end
+
   defp building_status_text(_building), do: nil
 
   defp creature_boost_label(type) do
@@ -1257,6 +1575,12 @@ defmodule SphericWeb.GameLive do
       _ -> ""
     end
   end
+
+  defp trade_status_color("open"), do: "var(--fbc-info)"
+  defp trade_status_color("accepted"), do: "var(--fbc-highlight)"
+  defp trade_status_color("completed"), do: "var(--fbc-success)"
+  defp trade_status_color("cancelled"), do: "var(--fbc-accent)"
+  defp trade_status_color(_), do: "var(--fbc-text-dim)"
 
   defp format_building_key({face, row, col}), do: "F#{face} R#{row} C#{col}"
   defp format_building_key(_), do: "—"

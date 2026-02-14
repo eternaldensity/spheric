@@ -42,15 +42,15 @@ defmodule Spheric.Game.WorldStoreTest do
     end
 
     test "get_face_tiles returns tiles for a generated face" do
-      # Face 0 is populated by WorldGen at startup with 16x16 = 256 tiles
+      # Face 0 is populated by WorldGen at startup with 64x64 = 4096 tiles
       face0 = WorldStore.get_face_tiles(0)
-      assert length(face0) == 256
+      assert length(face0) == 4096
       assert Enum.all?(face0, fn {{f, _, _}, _} -> f == 0 end)
     end
 
     test "tile_count includes all generated tiles" do
-      # WorldGen generates 30 * 16 * 16 = 7680 tiles at startup
-      assert WorldStore.tile_count() >= 7_680
+      # WorldGen generates 30 * 64 * 64 = 122880 tiles at startup
+      assert WorldStore.tile_count() >= 122_880
     end
   end
 

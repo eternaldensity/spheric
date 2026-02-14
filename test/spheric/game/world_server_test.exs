@@ -88,7 +88,7 @@ defmodule Spheric.Game.WorldServerTest do
       snapshot = WorldServer.get_face_snapshot(0)
       assert is_list(snapshot.tiles)
       assert is_list(snapshot.buildings)
-      assert length(snapshot.tiles) == 256
+      assert length(snapshot.tiles) == 4096
     end
   end
 

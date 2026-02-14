@@ -339,8 +339,7 @@ defmodule Spheric.Game.Hiss do
             if new_health <= 0 do
               :ets.delete(@hiss_entities_table, hiss_id)
 
-              {[{hiss_id, turret_key} | kills_acc],
-               [{turret_key, :hiss_residue} | drops_acc]}
+              {[{hiss_id, turret_key} | kills_acc], [{turret_key, :hiss_residue} | drops_acc]}
             else
               :ets.insert(@hiss_entities_table, {hiss_id, %{entity | health: new_health}})
               {kills_acc, drops_acc}
