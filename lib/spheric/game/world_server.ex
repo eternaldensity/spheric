@@ -787,11 +787,19 @@ defmodule Spheric.Game.WorldServer do
 
   defp broadcast_shift_cycle(:no_change), do: :ok
 
-  defp broadcast_shift_cycle({:phase_changed, phase, lighting, modifiers}) do
+  defp broadcast_shift_cycle({:phase_changed, phase, lighting, modifiers, sun_dir}) do
     Phoenix.PubSub.broadcast(
       Spheric.PubSub,
       "world:events",
-      {:shift_cycle_changed, phase, lighting, modifiers}
+      {:shift_cycle_changed, phase, lighting, modifiers, sun_dir}
+    )
+  end
+
+  defp broadcast_shift_cycle({:sun_moved, sun_dir}) do
+    Phoenix.PubSub.broadcast(
+      Spheric.PubSub,
+      "world:events",
+      {:sun_moved, sun_dir}
     )
   end
 

@@ -175,13 +175,13 @@ const GameRenderer = {
     this.controls.rotateSpeed = 2.0;
     this.controls.zoomSpeed = 0.4;
 
-    // FBC atmosphere lighting — cool, dim, institutional
+    // Atmosphere lighting — sun direction driven by shift cycle
     this.ambientLight = new THREE.AmbientLight(0x404050, 1.2);
     this.scene.add(this.ambientLight);
     this.dirLight = new THREE.DirectionalLight(0xeeeeff, 0.8);
-    this.dirLight.position.set(5, 3, 4);
+    this.dirLight.position.set(5, 0, 0);
     this.scene.add(this.dirLight);
-    const fillLight = new THREE.DirectionalLight(0x6666aa, 0.25);
+    const fillLight = new THREE.DirectionalLight(0x6666aa, 0.15);
     fillLight.position.set(-3, -2, -4);
     this.scene.add(fillLight);
   },
@@ -679,20 +679,28 @@ const GameRenderer = {
 
     // --- Phase 8: Shift Cycle & World Events ---
 
-    this.handleEvent("shift_cycle_changed", ({ phase, ambient, directional, intensity, bg }) => {
-      // Smoothly transition lighting
+    this.handleEvent("shift_cycle_changed", ({ phase, ambient, directional, intensity, bg, sun_x, sun_y, sun_z }) => {
       if (this.ambientLight) {
         this.ambientLight.color.setHex(ambient);
       }
       if (this.dirLight) {
         this.dirLight.color.setHex(directional);
         this.dirLight.intensity = intensity;
+        if (sun_x !== undefined) {
+          this.dirLight.position.set(sun_x * 5, sun_y * 5, sun_z * 5);
+        }
       }
       if (this.scene.background) {
         this.scene.background.setHex(bg);
       }
       if (this.scene.fog) {
         this.scene.fog.color.setHex(bg);
+      }
+    });
+
+    this.handleEvent("sun_moved", ({ sun_x, sun_y, sun_z }) => {
+      if (this.dirLight) {
+        this.dirLight.position.set(sun_x * 5, sun_y * 5, sun_z * 5);
       }
     });
 

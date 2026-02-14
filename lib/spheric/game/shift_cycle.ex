@@ -1,23 +1,23 @@
 defmodule Spheric.Game.ShiftCycle do
   @moduledoc """
-  Shift Cycle — sphere rotation phases affecting biome productivity and lighting.
+  Shift Cycle — sun-driven day/night cycle on the sphere.
 
-  The sphere cycles through 4 phases, each lasting a fixed number of ticks.
-  Each phase boosts or penalizes certain biomes' productivity:
+  A directional "sun" rotates around the sphere. Half the planet is
+  illuminated and half is in shadow at any time. Each face's light level
+  is the dot product of its outward normal with the sun direction.
 
-  - Dawn:    tundra +20%, volcanic -10%
-  - Zenith:  desert +20%, forest -10%
-  - Dusk:    forest +20%, desert -10%
-  - Nadir:   volcanic +20%, tundra -10%
-
-  Grassland is always neutral. The cycle affects miner extraction rates
-  and is reflected in scene lighting on the client.
+  The cycle is divided into 4 named phases (dawn, zenith, dusk, nadir)
+  for biome productivity modifiers. Phase transitions still broadcast
+  to clients for UI updates.
   """
+
+  alias Spheric.Geometry.RhombicTriacontahedron, as: RT
 
   @cycle_table :spheric_shift_cycle
 
-  # Each phase lasts this many ticks (200ms per tick = ~2 min per phase)
+  # Full rotation = 4 phases × 600 ticks = 2400 ticks (~8 min)
   @phase_duration 600
+  @full_cycle @phase_duration * 4
 
   @phases [:dawn, :zenith, :dusk, :nadir]
 
@@ -28,14 +28,24 @@ defmodule Spheric.Game.ShiftCycle do
     nadir: %{volcanic: 0.20, tundra: -0.10, grassland: 0.0, desert: 0.0, forest: 0.0}
   }
 
+  # Lighting palette per phase — ambient/bg set the mood, directional tints the sun
   @phase_lighting %{
-    dawn: %{ambient: 0x2A3344, directional: 0xFFCC88, intensity: 0.5, bg: 0x080812},
+    dawn: %{ambient: 0x2A3344, directional: 0xFFCC88, intensity: 0.7, bg: 0x080812},
     zenith: %{ambient: 0x667788, directional: 0xFFFFDD, intensity: 1.0, bg: 0x121222},
-    dusk: %{ambient: 0x332233, directional: 0xFF8866, intensity: 0.4, bg: 0x06040C},
-    nadir: %{ambient: 0x111118, directional: 0x334466, intensity: 0.15, bg: 0x020204}
+    dusk: %{ambient: 0x332233, directional: 0xFF8866, intensity: 0.6, bg: 0x06040C},
+    nadir: %{ambient: 0x111118, directional: 0x334466, intensity: 0.3, bg: 0x020204}
   }
 
-  @dark_phases [:nadir, :dusk]
+  # Threshold: faces with illumination below this are "dark"
+  @dark_threshold 0.15
+
+  # Precompute normalized face normals at compile time
+  @face_normals (
+    for i <- 0..29 do
+      RT.normalize(RT.face_center(i))
+    end
+    |> List.to_tuple()
+  )
 
   # --- Public API ---
 
@@ -47,6 +57,7 @@ defmodule Spheric.Game.ShiftCycle do
     case :ets.lookup(@cycle_table, :state) do
       [] ->
         :ets.insert(@cycle_table, {:state, %{
+          sun_angle: 0.0,
           current_phase: :dawn,
           phase_tick: 0
         }})
@@ -102,8 +113,30 @@ defmodule Spheric.Game.ShiftCycle do
     Map.get(@phase_lighting, current_phase(), Map.get(@phase_lighting, :dawn))
   end
 
-  @doc "Returns true during dark phases (dusk, nadir) when shadow panels can generate."
-  def dark?, do: current_phase() in @dark_phases
+  @doc "Get the current sun direction as {x, y, z}."
+  def sun_direction do
+    case state() do
+      nil -> {1.0, 0.0, 0.0}
+      s -> angle_to_direction(s.sun_angle)
+    end
+  end
+
+  @doc "Get the illumination level for a face (0.0 = full shadow, 1.0 = full sun)."
+  def face_illumination(face_id) when face_id >= 0 and face_id <= 29 do
+    {sx, sy, sz} = sun_direction()
+    {nx, ny, nz} = elem(@face_normals, face_id)
+    max(0.0, sx * nx + sy * ny + sz * nz)
+  end
+
+  @doc "Returns true when the given face is in darkness (illumination below threshold)."
+  def dark?(face_id) when face_id >= 0 and face_id <= 29 do
+    face_illumination(face_id) < @dark_threshold
+  end
+
+  @doc "Returns the outward normal for a face."
+  def face_normal(face_id) when face_id >= 0 and face_id <= 29 do
+    elem(@face_normals, face_id)
+  end
 
   @doc """
   Apply the shift cycle modifier to a building's tick rate.
@@ -122,7 +155,8 @@ defmodule Spheric.Game.ShiftCycle do
 
   @doc """
   Process the shift cycle for the current tick.
-  Returns `{:phase_changed, new_phase, lighting}` or `:no_change`.
+  Returns `{:phase_changed, new_phase, lighting, modifiers}` or
+  `{:sun_moved, sun_dir}` or `:no_change`.
   """
   def process_tick(tick) do
     if rem(tick, 10) != 0 do
@@ -133,23 +167,27 @@ defmodule Spheric.Game.ShiftCycle do
       if current == nil do
         :no_change
       else
-        new_phase_tick = current.phase_tick + 10
+        # Advance sun angle
+        angle_step = 2 * :math.pi() * 10 / @full_cycle
+        new_angle = fmod(current.sun_angle + angle_step, 2 * :math.pi())
+        new_phase = phase_for_angle(new_angle)
+        new_phase_tick = if new_phase == current.current_phase, do: current.phase_tick + 10, else: 0
 
-        if new_phase_tick >= @phase_duration do
-          # Advance to next phase
-          phase_idx = Enum.find_index(@phases, &(&1 == current.current_phase))
-          next_idx = rem(phase_idx + 1, length(@phases))
-          next_phase = Enum.at(@phases, next_idx)
+        new_state = %{current |
+          sun_angle: new_angle,
+          current_phase: new_phase,
+          phase_tick: new_phase_tick
+        }
+        :ets.insert(@cycle_table, {:state, new_state})
 
-          new_state = %{current | current_phase: next_phase, phase_tick: 0}
-          :ets.insert(@cycle_table, {:state, new_state})
+        sun_dir = angle_to_direction(new_angle)
 
-          lighting = Map.get(@phase_lighting, next_phase)
-          modifiers = Map.get(@phase_modifiers, next_phase)
-          {:phase_changed, next_phase, lighting, modifiers}
+        if new_phase != current.current_phase do
+          lighting = Map.get(@phase_lighting, new_phase)
+          modifiers = Map.get(@phase_modifiers, new_phase)
+          {:phase_changed, new_phase, lighting, modifiers, sun_dir}
         else
-          :ets.insert(@cycle_table, {:state, %{current | phase_tick: new_phase_tick}})
-          :no_change
+          {:sun_moved, sun_dir}
         end
       end
     end
@@ -181,4 +219,28 @@ defmodule Spheric.Game.ShiftCycle do
   def phase_info(:dusk), do: %{name: "Dusk Shift", description: "Forest operations enhanced"}
   def phase_info(:nadir), do: %{name: "Nadir Shift", description: "Volcanic operations enhanced"}
   def phase_info(_), do: %{name: "Unknown", description: ""}
+
+  # --- Private helpers ---
+
+  # Sun rotates in the XZ plane (Y is the polar axis of the sphere)
+  defp angle_to_direction(angle) do
+    {:math.cos(angle), 0.0, :math.sin(angle)}
+  end
+
+  # Map angle quadrant to phase name
+  defp phase_for_angle(angle) do
+    quarter = :math.pi() / 2
+
+    cond do
+      angle < quarter -> :dawn
+      angle < 2 * quarter -> :zenith
+      angle < 3 * quarter -> :dusk
+      true -> :nadir
+    end
+  end
+
+  # Float modulo (Elixir's rem/2 is integer-only)
+  defp fmod(a, b) do
+    a - Float.floor(a / b) * b
+  end
 end

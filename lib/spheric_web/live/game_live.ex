@@ -147,8 +147,9 @@ defmodule SphericWeb.GameLive do
         # Stream terrain data per-face via push_event (too large for data-attribute at 64x64)
         send(self(), :send_terrain)
 
-        # Send initial shift cycle lighting
+        # Send initial shift cycle lighting + sun direction
         lighting = ShiftCycle.current_lighting()
+        {sx, sy, sz} = ShiftCycle.sun_direction()
 
         socket =
           push_event(socket, "shift_cycle_changed", %{
@@ -156,7 +157,10 @@ defmodule SphericWeb.GameLive do
             ambient: lighting.ambient,
             directional: lighting.directional,
             intensity: lighting.intensity,
-            bg: lighting.bg
+            bg: lighting.bg,
+            sun_x: sx,
+            sun_y: sy,
+            sun_z: sz
           })
 
         socket
@@ -1899,7 +1903,9 @@ defmodule SphericWeb.GameLive do
   end
 
   @impl true
-  def handle_info({:shift_cycle_changed, phase, lighting, _modifiers}, socket) do
+  def handle_info({:shift_cycle_changed, phase, lighting, _modifiers, sun_dir}, socket) do
+    {sx, sy, sz} = sun_dir
+
     socket =
       socket
       |> assign(:shift_phase, phase)
@@ -1908,7 +1914,24 @@ defmodule SphericWeb.GameLive do
         ambient: lighting.ambient,
         directional: lighting.directional,
         intensity: lighting.intensity,
-        bg: lighting.bg
+        bg: lighting.bg,
+        sun_x: sx,
+        sun_y: sy,
+        sun_z: sz
+      })
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:sun_moved, sun_dir}, socket) do
+    {sx, sy, sz} = sun_dir
+
+    socket =
+      push_event(socket, "sun_moved", %{
+        sun_x: sx,
+        sun_y: sy,
+        sun_z: sz
       })
 
     {:noreply, socket}
