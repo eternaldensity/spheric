@@ -85,8 +85,15 @@ defmodule Spheric.Game.TickProcessor do
           assembler_updates ++ terminal_updates ++ trade_terminal_updates
       )
 
+    # Phase 2f: Conveyor Mk2/Mk3 internal buffer advancement
+    all_buildings = advance_conveyor_buffers(all_buildings)
+
     # Phase 3: Push resolution — move items between buildings
     {final_buildings, movements} = resolve_pushes(all_buildings)
+
+    # Phase 3b: Underground conduit teleportation
+    {final_buildings, conduit_movements} = resolve_conduit_teleports(final_buildings)
+    movements = movements ++ conduit_movements
 
     # Phase 4: Altered item duplication (5% chance to refill output after push)
     final_buildings = apply_duplication_effects(final_buildings, movements)
@@ -112,14 +119,29 @@ defmodule Spheric.Game.TickProcessor do
     Enum.reduce(buildings, {[], [], [], [], [], [], [], []}, fn {key, building},
                                                                 {m, c, s, a, r, t, tt, o} ->
       case building.type do
-        :miner -> {[{key, building} | m], c, s, a, r, t, tt, o}
-        :conveyor -> {m, [{key, building} | c], s, a, r, t, tt, o}
-        :smelter -> {m, c, [{key, building} | s], a, r, t, tt, o}
-        :assembler -> {m, c, s, [{key, building} | a], r, t, tt, o}
-        :refinery -> {m, c, s, a, [{key, building} | r], t, tt, o}
-        :submission_terminal -> {m, c, s, a, r, [{key, building} | t], tt, o}
-        :trade_terminal -> {m, c, s, a, r, t, [{key, building} | tt], o}
-        _ -> {m, c, s, a, r, t, tt, [{key, building} | o]}
+        :miner ->
+          {[{key, building} | m], c, s, a, r, t, tt, o}
+
+        type when type in [:conveyor, :conveyor_mk2, :conveyor_mk3] ->
+          {m, [{key, building} | c], s, a, r, t, tt, o}
+
+        :smelter ->
+          {m, c, [{key, building} | s], a, r, t, tt, o}
+
+        :assembler ->
+          {m, c, s, [{key, building} | a], r, t, tt, o}
+
+        :refinery ->
+          {m, c, s, a, [{key, building} | r], t, tt, o}
+
+        :submission_terminal ->
+          {m, c, s, a, r, [{key, building} | t], tt, o}
+
+        :trade_terminal ->
+          {m, c, s, a, r, t, [{key, building} | tt], o}
+
+        _ ->
+          {m, c, s, a, r, t, tt, [{key, building} | o]}
       end
     end)
   end
@@ -127,6 +149,30 @@ defmodule Spheric.Game.TickProcessor do
   defp merge_updates(buildings, updates) do
     Enum.reduce(updates, buildings, fn {key, building}, acc ->
       Map.put(acc, key, building)
+    end)
+  end
+
+  # Advance internal buffers for Mk2/Mk3 conveyors.
+  # Shifts items from buffer slots toward the front (item) slot.
+  defp advance_conveyor_buffers(buildings) do
+    Enum.reduce(buildings, buildings, fn
+      {key, %{type: :conveyor_mk2, state: %{item: nil, buffer: buf}} = b}, acc
+      when not is_nil(buf) ->
+        Map.put(acc, key, %{b | state: %{b.state | item: buf, buffer: nil}})
+
+      {key, %{type: :conveyor_mk3, state: %{item: nil, buffer1: b1}} = b}, acc
+      when not is_nil(b1) ->
+        Map.put(acc, key, %{
+          b
+          | state: %{b.state | item: b1, buffer1: b.state.buffer2, buffer2: nil}
+        })
+
+      {key, %{type: :conveyor_mk3, state: %{buffer1: nil, buffer2: b2}} = b}, acc
+      when not is_nil(b2) ->
+        Map.put(acc, key, %{b | state: %{b.state | buffer1: b2, buffer2: nil}})
+
+      _, acc ->
+        acc
     end)
   end
 
@@ -167,7 +213,25 @@ defmodule Spheric.Game.TickProcessor do
     {final, accepted}
   end
 
+  # --- Push request generation ---
+
   defp get_push_request(key, %{type: :conveyor, orientation: dir, state: %{item: item}}, n)
+       when not is_nil(item) do
+    case TileNeighbors.neighbor(key, dir, n) do
+      {:ok, dest_key} -> {key, dest_key, item}
+      :boundary -> nil
+    end
+  end
+
+  defp get_push_request(key, %{type: :conveyor_mk2, orientation: dir, state: %{item: item}}, n)
+       when not is_nil(item) do
+    case TileNeighbors.neighbor(key, dir, n) do
+      {:ok, dest_key} -> {key, dest_key, item}
+      :boundary -> nil
+    end
+  end
+
+  defp get_push_request(key, %{type: :conveyor_mk3, orientation: dir, state: %{item: item}}, n)
        when not is_nil(item) do
     case TileNeighbors.neighbor(key, dir, n) do
       {:ok, dest_key} -> {key, dest_key, item}
@@ -206,6 +270,68 @@ defmodule Spheric.Game.TickProcessor do
 
     case TileNeighbors.neighbor(key, output_dir, n) do
       {:ok, dest_key} -> {key, dest_key, item}
+      :boundary -> nil
+    end
+  end
+
+  # Balancer: smart splitter that checks downstream fullness
+  defp get_push_request(
+         key,
+         %{type: :balancer, orientation: dir, state: %{item: item, last_output: last}},
+         n
+       )
+       when not is_nil(item) do
+    {left, right} = Behaviors.Balancer.output_directions(dir)
+
+    left_key =
+      case TileNeighbors.neighbor(key, left, n) do
+        {:ok, k} -> k
+        :boundary -> nil
+      end
+
+    right_key =
+      case TileNeighbors.neighbor(key, right, n) do
+        {:ok, k} -> k
+        :boundary -> nil
+      end
+
+    # Check downstream fullness — prefer the less-full side
+    left_full = left_key == nil or downstream_full?(left_key)
+    right_full = right_key == nil or downstream_full?(right_key)
+
+    output_dir =
+      cond do
+        left_full and right_full -> nil
+        left_full -> right
+        right_full -> left
+        # Both available: alternate
+        last == :left -> right
+        true -> left
+      end
+
+    if output_dir do
+      case TileNeighbors.neighbor(key, output_dir, n) do
+        {:ok, dest_key} -> {key, dest_key, item}
+        :boundary -> nil
+      end
+    else
+      nil
+    end
+  end
+
+  # Storage container: pushes items from its stock to the front
+  defp get_push_request(
+         key,
+         %{
+           type: :storage_container,
+           orientation: dir,
+           state: %{item_type: item_type, count: count}
+         },
+         n
+       )
+       when not is_nil(item_type) and count > 0 do
+    case TileNeighbors.neighbor(key, dir, n) do
+      {:ok, dest_key} -> {key, dest_key, item_type}
       :boundary -> nil
     end
   end
@@ -266,18 +392,111 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
+  # Underground conduit: push item from linked conduit's output
+  # (handled separately in resolve_conduit_teleports)
+
   defp get_push_request(_key, _building, _n), do: nil
+
+  # Check if a building's input slot is full (for balancer logic)
+  defp downstream_full?(key) do
+    case WorldStore.get_building(key) do
+      nil ->
+        true
+
+      %{type: :conveyor, state: %{item: item}} ->
+        item != nil
+
+      %{type: :conveyor_mk2, state: %{item: item, buffer: buf}} ->
+        item != nil and buf != nil
+
+      %{type: :conveyor_mk3, state: %{item: item, buffer1: b1, buffer2: b2}} ->
+        item != nil and b1 != nil and b2 != nil
+
+      %{type: :smelter, state: %{input_buffer: buf}} ->
+        buf != nil
+
+      %{type: :refinery, state: %{input_buffer: buf}} ->
+        buf != nil
+
+      %{type: :splitter, state: %{item: item}} ->
+        item != nil
+
+      %{type: :merger, state: %{item: item}} ->
+        item != nil
+
+      %{type: :balancer, state: %{item: item}} ->
+        item != nil
+
+      %{type: :storage_container, state: state} ->
+        state.count >= state.capacity
+
+      _ ->
+        false
+    end
+  end
+
+  # --- Acceptance logic ---
 
   # Try to accept an item at the destination building
   defp try_accept(_key, nil, _requests, _n), do: nil
 
   defp try_accept(_key, %{type: :conveyor, state: %{item: nil}}, [winner | _], _n), do: winner
 
+  # Conveyor Mk2: accept if any slot available
+  defp try_accept(_key, %{type: :conveyor_mk2, state: state}, [winner | _], _n) do
+    cond do
+      state.item == nil -> winner
+      state.buffer == nil -> winner
+      true -> nil
+    end
+  end
+
+  # Conveyor Mk3: accept if any slot available
+  defp try_accept(_key, %{type: :conveyor_mk3, state: state}, [winner | _], _n) do
+    cond do
+      state.item == nil -> winner
+      state.buffer1 == nil -> winner
+      state.buffer2 == nil -> winner
+      true -> nil
+    end
+  end
+
   defp try_accept(_key, %{type: :smelter, state: %{input_buffer: nil}}, [winner | _], _n),
     do: winner
 
   defp try_accept(_key, %{type: :refinery, state: %{input_buffer: nil}}, [winner | _], _n),
     do: winner
+
+  # Storage container: accepts items from rear, if type matches and not full
+  defp try_accept(
+         dest_key,
+         %{type: :storage_container, orientation: dir, state: state},
+         requests,
+         n
+       ) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.StorageContainer.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
+
+  # Underground conduit: accepts items from the rear
+  defp try_accept(
+         dest_key,
+         %{type: :underground_conduit, orientation: dir, state: %{item: nil}},
+         requests,
+         n
+       ) do
+    rear_dir = rem(dir + 2, 4)
+    accept_from_direction(dest_key, rear_dir, requests, n)
+  end
 
   # Submission terminal: accepts any item into input_buffer from the rear
   defp try_accept(
@@ -309,6 +528,17 @@ defmodule Spheric.Game.TickProcessor do
   defp try_accept(
          dest_key,
          %{type: :splitter, orientation: dir, state: %{item: nil}},
+         requests,
+         n
+       ) do
+    rear_dir = rem(dir + 2, 4)
+    accept_from_direction(dest_key, rear_dir, requests, n)
+  end
+
+  # Balancer: only accepts from the rear (opposite of orientation)
+  defp try_accept(
+         dest_key,
+         %{type: :balancer, orientation: dir, state: %{item: nil}},
          requests,
          n
        ) do
@@ -368,6 +598,12 @@ defmodule Spheric.Game.TickProcessor do
             :conveyor ->
               %{b | state: %{b.state | item: nil}}
 
+            :conveyor_mk2 ->
+              %{b | state: %{b.state | item: nil}}
+
+            :conveyor_mk3 ->
+              %{b | state: %{b.state | item: nil}}
+
             :miner ->
               %{b | state: %{b.state | output_buffer: nil}}
 
@@ -390,8 +626,27 @@ defmodule Spheric.Game.TickProcessor do
               next = if b.state.next_output == :left, do: :right, else: :left
               %{b | state: %{b.state | item: nil, next_output: next}}
 
+            :balancer ->
+              # Track which side was last used
+              dir = b.orientation
+              {left, _right} = Behaviors.Balancer.output_directions(dir)
+              n = Application.get_env(:spheric, :subdivisions, 64)
+
+              dest_dir =
+                case TileNeighbors.neighbor(src_key, left, n) do
+                  {:ok, ^dest_key} -> :left
+                  _ -> :right
+                end
+
+              %{b | state: %{b.state | item: nil, last_output: dest_dir}}
+
             :merger ->
               %{b | state: %{b.state | item: nil}}
+
+            :storage_container ->
+              new_count = max(0, b.state.count - 1)
+              new_type = if new_count == 0, do: nil, else: b.state.item_type
+              %{b | state: %{b.state | count: new_count, item_type: new_type}}
 
             _ ->
               b
@@ -403,6 +658,21 @@ defmodule Spheric.Game.TickProcessor do
         case b.type do
           :conveyor ->
             %{b | state: %{b.state | item: item}}
+
+          :conveyor_mk2 ->
+            cond do
+              b.state.item == nil -> %{b | state: %{b.state | item: item}}
+              b.state.buffer == nil -> %{b | state: %{b.state | buffer: item}}
+              true -> b
+            end
+
+          :conveyor_mk3 ->
+            cond do
+              b.state.item == nil -> %{b | state: %{b.state | item: item}}
+              b.state.buffer1 == nil -> %{b | state: %{b.state | buffer1: item}}
+              b.state.buffer2 == nil -> %{b | state: %{b.state | buffer2: item}}
+              true -> b
+            end
 
           :smelter ->
             %{b | state: %{b.state | input_buffer: item}}
@@ -419,7 +689,19 @@ defmodule Spheric.Game.TickProcessor do
           :splitter ->
             %{b | state: %{b.state | item: item}}
 
+          :balancer ->
+            %{b | state: %{b.state | item: item}}
+
           :merger ->
+            %{b | state: %{b.state | item: item}}
+
+          :storage_container ->
+            case Behaviors.StorageContainer.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
+
+          :underground_conduit ->
             %{b | state: %{b.state | item: item}}
 
           :submission_terminal ->
@@ -433,6 +715,40 @@ defmodule Spheric.Game.TickProcessor do
         end
       end)
     end)
+  end
+
+  # Underground conduit teleportation: after normal push resolution,
+  # check conduits holding items and teleport them to their linked partner.
+  defp resolve_conduit_teleports(buildings) do
+    conduit_movements =
+      buildings
+      |> Enum.filter(fn {_key, b} ->
+        b.type == :underground_conduit and b.state[:item] != nil and b.state[:linked_to] != nil
+      end)
+      |> Enum.flat_map(fn {src_key, b} ->
+        dest_key = b.state.linked_to
+        dest = Map.get(buildings, dest_key)
+
+        if dest && dest.type == :underground_conduit && dest.state[:item] == nil do
+          [{src_key, dest_key, b.state.item}]
+        else
+          []
+        end
+      end)
+
+    final =
+      Enum.reduce(conduit_movements, buildings, fn {src_key, dest_key, item}, acc ->
+        acc =
+          Map.update!(acc, src_key, fn b ->
+            %{b | state: %{b.state | item: nil}}
+          end)
+
+        Map.update!(acc, dest_key, fn b ->
+          %{b | state: %{b.state | item: item}}
+        end)
+      end)
+
+    {final, conduit_movements}
   end
 
   # Only write buildings whose state actually changed
@@ -462,8 +778,17 @@ defmodule Spheric.Game.TickProcessor do
     |> Enum.group_by(fn item -> item.face end)
   end
 
-  defp items_from_building({face, row, col}, %{type: :conveyor, state: %{item: item}}, sources)
-       when not is_nil(item) do
+  defp items_from_building({face, row, col}, %{type: type, state: %{item: item}}, sources)
+       when type in [
+              :conveyor,
+              :conveyor_mk2,
+              :conveyor_mk3,
+              :splitter,
+              :merger,
+              :balancer,
+              :underground_conduit
+            ] and
+              not is_nil(item) do
     from = Map.get(sources, {face, row, col})
 
     [
@@ -479,87 +804,9 @@ defmodule Spheric.Game.TickProcessor do
     ]
   end
 
-  defp items_from_building({face, row, col}, %{type: :miner, state: %{output_buffer: item}}, _)
-       when not is_nil(item) do
-    [%{face: face, row: row, col: col, item: item, from_face: nil, from_row: nil, from_col: nil}]
-  end
-
-  defp items_from_building(
-         {face, row, col},
-         %{type: :smelter, state: %{output_buffer: item}},
-         _
-       )
-       when not is_nil(item) do
-    [%{face: face, row: row, col: col, item: item, from_face: nil, from_row: nil, from_col: nil}]
-  end
-
-  defp items_from_building({face, row, col}, %{type: :splitter, state: %{item: item}}, sources)
-       when not is_nil(item) do
-    from = Map.get(sources, {face, row, col})
-
-    [
-      %{
-        face: face,
-        row: row,
-        col: col,
-        item: item,
-        from_face: if(from, do: elem(from, 0)),
-        from_row: if(from, do: elem(from, 1)),
-        from_col: if(from, do: elem(from, 2))
-      }
-    ]
-  end
-
-  defp items_from_building({face, row, col}, %{type: :merger, state: %{item: item}}, sources)
-       when not is_nil(item) do
-    from = Map.get(sources, {face, row, col})
-
-    [
-      %{
-        face: face,
-        row: row,
-        col: col,
-        item: item,
-        from_face: if(from, do: elem(from, 0)),
-        from_row: if(from, do: elem(from, 1)),
-        from_col: if(from, do: elem(from, 2))
-      }
-    ]
-  end
-
-  defp items_from_building(
-         {face, row, col},
-         %{type: :assembler, state: %{output_buffer: item}},
-         _
-       )
-       when not is_nil(item) do
-    [%{face: face, row: row, col: col, item: item, from_face: nil, from_row: nil, from_col: nil}]
-  end
-
-  defp items_from_building(
-         {face, row, col},
-         %{type: :refinery, state: %{output_buffer: item}},
-         _
-       )
-       when not is_nil(item) do
-    [%{face: face, row: row, col: col, item: item, from_face: nil, from_row: nil, from_col: nil}]
-  end
-
-  defp items_from_building(
-         {face, row, col},
-         %{type: :defense_turret, state: %{output_buffer: item}},
-         _
-       )
-       when not is_nil(item) do
-    [%{face: face, row: row, col: col, item: item, from_face: nil, from_row: nil, from_col: nil}]
-  end
-
-  defp items_from_building(
-         {face, row, col},
-         %{type: :trade_terminal, state: %{output_buffer: item}},
-         _
-       )
-       when not is_nil(item) do
+  defp items_from_building({face, row, col}, %{type: type, state: %{output_buffer: item}}, _)
+       when type in [:miner, :smelter, :assembler, :refinery, :defense_turret, :trade_terminal] and
+              not is_nil(item) do
     [%{face: face, row: row, col: col, item: item, from_face: nil, from_row: nil, from_col: nil}]
   end
 

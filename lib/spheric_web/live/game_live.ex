@@ -16,7 +16,9 @@ defmodule SphericWeb.GameLive do
     ObjectsOfPower,
     Hiss,
     Territory,
-    Trading
+    Trading,
+    RecipeBrowser,
+    Statistics
   }
 
   alias SphericWeb.Presence
@@ -111,6 +113,11 @@ defmodule SphericWeb.GameLive do
       |> assign(:open_trades, [])
       |> assign(:my_trades, [])
       |> assign(:trade_form, %{offered: %{}, requested: %{}})
+      |> assign(:show_recipes, false)
+      |> assign(:recipe_search, "")
+      |> assign(:recipes, RecipeBrowser.all_recipes())
+      |> assign(:show_stats, false)
+      |> assign(:stats_summary, [])
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
 
     # Tell the client to restore camera and persist any newly-generated identity
@@ -486,6 +493,112 @@ defmodule SphericWeb.GameLive do
       </div>
     </div>
 
+    <%!-- === RECIPE BROWSER PANEL (top-right) === --%>
+    <div
+      :if={@show_recipes}
+      style="position: fixed; top: 50px; right: 16px; background: var(--fbc-panel); color: var(--fbc-text); padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 300px; max-width: 380px; max-height: 70vh; overflow-y: auto; border: 1px solid var(--fbc-border);"
+    >
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--fbc-border); padding-bottom: 8px;">
+        <span style="font-size: 13px; color: var(--fbc-cream); text-transform: uppercase; letter-spacing: 0.15em;">
+          Bureau Protocols
+        </span>
+        <span style="font-size: 10px; color: var(--fbc-text-dim);">
+          {length(@recipes)} protocols
+        </span>
+      </div>
+      <form phx-change="recipe_search" style="margin-bottom: 10px;">
+        <input
+          type="text"
+          name="query"
+          value={@recipe_search}
+          placeholder="Search protocols..."
+          phx-debounce="200"
+          style="width: 100%; padding: 6px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--fbc-border); color: var(--fbc-text); font-family: 'Courier New', monospace; font-size: 11px; box-sizing: border-box;"
+        />
+      </form>
+      <div
+        :for={recipe <- @recipes}
+        style="margin-bottom: 8px; padding: 8px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.02);"
+      >
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: var(--fbc-highlight); font-size: 11px;">{recipe.building_name}</span>
+        </div>
+        <div style="margin-top: 4px; font-size: 11px;">
+          <span style="color: var(--fbc-text-dim);">Input:</span>
+          <span
+            :for={input <- recipe.inputs}
+            style="color: var(--fbc-info); margin-left: 4px;"
+          >
+            {input.name}
+          </span>
+        </div>
+        <div style="font-size: 11px;">
+          <span style="color: var(--fbc-text-dim);">Output:</span>
+          <span style="color: var(--fbc-success); margin-left: 4px;">
+            {recipe.output.name}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <%!-- === PRODUCTION STATISTICS PANEL (top-right) === --%>
+    <div
+      :if={@show_stats}
+      style="position: fixed; top: 50px; right: 16px; background: var(--fbc-panel); color: var(--fbc-text); padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 300px; max-width: 380px; max-height: 70vh; overflow-y: auto; border: 1px solid var(--fbc-border);"
+    >
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--fbc-border); padding-bottom: 8px;">
+        <span style="font-size: 13px; color: var(--fbc-cream); text-transform: uppercase; letter-spacing: 0.15em;">
+          Production Report
+        </span>
+        <span style="font-size: 10px; color: var(--fbc-text-dim);">
+          {length(@stats_summary)} active
+        </span>
+      </div>
+      <div :if={@stats_summary == []} style="color: var(--fbc-text-dim); font-size: 11px;">
+        No production data recorded yet.
+      </div>
+      <div
+        :for={stat <- Enum.take(@stats_summary, 20)}
+        style="margin-bottom: 6px; padding: 6px 8px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.02);"
+      >
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: var(--fbc-highlight); font-size: 11px;">
+            {Lore.display_name(stat.type)}
+          </span>
+          <span style="color: var(--fbc-text-dim); font-size: 9px;">
+            {format_building_key(stat.key)}
+          </span>
+        </div>
+        <div :if={stat.produced != %{}} style="font-size: 10px; margin-top: 2px;">
+          <span style="color: var(--fbc-text-dim);">Produced:</span>
+          <span
+            :for={{item, count} <- stat.produced}
+            style="color: var(--fbc-success); margin-left: 4px;"
+          >
+            {Lore.display_name(item)} x{count}
+          </span>
+        </div>
+        <div :if={stat.consumed != %{}} style="font-size: 10px;">
+          <span style="color: var(--fbc-text-dim);">Consumed:</span>
+          <span
+            :for={{item, count} <- stat.consumed}
+            style="color: var(--fbc-info); margin-left: 4px;"
+          >
+            {Lore.display_name(item)} x{count}
+          </span>
+        </div>
+        <div :if={stat.throughput != %{}} style="font-size: 10px;">
+          <span style="color: var(--fbc-text-dim);">Throughput:</span>
+          <span
+            :for={{item, count} <- stat.throughput}
+            style="color: var(--fbc-highlight); margin-left: 4px;"
+          >
+            {Lore.display_name(item)} x{count}
+          </span>
+        </div>
+      </div>
+    </div>
+
     <%!-- === BOTTOM TOOLBAR === --%>
     <div style="position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; padding: 12px; background: var(--fbc-panel); border-top: 1px solid var(--fbc-border); pointer-events: auto;">
       <button
@@ -540,6 +653,41 @@ defmodule SphericWeb.GameLive do
         title="Exchange Requisitions (T key)"
       >
         Trades
+      </button>
+      <button
+        phx-click="toggle_recipes"
+        style={"
+          padding: 8px 12px;
+          border: 1px solid #{if @show_recipes, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
+          background: #{if @show_recipes, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
+          color: #{if @show_recipes, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
+          cursor: pointer;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        "}
+        title="Bureau Protocols (B key)"
+      >
+        Protocols
+      </button>
+      <button
+        phx-click="toggle_stats"
+        style={"
+          padding: 8px 12px;
+          border: 1px solid #{if @show_stats, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
+          background: #{if @show_stats, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
+          color: #{if @show_stats, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
+          cursor: pointer;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          margin-right: 8px;
+        "}
+        title="Production Report (P key)"
+      >
+        Report
       </button>
       <button
         :for={type <- @building_types}
@@ -788,6 +936,8 @@ defmodule SphericWeb.GameLive do
       |> assign(:show_research, opening)
       |> then(fn s -> if opening, do: assign(s, :show_creatures, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
 
     {:noreply, socket}
   end
@@ -803,6 +953,8 @@ defmodule SphericWeb.GameLive do
       |> assign(:creature_roster, roster)
       |> then(fn s -> if opening, do: assign(s, :show_research, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
 
     {:noreply, socket}
   end
@@ -963,6 +1115,8 @@ defmodule SphericWeb.GameLive do
       |> assign(:show_research, opening)
       |> then(fn s -> if opening, do: assign(s, :show_creatures, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
 
     {:noreply, socket}
   end
@@ -978,6 +1132,8 @@ defmodule SphericWeb.GameLive do
       |> assign(:creature_roster, roster)
       |> then(fn s -> if opening, do: assign(s, :show_research, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
 
     {:noreply, socket}
   end
@@ -1023,8 +1179,108 @@ defmodule SphericWeb.GameLive do
   end
 
   @impl true
+  def handle_event("keydown", %{"key" => "b"}, socket) do
+    handle_event("toggle_recipes", %{}, socket)
+  end
+
+  @impl true
+  def handle_event("keydown", %{"key" => "p"}, socket) do
+    handle_event("toggle_stats", %{}, socket)
+  end
+
+  @impl true
   def handle_event("keydown", _params, socket) do
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_recipes", _params, socket) do
+    opening = !socket.assigns.show_recipes
+
+    socket =
+      socket
+      |> assign(:show_recipes, opening)
+      |> then(fn s -> if opening, do: assign(s, :show_research, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_creatures, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("recipe_search", %{"query" => query}, socket) do
+    recipes =
+      if query == "" do
+        RecipeBrowser.all_recipes()
+      else
+        RecipeBrowser.search(query)
+      end
+
+    socket =
+      socket
+      |> assign(:recipe_search, query)
+      |> assign(:recipes, recipes)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_stats", _params, socket) do
+    opening = !socket.assigns.show_stats
+
+    socket =
+      if opening do
+        summary = Statistics.player_summary(socket.assigns.player_id)
+
+        socket
+        |> assign(:show_stats, true)
+        |> assign(:stats_summary, summary)
+        |> assign(:show_research, false)
+        |> assign(:show_creatures, false)
+        |> assign(:show_trading, false)
+        |> assign(:show_recipes, false)
+      else
+        assign(socket, :show_stats, false)
+      end
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event(
+        "link_conduit",
+        %{
+          "face" => face,
+          "row" => row,
+          "col" => col,
+          "target_face" => tf,
+          "target_row" => tr,
+          "target_col" => tc
+        },
+        socket
+      ) do
+    key_a = {to_int(face), to_int(row), to_int(col)}
+    key_b = {to_int(tf), to_int(tr), to_int(tc)}
+
+    building_a = WorldStore.get_building(key_a)
+    building_b = WorldStore.get_building(key_b)
+
+    if building_a && building_b &&
+         building_a.type == :underground_conduit &&
+         building_b.type == :underground_conduit &&
+         building_a.owner_id == socket.assigns.player_id &&
+         building_b.owner_id == socket.assigns.player_id do
+      new_state_a = %{building_a.state | linked_to: key_b}
+      new_state_b = %{building_b.state | linked_to: key_a}
+      WorldStore.put_building(key_a, %{building_a | state: new_state_a})
+      WorldStore.put_building(key_b, %{building_b | state: new_state_b})
+
+      tile_info = build_tile_info(key_a)
+      {:noreply, assign(socket, :tile_info, tile_info)}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -1477,6 +1733,19 @@ defmodule SphericWeb.GameLive do
     if state[:item], do: "Carrying: #{Lore.display_name(state.item)}", else: "Empty"
   end
 
+  defp building_status_text(%{type: :conveyor_mk2, state: state}) do
+    count = if(state[:item], do: 1, else: 0) + if state[:buffer], do: 1, else: 0
+    if count > 0, do: "Carrying: #{count}/2 items", else: "Empty"
+  end
+
+  defp building_status_text(%{type: :conveyor_mk3, state: state}) do
+    count =
+      if(state[:item], do: 1, else: 0) + if(state[:buffer1], do: 1, else: 0) +
+        if state[:buffer2], do: 1, else: 0
+
+    if count > 0, do: "Carrying: #{count}/3 items", else: "Empty"
+  end
+
   defp building_status_text(%{type: :assembler, state: state}) do
     cond do
       state[:output_buffer] != nil ->
@@ -1546,6 +1815,29 @@ defmodule SphericWeb.GameLive do
 
   defp building_status_text(%{type: :claim_beacon, state: state}) do
     "Active — Radius #{state[:radius] || 8}"
+  end
+
+  defp building_status_text(%{type: :storage_container, state: state}) do
+    if state[:item_type] do
+      "#{Lore.display_name(state.item_type)}: #{state.count}/#{state.capacity}"
+    else
+      "Empty — 0/#{state[:capacity] || 100}"
+    end
+  end
+
+  defp building_status_text(%{type: :underground_conduit, state: state}) do
+    cond do
+      state[:item] != nil -> "Carrying: #{Lore.display_name(state.item)}"
+      state[:linked_to] != nil -> "Linked to #{format_building_key(state.linked_to)}"
+      true -> "Unlinked — select another conduit to pair"
+    end
+  end
+
+  defp building_status_text(%{type: :balancer, state: state}) do
+    cond do
+      state[:item] != nil -> "Routing: #{Lore.display_name(state.item)}"
+      true -> "Idle — balancing output"
+    end
   end
 
   defp building_status_text(%{type: :trade_terminal, state: state}) do

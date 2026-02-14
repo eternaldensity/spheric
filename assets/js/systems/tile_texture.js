@@ -25,11 +25,16 @@ const TERRAIN_FILLS = {
 const BUILDING_FILLS = {
   miner: "#8b6914",
   conveyor: "#888888",
+  conveyor_mk2: "#aaaacc",
+  conveyor_mk3: "#ccccee",
   smelter: "#cc4411",
   assembler: "#3366aa",
   refinery: "#2288aa",
   splitter: "#22aa88",
   merger: "#8844aa",
+  balancer: "#44bb99",
+  storage_container: "#997744",
+  underground_conduit: "#6655aa",
   submission_terminal: "#aa8833",
   containment_trap: "#664488",
   purification_beacon: "#44aadd",
@@ -42,11 +47,16 @@ const BUILDING_FILLS = {
 const BUILDING_GLYPHS = {
   miner: drawMinerGlyph,
   conveyor: drawConveyorGlyph,
+  conveyor_mk2: drawConveyorMk2Glyph,
+  conveyor_mk3: drawConveyorMk3Glyph,
   smelter: drawSmelterGlyph,
   assembler: drawAssemblerGlyph,
   refinery: drawRefineryGlyph,
   splitter: drawSplitterGlyph,
   merger: drawMergerGlyph,
+  balancer: drawBalancerGlyph,
+  storage_container: drawStorageContainerGlyph,
+  underground_conduit: drawUndergroundConduitGlyph,
   submission_terminal: drawSubmissionTerminalGlyph,
   containment_trap: drawContainmentTrapGlyph,
   purification_beacon: drawPurificationBeaconGlyph,
@@ -227,6 +237,59 @@ function drawConveyorGlyph(ctx, r) {
   ctx.stroke();
 }
 
+function drawConveyorMk2Glyph(ctx, r) {
+  // Double arrow pointing right (faster conveyor)
+  ctx.beginPath();
+  ctx.moveTo(-r, -r * 0.3);
+  ctx.lineTo(r * 0.2, -r * 0.3);
+  ctx.lineTo(r * 0.2, -r * 0.5);
+  ctx.lineTo(r * 0.7, 0);
+  ctx.lineTo(r * 0.2, r * 0.5);
+  ctx.lineTo(r * 0.2, r * 0.3);
+  ctx.lineTo(-r, r * 0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Second speed line
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.6, -r * 0.15);
+  ctx.lineTo(-r * 0.2, -r * 0.15);
+  ctx.lineTo(-r * 0.2, r * 0.15);
+  ctx.lineTo(-r * 0.6, r * 0.15);
+  ctx.strokeStyle = "rgba(255,255,255,0.8)";
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+}
+
+function drawConveyorMk3Glyph(ctx, r) {
+  // Triple arrow pointing right (fastest conveyor)
+  ctx.beginPath();
+  ctx.moveTo(-r, -r * 0.3);
+  ctx.lineTo(r * 0.2, -r * 0.3);
+  ctx.lineTo(r * 0.2, -r * 0.5);
+  ctx.lineTo(r * 0.8, 0);
+  ctx.lineTo(r * 0.2, r * 0.5);
+  ctx.lineTo(r * 0.2, r * 0.3);
+  ctx.lineTo(-r, r * 0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Triple speed lines
+  ctx.strokeStyle = "rgba(255,255,255,0.8)";
+  ctx.lineWidth = r * 0.1;
+  for (let i = 0; i < 3; i++) {
+    const x = -r * 0.8 + i * r * 0.25;
+    ctx.beginPath();
+    ctx.moveTo(x, -r * 0.15);
+    ctx.lineTo(x, r * 0.15);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+  ctx.lineWidth = 1.5;
+}
+
 function drawSmelterGlyph(ctx, r) {
   // Box body
   ctx.fillRect(-r * 0.7, -r * 0.4, r * 1.4, r * 0.9);
@@ -296,6 +359,74 @@ function drawMergerGlyph(ctx, r) {
   ctx.lineTo(0, 0);
   ctx.lineWidth = r * 0.3;
   ctx.stroke();
+  ctx.lineWidth = 1.5;
+}
+
+function drawBalancerGlyph(ctx, r) {
+  // Y-shape with a balance beam across the outputs
+  ctx.beginPath();
+  ctx.moveTo(-r, 0);
+  ctx.lineTo(0, 0);
+  ctx.lineTo(r * 0.7, -r * 0.7);
+  ctx.moveTo(0, 0);
+  ctx.lineTo(r * 0.7, r * 0.7);
+  ctx.lineWidth = r * 0.3;
+  ctx.stroke();
+  ctx.lineWidth = 1.5;
+
+  // Balance indicator (horizontal line across outputs)
+  ctx.strokeStyle = "rgba(255,255,255,0.9)";
+  ctx.lineWidth = r * 0.15;
+  ctx.beginPath();
+  ctx.moveTo(r * 0.5, -r * 0.5);
+  ctx.lineTo(r * 0.5, r * 0.5);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+  ctx.lineWidth = 1.5;
+}
+
+function drawStorageContainerGlyph(ctx, r) {
+  // Large box (crate)
+  ctx.fillRect(-r * 0.8, -r * 0.7, r * 1.6, r * 1.4);
+  ctx.strokeRect(-r * 0.8, -r * 0.7, r * 1.6, r * 1.4);
+
+  // Cross straps on crate
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.lineWidth = r * 0.1;
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.8, 0);
+  ctx.lineTo(r * 0.8, 0);
+  ctx.moveTo(0, -r * 0.7);
+  ctx.lineTo(0, r * 0.7);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+  ctx.lineWidth = 1.5;
+}
+
+function drawUndergroundConduitGlyph(ctx, r) {
+  // Portal ring
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Inner portal (darker)
+  ctx.fillStyle = "rgba(50,30,100,0.6)";
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Direction arrow inside
+  ctx.strokeStyle = "rgba(255,255,255,0.8)";
+  ctx.lineWidth = r * 0.15;
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.2, 0);
+  ctx.lineTo(r * 0.2, 0);
+  ctx.lineTo(r * 0.1, -r * 0.15);
+  ctx.moveTo(r * 0.2, 0);
+  ctx.lineTo(r * 0.1, r * 0.15);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
   ctx.lineWidth = 1.5;
 }
 

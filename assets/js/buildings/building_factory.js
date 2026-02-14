@@ -5,11 +5,16 @@ const BUILDING_SCALE = 0.0075;
 const COLORS = {
   miner: 0x8b6914,
   conveyor: 0x888888,
+  conveyor_mk2: 0xaaaacc,
+  conveyor_mk3: 0xccccee,
   smelter: 0xcc4411,
   assembler: 0x3366aa,
   refinery: 0x2288aa,
   splitter: 0x22aa88,
   merger: 0x8844aa,
+  balancer: 0x44bb99,
+  storage_container: 0x997744,
+  underground_conduit: 0x6655aa,
   submission_terminal: 0xaa8833,
   containment_trap: 0x664488,
   purification_beacon: 0x44aadd,
@@ -338,14 +343,161 @@ function createTradeTerminal() {
   return group;
 }
 
+function createConveyorMk2() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.conveyor_mk2);
+
+  // Wider belt with side rails
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(s * 1.4, s * 0.3, s * 0.9), mat);
+  belt.position.y = s * 0.15;
+  group.add(belt);
+
+  // Side rails
+  const railMat = makeMaterial(0x8888aa);
+  const railL = new THREE.Mesh(new THREE.BoxGeometry(s * 1.4, s * 0.15, s * 0.08), railMat);
+  railL.position.set(0, s * 0.35, -s * 0.45);
+  group.add(railL);
+  const railR = new THREE.Mesh(new THREE.BoxGeometry(s * 1.4, s * 0.15, s * 0.08), railMat);
+  railR.position.set(0, s * 0.35, s * 0.45);
+  group.add(railR);
+
+  // Double arrow
+  const arrowMat = makeMaterial(0x6666aa);
+  const arrow1 = new THREE.Mesh(new THREE.ConeGeometry(s * 0.2, s * 0.3, 4), arrowMat);
+  arrow1.rotation.z = -Math.PI / 2;
+  arrow1.position.set(s * 0.3, s * 0.4, 0);
+  group.add(arrow1);
+  const arrow2 = new THREE.Mesh(new THREE.ConeGeometry(s * 0.15, s * 0.2, 4), arrowMat);
+  arrow2.rotation.z = -Math.PI / 2;
+  arrow2.position.set(s * 0.0, s * 0.4, 0);
+  group.add(arrow2);
+
+  return group;
+}
+
+function createConveyorMk3() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.conveyor_mk3);
+
+  // Enclosed belt
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(s * 1.4, s * 0.35, s * 1.0), mat);
+  belt.position.y = s * 0.175;
+  group.add(belt);
+
+  // Top cover (partially transparent)
+  const coverMat = new THREE.MeshLambertMaterial({ color: 0xbbbbdd, transparent: true, opacity: 0.6 });
+  const cover = new THREE.Mesh(new THREE.BoxGeometry(s * 1.2, s * 0.1, s * 0.8), coverMat);
+  cover.position.y = s * 0.4;
+  group.add(cover);
+
+  // Triple arrow
+  const arrowMat = makeMaterial(0x8888cc);
+  for (let i = 0; i < 3; i++) {
+    const arrow = new THREE.Mesh(new THREE.ConeGeometry(s * 0.15, s * 0.2, 4), arrowMat);
+    arrow.rotation.z = -Math.PI / 2;
+    arrow.position.set(s * (0.35 - i * 0.25), s * 0.5, 0);
+    group.add(arrow);
+  }
+
+  return group;
+}
+
+function createBalancer() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.balancer);
+
+  // Base with diamond pattern (smart routing)
+  const base = new THREE.Mesh(new THREE.BoxGeometry(s * 1.2, s * 0.4, s * 1.2), mat);
+  base.position.y = s * 0.2;
+  group.add(base);
+
+  // Scale symbol (balanced outputs)
+  const scaleMat = makeMaterial(0x33aa77);
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(s * 1.0, s * 0.08, s * 0.08), scaleMat);
+  beam.position.set(0, s * 0.65, 0);
+  group.add(beam);
+
+  // Left pan
+  const panL = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.2, s * 0.2, s * 0.06, 6), scaleMat);
+  panL.position.set(-s * 0.4, s * 0.55, 0);
+  group.add(panL);
+
+  // Right pan
+  const panR = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.2, s * 0.2, s * 0.06, 6), scaleMat);
+  panR.position.set(s * 0.4, s * 0.55, 0);
+  group.add(panR);
+
+  return group;
+}
+
+function createStorageContainer() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.storage_container);
+
+  // Large box body (crate)
+  const body = new THREE.Mesh(new THREE.BoxGeometry(s * 1.4, s * 1.0, s * 1.2), mat);
+  body.position.y = s * 0.5;
+  group.add(body);
+
+  // Lid (slightly lighter)
+  const lidMat = makeMaterial(0xaa8855);
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(s * 1.5, s * 0.15, s * 1.3), lidMat);
+  lid.position.y = s * 1.075;
+  group.add(lid);
+
+  // Handle
+  const handleMat = makeMaterial(0x555555);
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(s * 0.4, s * 0.08, s * 0.08), handleMat);
+  handle.position.set(0, s * 1.2, 0);
+  group.add(handle);
+
+  return group;
+}
+
+function createUndergroundConduit() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.underground_conduit);
+
+  // Ring portal (entry/exit)
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(s * 0.6, s * 0.12, 6, 8), mat);
+  ring.position.y = s * 0.3;
+  ring.rotation.x = Math.PI / 2;
+  group.add(ring);
+
+  // Center glow (portal)
+  const glowMat = new THREE.MeshLambertMaterial({ color: 0x9977dd, emissive: 0x6644aa, emissiveIntensity: 0.4 });
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(s * 0.35, 8, 8), glowMat);
+  glow.position.y = s * 0.3;
+  group.add(glow);
+
+  // Direction arrow
+  const arrowMat = makeMaterial(0x4433aa);
+  const arrow = new THREE.Mesh(new THREE.ConeGeometry(s * 0.2, s * 0.3, 4), arrowMat);
+  arrow.rotation.z = -Math.PI / 2;
+  arrow.position.set(s * 0.4, s * 0.6, 0);
+  group.add(arrow);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
+  conveyor_mk2: createConveyorMk2,
+  conveyor_mk3: createConveyorMk3,
   smelter: createSmelter,
   assembler: createAssembler,
   refinery: createRefinery,
   splitter: createSplitter,
   merger: createMerger,
+  balancer: createBalancer,
+  storage_container: createStorageContainer,
+  underground_conduit: createUndergroundConduit,
   submission_terminal: createSubmissionTerminal,
   containment_trap: createContainmentTrap,
   purification_beacon: createPurificationBeacon,

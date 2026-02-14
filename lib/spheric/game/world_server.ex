@@ -23,7 +23,8 @@ defmodule Spheric.Game.WorldServer do
     AlteredItems,
     Hiss,
     Territory,
-    Trading
+    Trading,
+    Statistics
   }
 
   require Logger
@@ -96,6 +97,7 @@ defmodule Spheric.Game.WorldServer do
     Hiss.init()
     Territory.init()
     Trading.init()
+    Statistics.init()
 
     # Try to load an existing world from the database
     {world_id, actual_seed} =

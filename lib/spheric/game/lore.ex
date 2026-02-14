@@ -36,12 +36,17 @@ defmodule Spheric.Game.Lore do
 
   # Buildings
   def display_name(:conveyor), do: "Conduit"
+  def display_name(:conveyor_mk2), do: "Conduit Mk-II"
+  def display_name(:conveyor_mk3), do: "Conduit Mk-III"
   def display_name(:miner), do: "Extractor"
   def display_name(:smelter), do: "Processor"
   def display_name(:assembler), do: "Fabricator"
   def display_name(:refinery), do: "Distiller"
   def display_name(:splitter), do: "Distributor"
   def display_name(:merger), do: "Converger"
+  def display_name(:balancer), do: "Load Equalizer"
+  def display_name(:storage_container), do: "Containment Vault"
+  def display_name(:underground_conduit), do: "Subsurface Link"
   def display_name(:submission_terminal), do: "Terminal"
   def display_name(:containment_trap), do: "Trap"
   def display_name(:purification_beacon), do: "Purification Beacon"
