@@ -25,7 +25,9 @@ defmodule Spheric.Game.Buildings do
     :defense_turret,
     :crossover,
     :claim_beacon,
-    :trade_terminal
+    :trade_terminal,
+    :dimensional_stabilizer,
+    :astral_projection_chamber
   ]
 
   @doc "Returns the list of all building type atoms."
@@ -54,6 +56,8 @@ defmodule Spheric.Game.Buildings do
   def display_name(:defense_turret), do: "Turret"
   def display_name(:claim_beacon), do: "Beacon"
   def display_name(:trade_terminal), do: "Trade"
+  def display_name(:dimensional_stabilizer), do: "Stabilizer"
+  def display_name(:astral_projection_chamber), do: "Projector"
 
   @doc """
   Check if a building type can be placed on the given tile data.
@@ -109,6 +113,12 @@ defmodule Spheric.Game.Buildings do
 
   def initial_state(:trade_terminal),
     do: Spheric.Game.Behaviors.TradeTerminal.initial_state()
+
+  def initial_state(:dimensional_stabilizer),
+    do: Spheric.Game.Behaviors.DimensionalStabilizer.initial_state()
+
+  def initial_state(:astral_projection_chamber),
+    do: Spheric.Game.Behaviors.AstralProjectionChamber.initial_state()
 
   def initial_state(_type), do: %{}
 end

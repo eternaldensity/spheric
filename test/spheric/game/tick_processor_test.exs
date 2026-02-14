@@ -15,12 +15,12 @@ defmodule Spheric.Game.TickProcessorTest do
     cleanup_keys = [@miner_key, @conveyor1_key, @conveyor2_key, @smelter_key]
     Enum.each(cleanup_keys, &WorldStore.remove_building/1)
 
-    # Ensure miner tile has resources
-    WorldStore.put_tile(@miner_key, %{terrain: :volcanic, resource: {:iron, 100}})
+    # Use grassland (neutral in all shift phases) so ShiftCycle doesn't affect rates
+    WorldStore.put_tile(@miner_key, %{terrain: :grassland, resource: {:iron, 100}})
 
     on_exit(fn ->
       Enum.each(cleanup_keys, &WorldStore.remove_building/1)
-      WorldStore.put_tile(@miner_key, %{terrain: :volcanic, resource: {:iron, 100}})
+      WorldStore.put_tile(@miner_key, %{terrain: :grassland, resource: {:iron, 100}})
     end)
 
     :ok

@@ -22,6 +22,8 @@ const COLORS = {
   claim_beacon: 0x33aa55,
   trade_terminal: 0xddaa33,
   crossover: 0x77aa77,
+  dimensional_stabilizer: 0x3366aa,
+  astral_projection_chamber: 0x8866cc,
 };
 
 function makeMaterial(color) {
@@ -510,6 +512,71 @@ function createCrossover() {
   return group;
 }
 
+function createDimensionalStabilizer() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+
+  // Large hexagonal base (massive footprint for radius 15)
+  const baseMat = makeMaterial(0x224466);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(s * 1.2, s * 1.3, s * 0.4, 6), baseMat);
+  base.position.y = s * 0.2;
+  group.add(base);
+
+  // Central column (tall, imposing)
+  const colMat = makeMaterial(0x3366aa);
+  const column = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.25, s * 0.4, s * 2.0, 8), colMat);
+  column.position.y = s * 1.2;
+  group.add(column);
+
+  // Floating ring array (3 stacked rings)
+  const ringMat = new THREE.MeshLambertMaterial({ color: 0x66aaff, emissive: 0x2244aa, emissiveIntensity: 0.4, transparent: true, opacity: 0.7 });
+  for (let i = 0; i < 3; i++) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(s * (0.6 + i * 0.15), s * 0.05, 6, 12), ringMat);
+    ring.position.y = s * (1.0 + i * 0.5);
+    ring.rotation.x = Math.PI / 2;
+    group.add(ring);
+  }
+
+  // Top sphere (dimensional anchor)
+  const sphereMat = new THREE.MeshLambertMaterial({ color: 0xaaddff, emissive: 0x4488cc, emissiveIntensity: 0.6 });
+  const sphere = new THREE.Mesh(new THREE.SphereGeometry(s * 0.4, 12, 12), sphereMat);
+  sphere.position.y = s * 2.5;
+  group.add(sphere);
+
+  return group;
+}
+
+function createAstralProjectionChamber() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+
+  // Base platform (dark, mysterious)
+  const baseMat = makeMaterial(0x332255);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(s * 1.0, s * 1.1, s * 0.3, 8), baseMat);
+  base.position.y = s * 0.15;
+  group.add(base);
+
+  // Chamber walls (transparent dome)
+  const domeMat = new THREE.MeshLambertMaterial({ color: 0x8866cc, transparent: true, opacity: 0.35 });
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(s * 0.8, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), domeMat);
+  dome.position.y = s * 0.3;
+  group.add(dome);
+
+  // Central projection pillar
+  const pillarMat = new THREE.MeshLambertMaterial({ color: 0xaa88ff, emissive: 0x6644cc, emissiveIntensity: 0.5 });
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.1, s * 0.15, s * 1.2, 6), pillarMat);
+  pillar.position.y = s * 0.9;
+  group.add(pillar);
+
+  // Top eye (icosahedron — seeing all)
+  const eyeMat = new THREE.MeshLambertMaterial({ color: 0xcc99ff, emissive: 0x8844ff, emissiveIntensity: 0.6 });
+  const eye = new THREE.Mesh(new THREE.IcosahedronGeometry(s * 0.3, 0), eyeMat);
+  eye.position.y = s * 1.7;
+  group.add(eye);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
@@ -530,6 +597,8 @@ const BUILDERS = {
   claim_beacon: createClaimBeacon,
   trade_terminal: createTradeTerminal,
   crossover: createCrossover,
+  dimensional_stabilizer: createDimensionalStabilizer,
+  astral_projection_chamber: createAstralProjectionChamber,
 };
 
 /**

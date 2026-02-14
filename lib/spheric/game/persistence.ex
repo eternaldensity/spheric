@@ -22,7 +22,7 @@ defmodule Spheric.Game.Persistence do
     HissEntity
   }
 
-  alias Spheric.Game.{WorldStore, WorldGen, Creatures, Hiss, Territory, Trading}
+  alias Spheric.Game.{WorldStore, WorldGen, Creatures, Hiss, Territory, Trading, WorldEvents, BoardContact, ShiftCycle}
 
   require Logger
 
@@ -88,6 +88,9 @@ defmodule Spheric.Game.Persistence do
         # Load active trades
         Trading.load_trades(world.id)
 
+        # Load Phase 8 state
+        load_phase8_state(world.id)
+
         {:ok, world}
     end
   end
@@ -109,6 +112,7 @@ defmodule Spheric.Game.Persistence do
     save_corruption(world_id, now)
     Territory.save_territories(world_id, now)
     Trading.save_trades(world_id, now)
+    save_phase8_state(world_id)
 
     :ok
   end
@@ -509,6 +513,45 @@ defmodule Spheric.Game.Persistence do
         Repo.insert_all(HissEntity, chunk)
       end)
     end
+  end
+
+  # Phase 8: Save world events, board contact, and shift cycle state to a file
+  # alongside the database. These are lightweight state that doesn't need
+  # a full DB schema — persisted as Erlang terms.
+  defp save_phase8_state(world_id) do
+    state = %{
+      world_events: WorldEvents.state(),
+      board_contact: BoardContact.state(),
+      shift_cycle: ShiftCycle.state()
+    }
+
+    path = phase8_state_path(world_id)
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, :erlang.term_to_binary(state))
+  rescue
+    e -> Logger.warning("Failed to save Phase 8 state: #{inspect(e)}")
+  end
+
+  @doc "Load Phase 8 state from file (called during world load)."
+  def load_phase8_state(world_id) do
+    path = phase8_state_path(world_id)
+
+    case File.read(path) do
+      {:ok, data} ->
+        state = :erlang.binary_to_term(data)
+        if state[:world_events], do: WorldEvents.put_state(state.world_events)
+        if state[:board_contact], do: BoardContact.put_state(state.board_contact)
+        if state[:shift_cycle], do: ShiftCycle.put_state(state.shift_cycle)
+        :ok
+
+      {:error, _} ->
+        :ok
+    end
+  end
+
+  defp phase8_state_path(world_id) do
+    data_dir = Application.get_env(:spheric, :data_dir, "priv/data")
+    Path.join([data_dir, "phase8_#{world_id}.bin"])
   end
 
   defp serialize_state(state) when is_map(state) do

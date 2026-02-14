@@ -13,7 +13,7 @@ defmodule Spheric.Game.TickProcessor do
   `face_id => [item_update]` for broadcasting to clients.
   """
 
-  alias Spheric.Game.{WorldStore, Behaviors, Creatures, ObjectsOfPower, Statistics}
+  alias Spheric.Game.{WorldStore, Behaviors, Creatures, ObjectsOfPower, Statistics, ShiftCycle}
   alias Spheric.Geometry.TileNeighbors
 
   require Logger
@@ -1044,6 +1044,16 @@ defmodule Spheric.Game.TickProcessor do
           if building[:owner_id] &&
                ObjectsOfPower.player_has?(building.owner_id, :production_surge) do
             max(1, round(boosted * 0.9))
+          else
+            boosted
+          end
+
+        # Shift Cycle: biome-based rate modifier for miners
+        boosted =
+          if building.type == :miner do
+            tile = WorldStore.get_tile(key)
+            biome = if tile, do: tile.terrain, else: :grassland
+            ShiftCycle.apply_rate_modifier(boosted, biome)
           else
             boosted
           end

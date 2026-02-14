@@ -24,7 +24,11 @@ defmodule Spheric.Game.WorldServer do
     Hiss,
     Territory,
     Trading,
-    Statistics
+    Statistics,
+    WorldEvents,
+    TheBoard,
+    BoardContact,
+    ShiftCycle
   }
 
   require Logger
@@ -98,6 +102,10 @@ defmodule Spheric.Game.WorldServer do
     Territory.init()
     Trading.init()
     Statistics.init()
+    WorldEvents.init()
+    TheBoard.init()
+    BoardContact.init()
+    ShiftCycle.init()
 
     # Try to load an existing world from the database
     {world_id, actual_seed} =
@@ -144,7 +152,7 @@ defmodule Spheric.Game.WorldServer do
       not Research.can_place?(owner[:id], type) ->
         {:reply, {:error, :not_unlocked}, state}
 
-      Hiss.blocks_placement?(key) and type not in [:purification_beacon, :defense_turret] ->
+      Hiss.blocks_placement?(key) and type not in [:purification_beacon, :defense_turret, :dimensional_stabilizer] ->
         {:reply, {:error, :corrupted_tile}, state}
 
       not Territory.can_build?(owner[:id], key) ->
@@ -208,7 +216,7 @@ defmodule Spheric.Game.WorldServer do
           not Research.can_place?(owner[:id], type) ->
             {key, {:error, :not_unlocked}}
 
-          Hiss.blocks_placement?(key) and type not in [:purification_beacon, :defense_turret] ->
+          Hiss.blocks_placement?(key) and type not in [:purification_beacon, :defense_turret, :dimensional_stabilizer] ->
             {key, {:error, :corrupted_tile}}
 
           not Territory.can_build?(owner[:id], key) ->
@@ -369,6 +377,20 @@ defmodule Spheric.Game.WorldServer do
       broadcast_corruption_sync()
       broadcast_hiss_sync()
     end
+
+    # --- Phase 8: Endgame Systems ---
+
+    # World Events processing
+    {event_started, event_ended, _effects} = WorldEvents.process_tick(new_tick, state.seed)
+    broadcast_world_event(event_started, event_ended)
+
+    # Shift Cycle processing
+    shift_result = ShiftCycle.process_tick(new_tick)
+    broadcast_shift_cycle(shift_result)
+
+    # Creature evolution
+    evolved = Creatures.process_evolution(new_tick)
+    broadcast_creature_evolutions(evolved)
 
     schedule_tick()
     {:noreply, %{state | tick: new_tick, prev_item_faces: current_item_faces}}
@@ -599,6 +621,52 @@ defmodule Spheric.Game.WorldServer do
       "world:face:#{face_id}",
       {:territory_update, face_id, territories}
     )
+  end
+
+  # --- Phase 8 Broadcast Helpers ---
+
+  defp broadcast_world_event(nil, nil), do: :ok
+
+  defp broadcast_world_event(event_started, event_ended) do
+    if event_started do
+      {event_type, info} = event_started
+
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:events",
+        {:world_event_started, event_type, info}
+      )
+    end
+
+    if event_ended do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:events",
+        {:world_event_ended, event_ended}
+      )
+    end
+  end
+
+  defp broadcast_shift_cycle(:no_change), do: :ok
+
+  defp broadcast_shift_cycle({:phase_changed, phase, lighting, modifiers}) do
+    Phoenix.PubSub.broadcast(
+      Spheric.PubSub,
+      "world:events",
+      {:shift_cycle_changed, phase, lighting, modifiers}
+    )
+  end
+
+  defp broadcast_creature_evolutions([]), do: :ok
+
+  defp broadcast_creature_evolutions(evolved) do
+    for {player_id, creature_id, creature_type} <- evolved do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "research:#{player_id}",
+        {:creature_evolved, creature_id, creature_type}
+      )
+    end
   end
 
   @impl true

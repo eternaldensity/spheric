@@ -402,12 +402,15 @@ defmodule Spheric.Game.Hiss do
     |> Enum.uniq()
   end
 
-  @doc "Check if a tile is within a purification beacon's protected zone."
+  @doc "Check if a tile is within a purification beacon's or dimensional stabilizer's protected zone."
   def protected_by_beacon?(key) do
+    stabilizer_radius = Spheric.Game.Behaviors.DimensionalStabilizer.radius()
+
     for face_id <- 0..29,
         {beacon_key, building} <- WorldStore.get_face_buildings(face_id),
-        building.type == :purification_beacon,
-        within_radius?(beacon_key, key, @beacon_radius),
+        building.type in [:purification_beacon, :dimensional_stabilizer],
+        radius = if(building.type == :dimensional_stabilizer, do: stabilizer_radius, else: @beacon_radius),
+        within_radius?(beacon_key, key, radius),
         reduce: false do
       _acc -> true
     end

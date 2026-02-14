@@ -18,7 +18,11 @@ defmodule SphericWeb.GameLive do
     Territory,
     Trading,
     RecipeBrowser,
-    Statistics
+    Statistics,
+    WorldEvents,
+    TheBoard,
+    BoardContact,
+    ShiftCycle
   }
 
   alias SphericWeb.Presence
@@ -71,6 +75,7 @@ defmodule SphericWeb.GameLive do
     if connected?(socket) and world_id do
       Research.load_player_unlocks(world_id, player_id)
       Phoenix.PubSub.subscribe(Spheric.PubSub, "research:#{player_id}")
+      Phoenix.PubSub.subscribe(Spheric.PubSub, "world:events")
     end
 
     # Track presence (only when connected)
@@ -120,6 +125,11 @@ defmodule SphericWeb.GameLive do
       |> assign(:stats_summary, [])
       |> assign(:blueprint_mode, nil)
       |> assign(:blueprint_count, 0)
+      |> assign(:board_message, nil)
+      |> assign(:active_event, WorldEvents.active_event())
+      |> assign(:shift_phase, ShiftCycle.current_phase())
+      |> assign(:show_board_contact, false)
+      |> assign(:board_contact, BoardContact.progress_summary())
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
 
     # Tell the client to restore camera and persist any newly-generated identity
@@ -135,6 +145,18 @@ defmodule SphericWeb.GameLive do
 
         # Stream terrain data per-face via push_event (too large for data-attribute at 64x64)
         send(self(), :send_terrain)
+
+        # Send initial shift cycle lighting
+        lighting = ShiftCycle.current_lighting()
+
+        socket =
+          push_event(socket, "shift_cycle_changed", %{
+            phase: Atom.to_string(ShiftCycle.current_phase()),
+            ambient: lighting.ambient,
+            directional: lighting.directional,
+            intensity: lighting.intensity,
+            bg: lighting.bg
+          })
 
         socket
       else
@@ -601,6 +623,93 @@ defmodule SphericWeb.GameLive do
       </div>
     </div>
 
+    <%!-- === BOARD MESSAGE (top-center overlay) === --%>
+    <div
+      :if={@board_message}
+      id="board-message"
+      style="position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: rgba(10,8,6,0.92); color: var(--fbc-cream); padding: 16px 28px; border: 1px solid var(--fbc-gold); font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.8; pointer-events: auto; max-width: 500px; text-align: center; letter-spacing: 0.08em; text-transform: uppercase; animation: fadeIn 1s ease-in;"
+    >
+      <div style="font-size: 9px; color: var(--fbc-gold); letter-spacing: 0.2em; margin-bottom: 8px;">
+        THE BOARD
+      </div>
+      <div style="color: var(--fbc-cream);">{@board_message}</div>
+      <button
+        phx-click="dismiss_board_message"
+        style="margin-top: 10px; padding: 4px 16px; border: 1px solid var(--fbc-gold); background: rgba(204,170,68,0.1); color: var(--fbc-gold); cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;"
+      >
+        Acknowledged
+      </button>
+    </div>
+
+    <%!-- === WORLD EVENT NOTIFICATION (top-center) === --%>
+    <div
+      :if={@active_event}
+      style="position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: rgba(10,8,6,0.88); color: var(--fbc-accent); padding: 8px 20px; border: 1px solid var(--fbc-accent); font-family: 'Courier New', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; pointer-events: none; animation: pulse 2s ease-in-out infinite;"
+    >
+      {world_event_label(@active_event)}
+    </div>
+
+    <%!-- === SHIFT CYCLE INDICATOR (bottom-left) === --%>
+    <div style="position: fixed; bottom: 60px; left: 16px; background: var(--fbc-panel); color: var(--fbc-text); padding: 6px 12px; border: 1px solid var(--fbc-border); font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; pointer-events: none;">
+      <span style={"color: #{shift_phase_color(@shift_phase)};"}>
+        {shift_phase_label(@shift_phase)}
+      </span>
+    </div>
+
+    <%!-- === BOARD CONTACT QUEST PANEL (top-right) === --%>
+    <div
+      :if={@show_board_contact}
+      style="position: fixed; top: 50px; right: 16px; background: var(--fbc-panel); color: var(--fbc-text); padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 300px; max-width: 380px; max-height: 70vh; overflow-y: auto; border: 1px solid var(--fbc-gold);"
+    >
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--fbc-gold); padding-bottom: 8px;">
+        <span style="font-size: 13px; color: var(--fbc-gold); text-transform: uppercase; letter-spacing: 0.15em;">
+          Board Contact
+        </span>
+        <span style={"font-size: 10px; color: #{if @board_contact.completed, do: "var(--fbc-success)", else: "var(--fbc-accent)"}; text-transform: uppercase;"}>
+          {if @board_contact.completed, do: "ESTABLISHED", else: "#{@board_contact.progress_pct}%"}
+        </span>
+      </div>
+      <div :if={not @board_contact.active} style="color: var(--fbc-text-dim); font-size: 11px; margin-bottom: 8px;">
+        Quest not yet activated. Requires Clearance L3.
+        <button
+          :if={@clearance_level >= 3}
+          phx-click="activate_board_contact"
+          style="display: block; margin-top: 8px; padding: 6px 14px; border: 1px solid var(--fbc-gold); background: rgba(204,170,68,0.1); color: var(--fbc-gold); cursor: pointer; font-family: 'Courier New', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;"
+        >
+          Initiate Contact Protocol
+        </button>
+      </div>
+      <div :if={@board_contact.active}>
+        <div style="background: var(--fbc-border); height: 4px; margin-bottom: 10px;">
+          <div style={"background: var(--fbc-gold); height: 4px; width: #{@board_contact.progress_pct}%;"}>
+          </div>
+        </div>
+        <div
+          :for={req <- @board_contact.requirements}
+          style={"margin-bottom: 6px; padding: 6px 8px; border: 1px solid #{if req.complete, do: "var(--fbc-success)", else: "var(--fbc-border)"}; background: #{if req.complete, do: "rgba(102,136,68,0.08)", else: "rgba(255,255,255,0.02)"};"}
+        >
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style={"color: #{if req.complete, do: "var(--fbc-success)", else: "var(--fbc-highlight)"}; font-size: 11px;"}>
+              {Lore.display_name(req.item)}
+            </span>
+            <span style="color: var(--fbc-text-dim); font-size: 10px;">
+              {req.submitted}/{req.required}
+            </span>
+          </div>
+          <div style="background: var(--fbc-border); height: 3px; margin-top: 2px;">
+            <div style={"background: #{if req.complete, do: "var(--fbc-success)", else: "var(--fbc-gold)"}; height: 3px; width: #{min(100, trunc(req.submitted / max(req.required, 1) * 100))}%;"}>
+            </div>
+          </div>
+        </div>
+        <div
+          :if={map_size(@board_contact.contributors) > 0}
+          style="margin-top: 8px; border-top: 1px solid var(--fbc-border); padding-top: 6px; font-size: 10px; color: var(--fbc-text-dim);"
+        >
+          {map_size(@board_contact.contributors)} contributors &middot; {@board_contact.total_submitted}/{@board_contact.total_required} total
+        </div>
+      </div>
+    </div>
+
     <%!-- === BOTTOM TOOLBAR === --%>
     <div style="position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; padding: 12px; background: var(--fbc-panel); border-top: 1px solid var(--fbc-border); pointer-events: auto;">
       <button
@@ -690,6 +799,23 @@ defmodule SphericWeb.GameLive do
         title="Production Report (P key)"
       >
         Report
+      </button>
+      <button
+        phx-click="toggle_board_contact"
+        style={"
+          padding: 8px 12px;
+          border: 1px solid #{if @show_board_contact, do: "var(--fbc-gold)", else: "var(--fbc-border)"};
+          background: #{if @show_board_contact, do: "rgba(204,170,68,0.15)", else: "rgba(255,255,255,0.04)"};
+          color: #{if @show_board_contact, do: "var(--fbc-gold)", else: "var(--fbc-text-dim)"};
+          cursor: pointer;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        "}
+        title="Board Contact (G key)"
+      >
+        Contact
       </button>
       <button
         phx-click="blueprint_capture"
@@ -980,6 +1106,7 @@ defmodule SphericWeb.GameLive do
       |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
 
     {:noreply, socket}
   end
@@ -997,6 +1124,7 @@ defmodule SphericWeb.GameLive do
       |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
 
     {:noreply, socket}
   end
@@ -1159,6 +1287,7 @@ defmodule SphericWeb.GameLive do
       |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
 
     {:noreply, socket}
   end
@@ -1176,6 +1305,7 @@ defmodule SphericWeb.GameLive do
       |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
 
     {:noreply, socket}
   end
@@ -1231,6 +1361,11 @@ defmodule SphericWeb.GameLive do
   end
 
   @impl true
+  def handle_event("keydown", %{"key" => "g"}, socket) do
+    handle_event("toggle_board_contact", %{}, socket)
+  end
+
+  @impl true
   def handle_event("keydown", _params, socket) do
     {:noreply, socket}
   end
@@ -1246,6 +1381,7 @@ defmodule SphericWeb.GameLive do
       |> then(fn s -> if opening, do: assign(s, :show_creatures, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
 
     {:noreply, socket}
   end
@@ -1282,11 +1418,65 @@ defmodule SphericWeb.GameLive do
         |> assign(:show_creatures, false)
         |> assign(:show_trading, false)
         |> assign(:show_recipes, false)
+        |> assign(:show_board_contact, false)
       else
         assign(socket, :show_stats, false)
       end
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_board_contact", _params, socket) do
+    opening = !socket.assigns.show_board_contact
+
+    socket =
+      if opening do
+        summary = BoardContact.progress_summary()
+
+        socket
+        |> assign(:show_board_contact, true)
+        |> assign(:board_contact, summary)
+        |> assign(:show_research, false)
+        |> assign(:show_creatures, false)
+        |> assign(:show_trading, false)
+        |> assign(:show_recipes, false)
+        |> assign(:show_stats, false)
+      else
+        assign(socket, :show_board_contact, false)
+      end
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("dismiss_board_message", _params, socket) do
+    {:noreply, assign(socket, :board_message, nil)}
+  end
+
+  @impl true
+  def handle_event("activate_board_contact", _params, socket) do
+    if socket.assigns.clearance_level >= 3 do
+      BoardContact.activate()
+      summary = BoardContact.progress_summary()
+
+      # Check for Board milestone
+      messages = TheBoard.check_milestones(socket.assigns.player_id, %{board_contact_begin: true})
+
+      socket =
+        socket
+        |> assign(:board_contact, summary)
+        |> then(fn s ->
+          case messages do
+            [{_milestone, msg} | _] -> assign(s, :board_message, msg)
+            _ -> s
+          end
+        end)
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
   end
 
   # --- Blueprint events ---
@@ -1671,6 +1861,83 @@ defmodule SphericWeb.GameLive do
     end
   end
 
+  # --- Phase 8: World Events, Shift Cycle, Creature Evolution ---
+
+  @impl true
+  def handle_info({:world_event_started, event_type, event_info}, socket) do
+    # Check for Board milestone
+    messages =
+      TheBoard.check_milestones(socket.assigns.player_id, %{first_world_event: true})
+
+    socket =
+      socket
+      |> assign(:active_event, event_type)
+      |> push_event("world_event_started", %{
+        event: Atom.to_string(event_type),
+        name: event_info.name,
+        color: event_info.color
+      })
+      |> then(fn s ->
+        case messages do
+          [{_milestone, msg} | _] -> assign(s, :board_message, msg)
+          _ -> s
+        end
+      end)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:world_event_ended, event_type}, socket) do
+    socket =
+      socket
+      |> assign(:active_event, nil)
+      |> push_event("world_event_ended", %{event: Atom.to_string(event_type)})
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:shift_cycle_changed, phase, lighting, _modifiers}, socket) do
+    socket =
+      socket
+      |> assign(:shift_phase, phase)
+      |> push_event("shift_cycle_changed", %{
+        phase: Atom.to_string(phase),
+        ambient: lighting.ambient,
+        directional: lighting.directional,
+        intensity: lighting.intensity,
+        bg: lighting.bg
+      })
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:creature_evolved, player_id, _creature_id, _creature}, socket) do
+    if player_id == socket.assigns.player_id do
+      # Check for Board milestone
+      messages =
+        TheBoard.check_milestones(socket.assigns.player_id, %{creature_evolved: true})
+
+      roster = Creatures.get_player_roster(socket.assigns.player_id)
+
+      socket =
+        socket
+        |> assign(:creature_roster, roster)
+        |> then(fn s ->
+          case messages do
+            [{_milestone, msg} | _] -> assign(s, :board_message, msg)
+            _ -> s
+          end
+        end)
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
   # --- Terrain Streaming ---
 
   @impl true
@@ -1983,6 +2250,14 @@ defmodule SphericWeb.GameLive do
     end
   end
 
+  defp building_status_text(%{type: :dimensional_stabilizer, state: state}) do
+    "Active — Immunity Radius #{state[:radius] || 15}"
+  end
+
+  defp building_status_text(%{type: :astral_projection_chamber, state: _state}) do
+    "Ready — Click to project"
+  end
+
   defp building_status_text(_building), do: nil
 
   defp creature_boost_label(type) do
@@ -1997,6 +2272,24 @@ defmodule SphericWeb.GameLive do
       _ -> ""
     end
   end
+
+  defp world_event_label(:hiss_surge), do: "ALERT: Hiss Surge Active"
+  defp world_event_label(:meteor_shower), do: "EVENT: Meteor Shower"
+  defp world_event_label(:resonance_cascade), do: "EVENT: Resonance Cascade"
+  defp world_event_label(:entity_migration), do: "EVENT: Entity Migration"
+  defp world_event_label(_), do: "EVENT: Unknown"
+
+  defp shift_phase_label(:dawn), do: "Dawn Shift"
+  defp shift_phase_label(:zenith), do: "Zenith Shift"
+  defp shift_phase_label(:dusk), do: "Dusk Shift"
+  defp shift_phase_label(:nadir), do: "Nadir Shift"
+  defp shift_phase_label(_), do: "Unknown Shift"
+
+  defp shift_phase_color(:dawn), do: "var(--fbc-highlight)"
+  defp shift_phase_color(:zenith), do: "var(--fbc-info)"
+  defp shift_phase_color(:dusk), do: "var(--fbc-accent)"
+  defp shift_phase_color(:nadir), do: "#6688AA"
+  defp shift_phase_color(_), do: "var(--fbc-text-dim)"
 
   defp trade_status_color("open"), do: "var(--fbc-info)"
   defp trade_status_color("accepted"), do: "var(--fbc-highlight)"

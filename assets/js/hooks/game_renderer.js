@@ -176,10 +176,11 @@ const GameRenderer = {
     this.controls.zoomSpeed = 0.4;
 
     // FBC atmosphere lighting — cool, dim, institutional
-    this.scene.add(new THREE.AmbientLight(0x404050, 1.2));
-    const dirLight = new THREE.DirectionalLight(0xeeeeff, 0.8);
-    dirLight.position.set(5, 3, 4);
-    this.scene.add(dirLight);
+    this.ambientLight = new THREE.AmbientLight(0x404050, 1.2);
+    this.scene.add(this.ambientLight);
+    this.dirLight = new THREE.DirectionalLight(0xeeeeff, 0.8);
+    this.dirLight.position.set(5, 3, 4);
+    this.scene.add(this.dirLight);
     const fillLight = new THREE.DirectionalLight(0x6666aa, 0.25);
     fillLight.position.set(-3, -2, -4);
     this.scene.add(fillLight);
@@ -674,6 +675,34 @@ const GameRenderer = {
         this.blueprintMode = "stamp";
         this.placementType = null;
       }
+    });
+
+    // --- Phase 8: Shift Cycle & World Events ---
+
+    this.handleEvent("shift_cycle_changed", ({ phase, ambient, directional, intensity, bg }) => {
+      // Smoothly transition lighting
+      if (this.ambientLight) {
+        this.ambientLight.color.setHex(ambient);
+      }
+      if (this.dirLight) {
+        this.dirLight.color.setHex(directional);
+        this.dirLight.intensity = intensity;
+      }
+      if (this.scene.background) {
+        this.scene.background.setHex(bg);
+      }
+      if (this.scene.fog) {
+        this.scene.fog.color.setHex(bg);
+      }
+    });
+
+    this.handleEvent("world_event_started", ({ event, name, color }) => {
+      // Store active event for potential visual effects
+      this._activeWorldEvent = event;
+    });
+
+    this.handleEvent("world_event_ended", ({ event }) => {
+      this._activeWorldEvent = null;
     });
   },
 

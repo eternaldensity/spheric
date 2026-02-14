@@ -54,6 +54,8 @@ defmodule Spheric.Game.Lore do
   def display_name(:defense_turret), do: "Defense Array"
   def display_name(:claim_beacon), do: "Jurisdiction Beacon"
   def display_name(:trade_terminal), do: "Exchange Terminal"
+  def display_name(:dimensional_stabilizer), do: "Dimensional Stabilizer"
+  def display_name(:astral_projection_chamber), do: "Astral Projection Chamber"
 
   # Biomes
   def display_name(:grassland), do: "Threshold Plain"

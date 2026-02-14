@@ -96,6 +96,11 @@ defmodule Spheric.Game.Creatures do
   @capture_radius 3
   @capture_time 15
 
+  # Evolution: creatures assigned for this many seconds evolve (2x boost)
+  @evolution_threshold_seconds 600
+  # Check evolution every N ticks
+  @evolution_check_interval 50
+
   # --- Public API ---
 
   @doc "Initialize ETS tables for creatures."
@@ -422,14 +427,17 @@ defmodule Spheric.Game.Creatures do
             base_rate
 
           info ->
+            # Evolved creatures get 2x boost
+            multiplier = if creature[:evolved], do: 2.0, else: 1.0
+
             case info.boost_type do
               :speed ->
-                # Speed boost: reduce tick rate (faster production)
-                max(1, round(base_rate * (1.0 - info.boost_amount)))
+                boost = info.boost_amount * multiplier
+                max(1, round(base_rate * (1.0 - boost)))
 
               :all ->
-                # All boost: applies speed reduction
-                max(1, round(base_rate * (1.0 - info.boost_amount)))
+                boost = info.boost_amount * multiplier
+                max(1, round(base_rate * (1.0 - boost)))
 
               _ ->
                 base_rate
@@ -458,6 +466,51 @@ defmodule Spheric.Game.Creatures do
   def put_player_roster(player_id, roster) do
     :ets.insert(@player_creatures_table, {player_id, roster})
   end
+
+  @doc """
+  Check for creature evolution. Creatures assigned to buildings for
+  a sustained period evolve into stronger forms (2x boost).
+  Called periodically from the tick loop.
+  Returns list of `{player_id, creature_id, creature_type}` for evolved creatures.
+  """
+  def process_evolution(tick) do
+    if rem(tick, @evolution_check_interval) != 0 do
+      []
+    else
+      now = System.system_time(:second)
+
+      case :ets.whereis(@player_creatures_table) do
+        :undefined ->
+          []
+
+        _ ->
+          :ets.tab2list(@player_creatures_table)
+          |> Enum.flat_map(fn {player_id, roster} ->
+            {evolved_list, updated_roster, changed?} =
+              Enum.reduce(roster, {[], [], false}, fn creature, {evol, rost, changed} ->
+                if creature.assigned_to != nil and
+                     not (creature[:evolved] || false) and
+                     creature[:captured_at] != nil and
+                     now - creature.captured_at >= @evolution_threshold_seconds do
+                  evolved = Map.put(creature, :evolved, true)
+                  {[{player_id, creature.id, creature.type} | evol], [evolved | rost], true}
+                else
+                  {evol, [creature | rost], changed}
+                end
+              end)
+
+            if changed? do
+              :ets.insert(@player_creatures_table, {player_id, Enum.reverse(updated_roster)})
+            end
+
+            evolved_list
+          end)
+      end
+    end
+  end
+
+  @doc "Check if a creature is evolved."
+  def evolved?(creature), do: creature[:evolved] || false
 
   @doc "Clear all creature ETS data (used in tests)."
   def clear_all do

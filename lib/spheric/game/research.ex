@@ -91,7 +91,13 @@ defmodule Spheric.Game.Research do
       :crossover
     ],
     2 => [:assembler, :refinery, :conveyor_mk3, :balancer, :underground_conduit],
-    3 => [:containment_trap, :purification_beacon, :defense_turret]
+    3 => [
+      :containment_trap,
+      :purification_beacon,
+      :defense_turret,
+      :dimensional_stabilizer,
+      :astral_projection_chamber
+    ]
   }
 
   # --- Public API ---
