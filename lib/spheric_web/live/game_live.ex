@@ -48,6 +48,7 @@ defmodule SphericWeb.GameLive do
       end
 
       Phoenix.PubSub.subscribe(Spheric.PubSub, @presence_topic)
+      Phoenix.PubSub.subscribe(Spheric.PubSub, "world:admin")
     end
 
     # Restore player identity and camera from client localStorage (via connect params),
@@ -1994,6 +1995,14 @@ defmodule SphericWeb.GameLive do
       end)
 
     socket = push_event(socket, "players_update", %{players: players})
+    {:noreply, socket}
+  end
+
+  # --- Admin Handlers ---
+
+  @impl true
+  def handle_info(:world_reset, socket) do
+    socket = push_event(socket, "world_reset", %{})
     {:noreply, socket}
   end
 

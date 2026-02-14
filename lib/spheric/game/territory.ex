@@ -29,6 +29,12 @@ defmodule Spheric.Game.Territory do
     :ok
   end
 
+  @doc "Clear all territory data from ETS."
+  def clear do
+    if :ets.whereis(@territory_table) != :undefined, do: :ets.delete_all_objects(@territory_table)
+    :ok
+  end
+
   # --- Public API ---
 
   @doc "Returns the default territory radius for claim beacons."

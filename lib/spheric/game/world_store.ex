@@ -139,4 +139,12 @@ defmodule Spheric.Game.WorldStore do
   def dirty_count do
     :ets.info(@dirty_table, :size)
   end
+
+  @doc "Clear all tile, building, and dirty data from ETS tables."
+  def clear do
+    if :ets.whereis(@tiles_table) != :undefined, do: :ets.delete_all_objects(@tiles_table)
+    if :ets.whereis(@buildings_table) != :undefined, do: :ets.delete_all_objects(@buildings_table)
+    if :ets.whereis(@dirty_table) != :undefined, do: :ets.delete_all_objects(@dirty_table)
+    :ok
+  end
 end

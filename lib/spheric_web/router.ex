@@ -18,6 +18,7 @@ defmodule SphericWeb.Router do
     pipe_through :browser
 
     live "/", GameLive
+    live "/admin", AdminLive
   end
 
   # Other scopes may use custom stacks.

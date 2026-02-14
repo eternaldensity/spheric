@@ -19,8 +19,12 @@ defmodule Spheric.Game.Persistence do
     Player,
     Creature,
     Corruption,
-    HissEntity
+    HissEntity,
+    ResearchProgress
   }
+
+  alias Spheric.Game.Schema.Territory, as: TerritorySchema
+  alias Spheric.Game.Schema.Trade
 
   alias Spheric.Game.{WorldStore, WorldGen, Creatures, Hiss, Territory, Trading, WorldEvents, BoardContact, ShiftCycle}
 
@@ -130,6 +134,30 @@ defmodule Spheric.Game.Persistence do
       world ->
         world
     end
+  end
+
+  @doc """
+  Delete all persisted data for a world. Used during world reset.
+  """
+  def delete_world(world_id) do
+    Repo.delete_all(from b in Building, where: b.world_id == ^world_id)
+    Repo.delete_all(from tr in TileResource, where: tr.world_id == ^world_id)
+    Repo.delete_all(from c in Creature, where: c.world_id == ^world_id)
+    Repo.delete_all(from c in Corruption, where: c.world_id == ^world_id)
+    Repo.delete_all(from h in HissEntity, where: h.world_id == ^world_id)
+    Repo.delete_all(from t in TerritorySchema, where: t.world_id == ^world_id)
+    Repo.delete_all(from t in Trade, where: t.world_id == ^world_id)
+    Repo.delete_all(from r in ResearchProgress, where: r.world_id == ^world_id)
+
+    # Delete Phase 8 state file
+    path = phase8_state_path(world_id)
+    File.rm(path)
+
+    # Delete the world record itself
+    Repo.delete_all(from w in World, where: w.id == ^world_id)
+
+    Logger.info("Deleted all DB data for world #{world_id}")
+    :ok
   end
 
   # --- Loading ---

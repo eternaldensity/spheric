@@ -111,6 +111,12 @@ defmodule Spheric.Game.Research do
     :ok
   end
 
+  @doc "Clear all research unlock data from ETS."
+  def clear do
+    if :ets.whereis(@unlock_table) != :undefined, do: :ets.delete_all_objects(@unlock_table)
+    :ok
+  end
+
   @doc "Returns all case file definitions."
   def case_files, do: @all_case_files
 

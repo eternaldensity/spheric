@@ -33,6 +33,12 @@ defmodule Spheric.Game.Trading do
     :ok
   end
 
+  @doc "Clear all trade data from ETS."
+  def clear do
+    if :ets.whereis(@trades_table) != :undefined, do: :ets.delete_all_objects(@trades_table)
+    :ok
+  end
+
   # --- Public API ---
 
   @doc """

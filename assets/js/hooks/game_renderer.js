@@ -704,6 +704,10 @@ const GameRenderer = {
     this.handleEvent("world_event_ended", ({ event }) => {
       this._activeWorldEvent = null;
     });
+
+    this.handleEvent("world_reset", () => {
+      setTimeout(() => window.location.reload(), 500);
+    });
   },
 
   // --- Raycasting for tile selection ---

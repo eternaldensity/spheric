@@ -82,6 +82,16 @@ defmodule Spheric.Game.WorldServer do
     GenServer.call(__MODULE__, :tick_count)
   end
 
+  @doc "Reset the world with a new seed. Clears all state and regenerates terrain."
+  def reset_world(new_seed) do
+    GenServer.call(__MODULE__, {:reset_world, new_seed}, 60_000)
+  end
+
+  @doc "Get current world info for admin display."
+  def world_info do
+    GenServer.call(__MODULE__, :world_info)
+  end
+
   # --- GenServer Callbacks ---
 
   @impl true
@@ -292,6 +302,82 @@ defmodule Spheric.Game.WorldServer do
   @impl true
   def handle_call(:tick_count, _from, state) do
     {:reply, state.tick, state}
+  end
+
+  @impl true
+  def handle_call(:world_info, _from, state) do
+    info = %{
+      world_id: state.world_id,
+      seed: state.seed,
+      tick: state.tick,
+      tile_count: WorldStore.tile_count(),
+      building_count: WorldStore.building_count(),
+      subdivisions: Application.get_env(:spheric, :subdivisions, 64)
+    }
+
+    {:reply, info, state}
+  end
+
+  @impl true
+  def handle_call({:reset_world, new_seed}, _from, state) do
+    Logger.info("WorldServer: resetting world with new seed #{new_seed}")
+    subdivisions = Application.get_env(:spheric, :subdivisions, 64)
+
+    # 1. Delete all DB records for current world
+    Persistence.delete_world(state.world_id)
+
+    # 2. Clear all ETS tables
+    WorldStore.clear()
+    Research.clear()
+    Creatures.clear_all()
+    AlteredItems.clear()
+    Spheric.Game.ObjectsOfPower.clear()
+    Hiss.clear_all()
+    Territory.clear()
+    Trading.clear()
+    Statistics.reset()
+    WorldEvents.clear()
+    TheBoard.clear()
+    BoardContact.clear()
+    ShiftCycle.clear()
+
+    # 3. Re-initialize subsystems
+    Research.init()
+    Creatures.init()
+    AlteredItems.init()
+    Spheric.Game.ObjectsOfPower.init()
+    Hiss.init()
+    Territory.init()
+    Trading.init()
+    Statistics.init()
+    WorldEvents.init()
+    TheBoard.init()
+    BoardContact.init()
+    ShiftCycle.init()
+
+    # 4. Generate new terrain
+    tile_count = WorldGen.generate(seed: new_seed, subdivisions: subdivisions)
+    Logger.info("WorldServer reset: #{tile_count} tiles generated with seed #{new_seed}")
+
+    # 5. Create new world DB record
+    world = Persistence.ensure_world("default", new_seed, subdivisions)
+
+    # 6. Update SaveServer with new world_id
+    SaveServer.set_world(world.id)
+
+    # 7. Broadcast world reset to all connected clients
+    Phoenix.PubSub.broadcast(Spheric.PubSub, "world:admin", :world_reset)
+
+    # 8. Reset state
+    new_state = %{
+      tick: 0,
+      seed: new_seed,
+      world_id: world.id,
+      prev_item_faces: MapSet.new()
+    }
+
+    schedule_tick()
+    {:reply, :ok, new_state}
   end
 
   @impl true
