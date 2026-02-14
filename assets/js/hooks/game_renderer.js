@@ -1069,7 +1069,7 @@ const GameRenderer = {
       }
 
       // Position marker slightly above sphere surface
-      marker.group.position.copy(surfacePoint).multiplyScalar(1.02);
+      marker.group.position.copy(surfacePoint).multiplyScalar(1.01);
 
       // Orient label to face outward from sphere center
       marker.group.lookAt(surfacePoint.clone().multiplyScalar(2));
@@ -1092,7 +1092,7 @@ const GameRenderer = {
     const group = new THREE.Group();
 
     // Small sphere marker
-    const sphereGeo = new THREE.SphereGeometry(0.025, 8, 8);
+    const sphereGeo = new THREE.SphereGeometry(0.006, 8, 8);
     const sphereMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(color) });
     const sphere = new THREE.Mesh(sphereGeo, sphereMat);
     group.add(sphere);
@@ -1112,8 +1112,8 @@ const GameRenderer = {
     texture.minFilter = THREE.LinearFilter;
     const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
     const label = new THREE.Sprite(spriteMat);
-    label.scale.set(0.12, 0.03, 1);
-    label.position.set(0, 0.04, 0);
+    label.scale.set(0.03, 0.008, 1);
+    label.position.set(0, 0.01, 0);
     group.add(label);
 
     return { group, sphere, label };
@@ -1165,7 +1165,7 @@ const GameRenderer = {
     });
 
     const mesh = new THREE.Mesh(geo, mat);
-    const pos = center.clone().normalize().multiplyScalar(1.02);
+    const pos = center.clone().normalize().multiplyScalar(1.01);
     mesh.position.copy(pos);
     mesh.userData.phase = Math.random() * Math.PI * 2;
     this.scene.add(mesh);
