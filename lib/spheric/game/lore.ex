@@ -64,6 +64,56 @@ defmodule Spheric.Game.Lore do
   def display_name(:forest), do: "Overgrowth Sector"
   def display_name(:volcanic), do: "Astral Rift"
 
+  # New resources
+  def display_name(:uranium), do: "Threshold Radiant"
+  def display_name(:raw_uranium), do: "Threshold Radiant (Raw)"
+  def display_name(:enriched_uranium), do: "Enriched Radiant"
+  def display_name(:quartz_crystal), do: "Refined Resonance Crystal"
+
+  # New processed items
+  def display_name(:motor), do: "Kinetic Driver"
+  def display_name(:cable), do: "Shielded Conduit"
+  def display_name(:reinforced_plate), do: "Reinforced Plate"
+  def display_name(:heat_sink), do: "Thermal Regulator"
+  def display_name(:heavy_frame), do: "Heavy Astral Frame"
+  def display_name(:advanced_circuit), do: "Advanced Resonance Circuit"
+  def display_name(:plastic_sheet), do: "Polymer Membrane"
+  def display_name(:computer), do: "Computation Matrix"
+  def display_name(:motor_housing), do: "Armored Drive Assembly"
+  def display_name(:composite), do: "Structural Composite"
+  def display_name(:supercomputer), do: "Hypercomputation Core"
+  def display_name(:advanced_composite), do: "Paranatural Composite"
+  def display_name(:nuclear_cell), do: "Radiant Cell"
+  def display_name(:containment_module), do: "Anomaly Containment Module"
+  def display_name(:dimensional_core), do: "Dimensional Core"
+  def display_name(:astral_lens), do: "Astral Projection Lens"
+  def display_name(:board_resonator), do: "Board Resonator"
+  def display_name(:refined_fuel), do: "Refined Entity Fuel"
+
+  # Creature items
+  def display_name(:biofuel), do: "Entity Biofuel"
+  def display_name(:creature_essence), do: "Anomalous Essence"
+
+  # New buildings
+  def display_name(:gathering_post), do: "Gathering Post"
+  def display_name(:essence_extractor), do: "Essence Extractor"
+  def display_name(:bio_generator), do: "Bio Generator"
+  def display_name(:substation), do: "Substation"
+  def display_name(:transfer_station), do: "Transfer Station"
+  def display_name(:advanced_smelter), do: "Advanced Processor"
+  def display_name(:advanced_assembler), do: "Advanced Fabricator"
+  def display_name(:fabrication_plant), do: "Fabrication Plant"
+  def display_name(:particle_collider), do: "Particle Collider"
+  def display_name(:nuclear_refinery), do: "Nuclear Distiller"
+  def display_name(:paranatural_synthesizer), do: "Paranatural Synthesizer"
+  def display_name(:board_interface), do: "Board Interface"
+
+  # New creatures
+  def display_name(:flux_serpent), do: "Flux Serpent"
+  def display_name(:resonance_moth), do: "Resonance Moth"
+  def display_name(:iron_golem), do: "Ferric Sentinel"
+  def display_name(:phase_wisp), do: "Phase Wisp"
+
   # Fallback
   def display_name(atom) when is_atom(atom) do
     atom |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()

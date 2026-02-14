@@ -21,7 +21,17 @@ defmodule Spheric.Game.RecipeBrowser do
     }
   """
   def all_recipes do
-    miner_recipes() ++ smelter_recipes() ++ refinery_recipes() ++ assembler_recipes()
+    miner_recipes() ++
+      smelter_recipes() ++
+      refinery_recipes() ++
+      assembler_recipes() ++
+      advanced_smelter_recipes() ++
+      advanced_assembler_recipes() ++
+      fabrication_plant_recipes() ++
+      particle_collider_recipes() ++
+      nuclear_refinery_recipes() ++
+      paranatural_synthesizer_recipes() ++
+      board_interface_recipes()
   end
 
   @doc """
@@ -60,7 +70,8 @@ defmodule Spheric.Game.RecipeBrowser do
       {:quartz, :raw_quartz},
       {:titanium, :titanium_ore},
       {:oil, :crude_oil},
-      {:sulfur, :raw_sulfur}
+      {:sulfur, :raw_sulfur},
+      {:uranium, :raw_uranium}
     ]
     |> Enum.map(fn {resource, item} ->
       %{
@@ -109,6 +120,115 @@ defmodule Spheric.Game.RecipeBrowser do
         inputs: [
           %{item: input_a, name: Lore.display_name(input_a), count: 1},
           %{item: input_b, name: Lore.display_name(input_b), count: 1}
+        ],
+        output: %{item: output, name: Lore.display_name(output), count: 1}
+      }
+    end)
+  end
+
+  defp advanced_smelter_recipes do
+    Behaviors.AdvancedSmelter.recipes()
+    |> Enum.map(fn {input, output} ->
+      %{
+        id: "advanced_smelter_#{input}",
+        building: :advanced_smelter,
+        building_name: Lore.display_name(:advanced_smelter),
+        inputs: [%{item: input, name: Lore.display_name(input), count: 1}],
+        output: %{item: output, name: Lore.display_name(output), count: 1}
+      }
+    end)
+  end
+
+  defp advanced_assembler_recipes do
+    Behaviors.AdvancedAssembler.recipes()
+    |> Enum.map(fn {{input_a, input_b}, output} ->
+      %{
+        id: "advanced_assembler_#{input_a}_#{input_b}",
+        building: :advanced_assembler,
+        building_name: Lore.display_name(:advanced_assembler),
+        inputs: [
+          %{item: input_a, name: Lore.display_name(input_a), count: 1},
+          %{item: input_b, name: Lore.display_name(input_b), count: 1}
+        ],
+        output: %{item: output, name: Lore.display_name(output), count: 1}
+      }
+    end)
+  end
+
+  defp fabrication_plant_recipes do
+    Behaviors.FabricationPlant.recipes()
+    |> Enum.map(fn {{input_a, input_b, input_c}, output} ->
+      %{
+        id: "fabrication_plant_#{input_a}_#{input_b}_#{input_c}",
+        building: :fabrication_plant,
+        building_name: Lore.display_name(:fabrication_plant),
+        inputs: [
+          %{item: input_a, name: Lore.display_name(input_a), count: 1},
+          %{item: input_b, name: Lore.display_name(input_b), count: 1},
+          %{item: input_c, name: Lore.display_name(input_c), count: 1}
+        ],
+        output: %{item: output, name: Lore.display_name(output), count: 1}
+      }
+    end)
+  end
+
+  defp particle_collider_recipes do
+    Behaviors.ParticleCollider.recipes()
+    |> Enum.map(fn {{input_a, input_b}, output} ->
+      %{
+        id: "particle_collider_#{input_a}_#{input_b}",
+        building: :particle_collider,
+        building_name: Lore.display_name(:particle_collider),
+        inputs: [
+          %{item: input_a, name: Lore.display_name(input_a), count: 1},
+          %{item: input_b, name: Lore.display_name(input_b), count: 1}
+        ],
+        output: %{item: output, name: Lore.display_name(output), count: 1}
+      }
+    end)
+  end
+
+  defp nuclear_refinery_recipes do
+    Behaviors.NuclearRefinery.recipes()
+    |> Enum.map(fn {input, output} ->
+      %{
+        id: "nuclear_refinery_#{input}",
+        building: :nuclear_refinery,
+        building_name: Lore.display_name(:nuclear_refinery),
+        inputs: [%{item: input, name: Lore.display_name(input), count: 1}],
+        output: %{item: output, name: Lore.display_name(output), count: 1}
+      }
+    end)
+  end
+
+  defp paranatural_synthesizer_recipes do
+    Behaviors.ParanaturalSynthesizer.recipes()
+    |> Enum.map(fn {{input_a, input_b, input_c}, output} ->
+      %{
+        id: "paranatural_synthesizer_#{input_a}_#{input_b}_#{input_c}",
+        building: :paranatural_synthesizer,
+        building_name: Lore.display_name(:paranatural_synthesizer),
+        inputs: [
+          %{item: input_a, name: Lore.display_name(input_a), count: 1},
+          %{item: input_b, name: Lore.display_name(input_b), count: 1},
+          %{item: input_c, name: Lore.display_name(input_c), count: 1}
+        ],
+        output: %{item: output, name: Lore.display_name(output), count: 1}
+      }
+    end)
+  end
+
+  defp board_interface_recipes do
+    Behaviors.BoardInterface.recipes()
+    |> Enum.map(fn {{input_a, input_b, input_c}, output} ->
+      %{
+        id: "board_interface_#{input_a}_#{input_b}_#{input_c}",
+        building: :board_interface,
+        building_name: Lore.display_name(:board_interface),
+        inputs: [
+          %{item: input_a, name: Lore.display_name(input_a), count: 1},
+          %{item: input_b, name: Lore.display_name(input_b), count: 1},
+          %{item: input_c, name: Lore.display_name(input_c), count: 1}
         ],
         output: %{item: output, name: Lore.display_name(output), count: 1}
       }

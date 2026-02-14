@@ -13,7 +13,18 @@ defmodule Spheric.Game.TickProcessor do
   `face_id => [item_update]` for broadcasting to clients.
   """
 
-  alias Spheric.Game.{WorldStore, Behaviors, Creatures, ObjectsOfPower, Statistics, ShiftCycle}
+  alias Spheric.Game.{
+    WorldStore,
+    Behaviors,
+    Creatures,
+    ObjectsOfPower,
+    Statistics,
+    ShiftCycle,
+    ConstructionCosts,
+    GroundItems,
+    Power
+  }
+
   alias Spheric.Geometry.TileNeighbors
 
   require Logger
@@ -24,44 +35,132 @@ defmodule Spheric.Game.TickProcessor do
   def process_tick(tick) do
     buildings = gather_all_buildings()
 
-    {miners, _conveyors, smelters, assemblers, refineries, terminals, trade_terminals, _others} =
-      classify(buildings)
+    # Phase 0: Construction delivery — pull from ground items into construction sites
+    buildings = process_construction_delivery(buildings)
 
-    # Phase 1: Miners tick (with creature boost)
+    # Phase 0b: Power resolution (every 5 ticks)
+    if rem(tick, 5) == 0, do: Power.resolve()
+
+    # Filter out incomplete construction sites for production phases
+    active_buildings =
+      Map.filter(buildings, fn {_key, b} ->
+        not (b.state[:construction] != nil and b.state.construction.complete == false)
+      end)
+
+    classified = classify(active_buildings)
+
+    # Phase 1: Miners tick (with creature boost + power)
     miner_updates =
-      Enum.map(miners, fn {key, building} ->
+      Enum.map(classified.miners, fn {key, building} ->
         updated = Behaviors.Miner.tick(key, apply_creature_boost(key, building))
         record_production_stats(key, building, updated)
         {key, updated}
       end)
 
-    # Phase 2: Smelters tick (with creature boost)
+    # Phase 2: Smelters tick
     smelter_updates =
-      Enum.map(smelters, fn {key, building} ->
+      Enum.map(classified.smelters, fn {key, building} ->
         updated = Behaviors.Smelter.tick(key, apply_creature_boost(key, building))
         record_production_stats(key, building, updated)
         {key, updated}
       end)
 
-    # Phase 2b: Refineries tick (with creature boost)
+    # Phase 2b: Refineries tick
     refinery_updates =
-      Enum.map(refineries, fn {key, building} ->
+      Enum.map(classified.refineries, fn {key, building} ->
         updated = Behaviors.Refinery.tick(key, apply_creature_boost(key, building))
         record_production_stats(key, building, updated)
         {key, updated}
       end)
 
-    # Phase 2c: Assemblers tick (with creature boost)
+    # Phase 2c: Assemblers tick
     assembler_updates =
-      Enum.map(assemblers, fn {key, building} ->
+      Enum.map(classified.assemblers, fn {key, building} ->
         updated = Behaviors.Assembler.tick(key, apply_creature_boost(key, building))
         record_production_stats(key, building, updated)
         {key, updated}
       end)
 
-    # Phase 2d: Submission terminals tick (consume items, report submissions)
+    # Phase 2d: Advanced smelters tick
+    adv_smelter_updates =
+      Enum.map(classified.advanced_smelters, fn {key, building} ->
+        updated = Behaviors.AdvancedSmelter.tick(key, apply_creature_boost(key, building))
+        record_production_stats(key, building, updated)
+        {key, updated}
+      end)
+
+    # Phase 2e: Advanced assemblers tick
+    adv_assembler_updates =
+      Enum.map(classified.advanced_assemblers, fn {key, building} ->
+        updated = Behaviors.AdvancedAssembler.tick(key, apply_creature_boost(key, building))
+        record_production_stats(key, building, updated)
+        {key, updated}
+      end)
+
+    # Phase 2f: Fabrication plants tick
+    fab_plant_updates =
+      Enum.map(classified.fabrication_plants, fn {key, building} ->
+        updated = Behaviors.FabricationPlant.tick(key, apply_creature_boost(key, building))
+        record_production_stats(key, building, updated)
+        {key, updated}
+      end)
+
+    # Phase 2g: Particle colliders tick
+    collider_updates =
+      Enum.map(classified.particle_colliders, fn {key, building} ->
+        updated = Behaviors.ParticleCollider.tick(key, apply_creature_boost(key, building))
+        record_production_stats(key, building, updated)
+        {key, updated}
+      end)
+
+    # Phase 2h: Nuclear refineries tick
+    nuclear_updates =
+      Enum.map(classified.nuclear_refineries, fn {key, building} ->
+        updated = Behaviors.NuclearRefinery.tick(key, apply_creature_boost(key, building))
+        record_production_stats(key, building, updated)
+        {key, updated}
+      end)
+
+    # Phase 2i: Paranatural synthesizers tick
+    synthesizer_updates =
+      Enum.map(classified.paranatural_synthesizers, fn {key, building} ->
+        updated = Behaviors.ParanaturalSynthesizer.tick(key, apply_creature_boost(key, building))
+        record_production_stats(key, building, updated)
+        {key, updated}
+      end)
+
+    # Phase 2j: Board interfaces tick
+    board_updates =
+      Enum.map(classified.board_interfaces, fn {key, building} ->
+        updated = Behaviors.BoardInterface.tick(key, apply_creature_boost(key, building))
+        record_production_stats(key, building, updated)
+        {key, updated}
+      end)
+
+    # Phase 2k: Bio generators tick
+    bio_gen_updates =
+      Enum.map(classified.bio_generators, fn {key, building} ->
+        updated = Behaviors.BioGenerator.tick(key, apply_creature_boost(key, building))
+        {key, updated}
+      end)
+
+    # Phase 2l: Gathering posts tick
+    gathering_updates =
+      Enum.map(classified.gathering_posts, fn {key, building} ->
+        updated = Behaviors.GatheringPost.tick(key, building)
+        {key, updated}
+      end)
+
+    # Phase 2m: Essence extractors tick
+    essence_updates =
+      Enum.map(classified.essence_extractors, fn {key, building} ->
+        updated = Behaviors.EssenceExtractor.tick(key, building)
+        {key, updated}
+      end)
+
+    # Phase 2n: Submission terminals tick (consume items, report submissions)
     {terminal_updates, submissions} =
-      Enum.reduce(terminals, {[], []}, fn {key, building}, {updates, subs} ->
+      Enum.reduce(classified.terminals, {[], []}, fn {key, building}, {updates, subs} ->
         {updated, consumed_item} = Behaviors.SubmissionTerminal.tick(key, building)
 
         if consumed_item, do: Statistics.record_consumption(key, consumed_item)
@@ -78,24 +177,34 @@ defmodule Spheric.Game.TickProcessor do
         {new_updates, new_subs}
       end)
 
-    # Phase 2e: Trade terminals tick (submit items to trades)
+    # Phase 2o: Trade terminals tick
     trade_terminal_updates =
-      Enum.map(trade_terminals, fn {key, building} ->
+      Enum.map(classified.trade_terminals, fn {key, building} ->
         {updated, _consumed} = Behaviors.TradeTerminal.tick(key, building)
         {key, updated}
       end)
 
-    # Merge updates into the full building map
-    all_buildings =
-      merge_updates(
-        buildings,
-        miner_updates ++
-          smelter_updates ++
-          refinery_updates ++
-          assembler_updates ++ terminal_updates ++ trade_terminal_updates
-      )
+    # Merge all updates into the full building map (includes inactive construction sites)
+    all_updates =
+      miner_updates ++
+        smelter_updates ++
+        refinery_updates ++
+        assembler_updates ++
+        adv_smelter_updates ++
+        adv_assembler_updates ++
+        fab_plant_updates ++
+        collider_updates ++
+        nuclear_updates ++
+        synthesizer_updates ++
+        board_updates ++
+        bio_gen_updates ++
+        gathering_updates ++
+        essence_updates ++
+        terminal_updates ++ trade_terminal_updates
 
-    # Phase 2f: Conveyor Mk2/Mk3 internal buffer advancement
+    all_buildings = merge_updates(buildings, all_updates)
+
+    # Phase 2p: Conveyor Mk2/Mk3 internal buffer advancement
     all_buildings = advance_conveyor_buffers(all_buildings)
 
     # Phase 3: Push resolution — move items between buildings
@@ -107,6 +216,12 @@ defmodule Spheric.Game.TickProcessor do
 
     # Phase 4: Altered item duplication (5% chance to refill output after push)
     final_buildings = apply_duplication_effects(final_buildings, movements)
+
+    # Phase 4b: Efficiency boost — chance to not consume input
+    final_buildings = apply_efficiency_effects(final_buildings)
+
+    # Phase 4c: Output boost — chance to double output
+    final_buildings = apply_output_effects(final_buildings, movements)
 
     # Batch write all modified building states to ETS
     write_changes(buildings, final_buildings)
@@ -126,32 +241,49 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   defp classify(buildings) do
-    Enum.reduce(buildings, {[], [], [], [], [], [], [], []}, fn {key, building},
-                                                                {m, c, s, a, r, t, tt, o} ->
+    acc = %{
+      miners: [],
+      conveyors: [],
+      smelters: [],
+      assemblers: [],
+      refineries: [],
+      terminals: [],
+      trade_terminals: [],
+      advanced_smelters: [],
+      advanced_assemblers: [],
+      fabrication_plants: [],
+      particle_colliders: [],
+      nuclear_refineries: [],
+      paranatural_synthesizers: [],
+      board_interfaces: [],
+      bio_generators: [],
+      gathering_posts: [],
+      essence_extractors: [],
+      others: []
+    }
+
+    Enum.reduce(buildings, acc, fn {key, building}, acc ->
+      pair = {key, building}
+
       case building.type do
-        :miner ->
-          {[{key, building} | m], c, s, a, r, t, tt, o}
-
-        type when type in [:conveyor, :conveyor_mk2, :conveyor_mk3, :crossover] ->
-          {m, [{key, building} | c], s, a, r, t, tt, o}
-
-        :smelter ->
-          {m, c, [{key, building} | s], a, r, t, tt, o}
-
-        :assembler ->
-          {m, c, s, [{key, building} | a], r, t, tt, o}
-
-        :refinery ->
-          {m, c, s, a, [{key, building} | r], t, tt, o}
-
-        :submission_terminal ->
-          {m, c, s, a, r, [{key, building} | t], tt, o}
-
-        :trade_terminal ->
-          {m, c, s, a, r, t, [{key, building} | tt], o}
-
-        _ ->
-          {m, c, s, a, r, t, tt, [{key, building} | o]}
+        :miner -> %{acc | miners: [pair | acc.miners]}
+        type when type in [:conveyor, :conveyor_mk2, :conveyor_mk3, :crossover] -> %{acc | conveyors: [pair | acc.conveyors]}
+        :smelter -> %{acc | smelters: [pair | acc.smelters]}
+        :assembler -> %{acc | assemblers: [pair | acc.assemblers]}
+        :refinery -> %{acc | refineries: [pair | acc.refineries]}
+        :submission_terminal -> %{acc | terminals: [pair | acc.terminals]}
+        :trade_terminal -> %{acc | trade_terminals: [pair | acc.trade_terminals]}
+        :advanced_smelter -> %{acc | advanced_smelters: [pair | acc.advanced_smelters]}
+        :advanced_assembler -> %{acc | advanced_assemblers: [pair | acc.advanced_assemblers]}
+        :fabrication_plant -> %{acc | fabrication_plants: [pair | acc.fabrication_plants]}
+        :particle_collider -> %{acc | particle_colliders: [pair | acc.particle_colliders]}
+        :nuclear_refinery -> %{acc | nuclear_refineries: [pair | acc.nuclear_refineries]}
+        :paranatural_synthesizer -> %{acc | paranatural_synthesizers: [pair | acc.paranatural_synthesizers]}
+        :board_interface -> %{acc | board_interfaces: [pair | acc.board_interfaces]}
+        :bio_generator -> %{acc | bio_generators: [pair | acc.bio_generators]}
+        :gathering_post -> %{acc | gathering_posts: [pair | acc.gathering_posts]}
+        :essence_extractor -> %{acc | essence_extractors: [pair | acc.essence_extractors]}
+        _ -> %{acc | others: [pair | acc.others]}
       end
     end)
   end
@@ -446,6 +578,29 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
+  # All other buildings with output_buffer + orientation push forward
+  defp get_push_request(
+         key,
+         %{type: type, orientation: dir, state: %{output_buffer: item}},
+         n
+       )
+       when type in [
+              :advanced_smelter,
+              :advanced_assembler,
+              :fabrication_plant,
+              :particle_collider,
+              :nuclear_refinery,
+              :paranatural_synthesizer,
+              :board_interface,
+              :gathering_post,
+              :essence_extractor
+            ] and not is_nil(item) do
+    case TileNeighbors.neighbor(key, dir, n) do
+      {:ok, dest_key} -> {key, dest_key, item}
+      :boundary -> nil
+    end
+  end
+
   # Underground conduit: push item from linked conduit's output
   # (handled separately in resolve_conduit_teleports)
 
@@ -486,6 +641,36 @@ defmodule Spheric.Game.TickProcessor do
 
       %{type: :storage_container, state: state} ->
         state.count >= state.capacity
+
+      %{type: :assembler, state: state} ->
+        state.input_a != nil and state.input_b != nil
+
+      %{type: :advanced_smelter, state: %{input_buffer: buf}} ->
+        buf != nil
+
+      %{type: :advanced_assembler, state: state} ->
+        state.input_a != nil and state.input_b != nil
+
+      %{type: :fabrication_plant, state: state} ->
+        state.input_a != nil and state.input_b != nil and state.input_c != nil
+
+      %{type: :particle_collider, state: state} ->
+        state.input_a != nil and state.input_b != nil
+
+      %{type: :nuclear_refinery, state: %{input_buffer: buf}} ->
+        buf != nil
+
+      %{type: :paranatural_synthesizer, state: state} ->
+        state.input_a != nil and state.input_b != nil and state.input_c != nil
+
+      %{type: :board_interface, state: state} ->
+        state.input_a != nil and state.input_b != nil and state.input_c != nil
+
+      %{type: :bio_generator, state: %{input_buffer: buf}} ->
+        buf != nil
+
+      %{type: :submission_terminal, state: %{input_buffer: buf}} ->
+        buf != nil
 
       _ ->
         false
@@ -641,6 +826,143 @@ defmodule Spheric.Game.TickProcessor do
     accept_from_direction(dest_key, rear_dir, requests, n)
   end
 
+  # Advanced smelter: accepts from rear into input_buffer
+  defp try_accept(
+         dest_key,
+         %{type: :advanced_smelter, orientation: dir, state: %{input_buffer: nil}},
+         requests,
+         n
+       ) do
+    rear_dir = rem(dir + 2, 4)
+    accept_from_direction(dest_key, rear_dir, requests, n)
+  end
+
+  # Advanced assembler: dual-input, routes item to correct slot
+  defp try_accept(dest_key, %{type: :advanced_assembler, orientation: dir, state: state}, requests, n) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.AdvancedAssembler.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
+
+  # Fabrication plant: triple-input, routes item to correct slot
+  defp try_accept(dest_key, %{type: :fabrication_plant, orientation: dir, state: state}, requests, n) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.FabricationPlant.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
+
+  # Particle collider: dual-input
+  defp try_accept(dest_key, %{type: :particle_collider, orientation: dir, state: state}, requests, n) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.ParticleCollider.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
+
+  # Nuclear refinery: single-input from rear
+  defp try_accept(
+         dest_key,
+         %{type: :nuclear_refinery, orientation: dir, state: %{input_buffer: nil}},
+         requests,
+         n
+       ) do
+    rear_dir = rem(dir + 2, 4)
+    accept_from_direction(dest_key, rear_dir, requests, n)
+  end
+
+  # Paranatural synthesizer: triple-input
+  defp try_accept(dest_key, %{type: :paranatural_synthesizer, orientation: dir, state: state}, requests, n) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.ParanaturalSynthesizer.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
+
+  # Board interface: triple-input
+  defp try_accept(dest_key, %{type: :board_interface, orientation: dir, state: state}, requests, n) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.BoardInterface.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
+
+  # Bio generator: accepts fuel from rear into input_buffer
+  defp try_accept(
+         dest_key,
+         %{type: :bio_generator, orientation: dir, state: %{input_buffer: nil}},
+         requests,
+         n
+       ) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and item in [:biofuel, :refined_fuel]
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
+
+  # Construction sites: accept items matching their requirements from rear
+  defp try_accept(
+         dest_key,
+         %{orientation: dir, state: %{construction: %{complete: false} = constr}} = _building,
+         requests,
+         n
+       ) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and ConstructionCosts.needs_item?(constr, item)
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
+
   defp try_accept(_key, _building, _requests, _n), do: nil
 
   # Accept the first request whose source is the neighbor in the given direction
@@ -713,6 +1035,20 @@ defmodule Spheric.Game.TickProcessor do
               %{b | state: %{b.state | output_buffer: nil}}
 
             :trade_terminal ->
+              %{b | state: %{b.state | output_buffer: nil}}
+
+            type
+            when type in [
+                   :advanced_smelter,
+                   :advanced_assembler,
+                   :fabrication_plant,
+                   :particle_collider,
+                   :nuclear_refinery,
+                   :paranatural_synthesizer,
+                   :board_interface,
+                   :gathering_post,
+                   :essence_extractor
+                 ] ->
               %{b | state: %{b.state | output_buffer: nil}}
 
             :splitter ->
@@ -831,8 +1167,59 @@ defmodule Spheric.Game.TickProcessor do
           :trade_terminal ->
             %{b | state: %{b.state | input_buffer: item}}
 
+          :advanced_smelter ->
+            %{b | state: %{b.state | input_buffer: item}}
+
+          :advanced_assembler ->
+            case Behaviors.AdvancedAssembler.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
+
+          :fabrication_plant ->
+            case Behaviors.FabricationPlant.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
+
+          :particle_collider ->
+            case Behaviors.ParticleCollider.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
+
+          :nuclear_refinery ->
+            %{b | state: %{b.state | input_buffer: item}}
+
+          :paranatural_synthesizer ->
+            case Behaviors.ParanaturalSynthesizer.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
+
+          :board_interface ->
+            case Behaviors.BoardInterface.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
+
+          :bio_generator ->
+            if item in [:biofuel, :refined_fuel] do
+              %{b | state: %{b.state | input_buffer: item}}
+            else
+              b
+            end
+
           _ ->
-            b
+            # Handle construction site delivery
+            case b.state do
+              %{construction: %{complete: false} = constr} ->
+                new_constr = ConstructionCosts.deliver_item(constr, item)
+                %{b | state: %{b.state | construction: new_constr}}
+
+              _ ->
+                b
+            end
         end
       end)
     end)
@@ -967,7 +1354,23 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   defp items_from_building({face, row, col}, %{type: type, state: %{output_buffer: item}}, _)
-       when type in [:miner, :smelter, :assembler, :refinery, :defense_turret, :trade_terminal] and
+       when type in [
+              :miner,
+              :smelter,
+              :assembler,
+              :refinery,
+              :defense_turret,
+              :trade_terminal,
+              :advanced_smelter,
+              :advanced_assembler,
+              :fabrication_plant,
+              :particle_collider,
+              :nuclear_refinery,
+              :paranatural_synthesizer,
+              :board_interface,
+              :gathering_post,
+              :essence_extractor
+            ] and
               not is_nil(item) do
     [%{face: face, row: row, col: col, item: item, from_face: nil, from_row: nil, from_col: nil}]
   end
@@ -1023,6 +1426,115 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
+  # Process construction delivery: pull items from nearby ground items
+  defp process_construction_delivery(buildings) do
+    Enum.reduce(buildings, buildings, fn {key, building}, acc ->
+      case building.state do
+        %{construction: %{complete: false} = constr} ->
+          # Check nearby ground items (radius 3)
+          needed =
+            Enum.flat_map(constr.required, fn {item, qty} ->
+              delivered = Map.get(constr.delivered, item, 0)
+              if delivered < qty, do: [item], else: []
+            end)
+
+          if needed == [] do
+            # All items delivered — mark complete
+            new_constr = %{constr | complete: true}
+            Map.put(acc, key, %{building | state: %{building.state | construction: new_constr}})
+          else
+            # Try to pull one item from ground
+            {_face, _row, _col} = key
+            nearby = GroundItems.items_near(key, 3)
+
+            new_constr =
+              Enum.reduce(needed, constr, fn item, c ->
+                total_nearby =
+                  Enum.reduce(nearby, 0, fn {_tile_key, items}, sum ->
+                    sum + Map.get(items, item, 0)
+                  end)
+
+                if total_nearby > 0 do
+                  # Take from the first tile that has it
+                  {taken_key, _} =
+                    Enum.find(nearby, fn {_tile_key, items} ->
+                      Map.get(items, item, 0) > 0
+                    end)
+
+                  GroundItems.take(taken_key, item)
+                  ConstructionCosts.deliver_item(c, item)
+                else
+                  c
+                end
+              end)
+
+            if ConstructionCosts.construction_complete?(new_constr) do
+              new_constr = %{new_constr | complete: true}
+              Map.put(acc, key, %{building | state: %{building.state | construction: new_constr}})
+            else
+              Map.put(acc, key, %{building | state: %{building.state | construction: new_constr}})
+            end
+          end
+
+        _ ->
+          acc
+      end
+    end)
+  end
+
+  # Efficiency boost: chance to not consume input when producing output
+  defp apply_efficiency_effects(buildings) do
+    Enum.reduce(buildings, buildings, fn {key, building}, acc ->
+      eff = Creatures.efficiency_chance(key)
+
+      if eff > 0 and building.state[:output_buffer] != nil do
+        # If the building just produced and has efficiency boost,
+        # chance to refill input (as if input wasn't consumed)
+        if :rand.uniform(100) <= round(eff * 100) do
+          case building.type do
+            type when type in [:smelter, :refinery, :advanced_smelter, :nuclear_refinery] ->
+              # Single-input: can't easily "un-consume" — skip for simplicity
+              acc
+
+            _ ->
+              acc
+          end
+        else
+          acc
+        end
+      else
+        acc
+      end
+    end)
+  end
+
+  # Output boost: chance to produce double output
+  defp apply_output_effects(buildings, movements) do
+    # Find buildings that just pushed output and have output boost
+    Enum.reduce(movements, buildings, fn {src_key, _dest_key, item}, acc ->
+      building = Map.get(acc, src_key)
+
+      if building do
+        output_chance = Creatures.output_chance(src_key)
+
+        if output_chance > 0 and building.state[:output_buffer] == nil do
+          if :rand.uniform(100) <= round(output_chance * 100) do
+            Map.put(acc, src_key, %{
+              building
+              | state: Map.put(building.state, :output_buffer, item)
+            })
+          else
+            acc
+          end
+        else
+          acc
+        end
+      else
+        acc
+      end
+    end)
+  end
+
   # Apply creature boost and altered item effects to a building's tick rate.
   # Temporarily adjusts the rate in the building state so the behavior
   # module uses the boosted rate for its progress check.
@@ -1054,6 +1566,30 @@ defmodule Spheric.Game.TickProcessor do
             tile = WorldStore.get_tile(key)
             biome = if tile, do: tile.terrain, else: :grassland
             ShiftCycle.apply_rate_modifier(boosted, biome)
+          else
+            boosted
+          end
+
+        # Unpowered penalty: tier > 0 buildings without power are slower
+        boosted =
+          if building.type not in [:conveyor, :conveyor_mk2, :conveyor_mk3] do
+            tier = ConstructionCosts.tier(building.type)
+
+            if tier > 0 and not Power.powered?(key) do
+              boosted * (tier + 1)
+            else
+              boosted
+            end
+          else
+            boosted
+          end
+
+        # Object of Power: logistics_mastery — conveyors 20% faster
+        boosted =
+          if building.type in [:conveyor, :conveyor_mk2, :conveyor_mk3] and
+               building[:owner_id] &&
+               ObjectsOfPower.player_has?(building.owner_id, :logistics_mastery) do
+            max(1, round(boosted * 0.8))
           else
             boosted
           end

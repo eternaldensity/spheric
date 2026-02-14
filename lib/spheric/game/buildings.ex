@@ -27,7 +27,20 @@ defmodule Spheric.Game.Buildings do
     :claim_beacon,
     :trade_terminal,
     :dimensional_stabilizer,
-    :astral_projection_chamber
+    :astral_projection_chamber,
+    # New buildings
+    :gathering_post,
+    :essence_extractor,
+    :bio_generator,
+    :substation,
+    :transfer_station,
+    :advanced_smelter,
+    :advanced_assembler,
+    :fabrication_plant,
+    :particle_collider,
+    :nuclear_refinery,
+    :paranatural_synthesizer,
+    :board_interface
   ]
 
   @doc "Returns the list of all building type atoms."
@@ -58,6 +71,18 @@ defmodule Spheric.Game.Buildings do
   def display_name(:trade_terminal), do: "Trade"
   def display_name(:dimensional_stabilizer), do: "Stabilizer"
   def display_name(:astral_projection_chamber), do: "Projector"
+  def display_name(:gathering_post), do: "Post"
+  def display_name(:essence_extractor), do: "Extractor"
+  def display_name(:bio_generator), do: "Generator"
+  def display_name(:substation), do: "Substation"
+  def display_name(:transfer_station), do: "Transfer"
+  def display_name(:advanced_smelter), do: "Adv Smelter"
+  def display_name(:advanced_assembler), do: "Adv Assembler"
+  def display_name(:fabrication_plant), do: "Fab Plant"
+  def display_name(:particle_collider), do: "Collider"
+  def display_name(:nuclear_refinery), do: "Nuc Refinery"
+  def display_name(:paranatural_synthesizer), do: "Synthesizer"
+  def display_name(:board_interface), do: "Board"
 
   @doc """
   Check if a building type can be placed on the given tile data.
@@ -67,9 +92,10 @@ defmodule Spheric.Game.Buildings do
   def can_place_on?(:miner, %{resource: nil}), do: false
   def can_place_on?(:miner, %{resource: {_type, amount}}) when amount > 0, do: true
   def can_place_on?(:miner, _tile), do: false
-  # Purification beacons and defense turrets can be placed on corrupted tiles
+  # Purification beacons, defense turrets, and dimensional stabilizers can be placed on corrupted tiles
   def can_place_on?(type, _tile)
-      when type in [:purification_beacon, :defense_turret] and type in @types,
+      when type in [:purification_beacon, :defense_turret, :dimensional_stabilizer] and
+             type in @types,
       do: true
 
   def can_place_on?(type, _tile) when type in @types, do: true
@@ -119,6 +145,43 @@ defmodule Spheric.Game.Buildings do
 
   def initial_state(:astral_projection_chamber),
     do: Spheric.Game.Behaviors.AstralProjectionChamber.initial_state()
+
+  # New buildings
+  def initial_state(:gathering_post),
+    do: Spheric.Game.Behaviors.GatheringPost.initial_state()
+
+  def initial_state(:essence_extractor),
+    do: Spheric.Game.Behaviors.EssenceExtractor.initial_state()
+
+  def initial_state(:bio_generator),
+    do: Spheric.Game.Behaviors.BioGenerator.initial_state()
+
+  def initial_state(:substation),
+    do: Spheric.Game.Behaviors.Substation.initial_state()
+
+  def initial_state(:transfer_station),
+    do: Spheric.Game.Behaviors.TransferStation.initial_state()
+
+  def initial_state(:advanced_smelter),
+    do: Spheric.Game.Behaviors.AdvancedSmelter.initial_state()
+
+  def initial_state(:advanced_assembler),
+    do: Spheric.Game.Behaviors.AdvancedAssembler.initial_state()
+
+  def initial_state(:fabrication_plant),
+    do: Spheric.Game.Behaviors.FabricationPlant.initial_state()
+
+  def initial_state(:particle_collider),
+    do: Spheric.Game.Behaviors.ParticleCollider.initial_state()
+
+  def initial_state(:nuclear_refinery),
+    do: Spheric.Game.Behaviors.NuclearRefinery.initial_state()
+
+  def initial_state(:paranatural_synthesizer),
+    do: Spheric.Game.Behaviors.ParanaturalSynthesizer.initial_state()
+
+  def initial_state(:board_interface),
+    do: Spheric.Game.Behaviors.BoardInterface.initial_state()
 
   def initial_state(_type), do: %{}
 end

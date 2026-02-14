@@ -29,7 +29,7 @@ defmodule Spheric.Game.CreaturesTest do
   describe "creature_types/0" do
     test "returns all 8 creature types" do
       types = Creatures.creature_types()
-      assert map_size(types) == 8
+      assert map_size(types) == 12
 
       assert Map.has_key?(types, :ember_wisp)
       assert Map.has_key?(types, :frost_shard)

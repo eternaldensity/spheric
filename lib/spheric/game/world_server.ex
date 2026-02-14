@@ -28,7 +28,11 @@ defmodule Spheric.Game.WorldServer do
     WorldEvents,
     TheBoard,
     BoardContact,
-    ShiftCycle
+    ShiftCycle,
+    ConstructionCosts,
+    GroundItems,
+    StarterKit,
+    Power
   }
 
   require Logger
@@ -116,6 +120,9 @@ defmodule Spheric.Game.WorldServer do
     TheBoard.init()
     BoardContact.init()
     ShiftCycle.init()
+    GroundItems.init()
+    StarterKit.init()
+    Power.init()
 
     # Try to load an existing world from the database
     {world_id, actual_seed} =
@@ -178,10 +185,31 @@ defmodule Spheric.Game.WorldServer do
             altered -> Map.put(initial_state, :altered_effect, altered.id)
           end
 
+        # Check starter kit — free placement if available
+        {state_with_construction, _used_starter} =
+          if owner[:id] && StarterKit.has_free?(owner[:id], type) do
+            StarterKit.consume(owner[:id], type)
+            {state_with_altered, true}
+          else
+            # Apply construction costs
+            case ConstructionCosts.initial_construction(type) do
+              nil ->
+                {state_with_altered, false}
+
+              construction ->
+                # Gathering post is always free
+                if type == :gathering_post do
+                  {state_with_altered, false}
+                else
+                  {Map.put(state_with_altered, :construction, construction), false}
+                end
+            end
+          end
+
         building = %{
           type: type,
           orientation: orientation,
-          state: state_with_altered,
+          state: state_with_construction,
           owner_id: owner[:id]
         }
 
@@ -241,10 +269,28 @@ defmodule Spheric.Game.WorldServer do
                 altered -> Map.put(initial_state, :altered_effect, altered.id)
               end
 
+            {state_with_construction, _used_starter} =
+              if owner[:id] && StarterKit.has_free?(owner[:id], type) do
+                StarterKit.consume(owner[:id], type)
+                {state_with_altered, true}
+              else
+                case ConstructionCosts.initial_construction(type) do
+                  nil ->
+                    {state_with_altered, false}
+
+                  construction ->
+                    if type == :gathering_post do
+                      {state_with_altered, false}
+                    else
+                      {Map.put(state_with_altered, :construction, construction), false}
+                    end
+                end
+              end
+
             building = %{
               type: type,
               orientation: orientation,
-              state: state_with_altered,
+              state: state_with_construction,
               owner_id: owner[:id]
             }
 
@@ -340,6 +386,9 @@ defmodule Spheric.Game.WorldServer do
     TheBoard.clear()
     BoardContact.clear()
     ShiftCycle.clear()
+    GroundItems.clear()
+    StarterKit.clear()
+    Power.clear()
 
     # 3. Re-initialize subsystems
     Research.init()
@@ -354,6 +403,9 @@ defmodule Spheric.Game.WorldServer do
     TheBoard.init()
     BoardContact.init()
     ShiftCycle.init()
+    GroundItems.init()
+    StarterKit.init()
+    Power.init()
 
     # 4. Generate new terrain
     tile_count = WorldGen.generate(seed: new_seed, subdivisions: subdivisions)

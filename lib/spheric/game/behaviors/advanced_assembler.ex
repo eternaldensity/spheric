@@ -1,39 +1,26 @@
-defmodule Spheric.Game.Behaviors.Assembler do
+defmodule Spheric.Game.Behaviors.AdvancedAssembler do
   @moduledoc """
-  Assembler building behavior.
+  Advanced Assembler building behavior.
 
-  Accepts two different input items (input_a and input_b) and combines
-  them into a component over several ticks. Each recipe defines which
-  item type goes into which slot.
-
-  Input direction: rear (opposite of orientation), same as Splitter.
-  Items are routed to whichever input slot (a or b) matches the recipe.
+  Dual-input assembler for Tier 4 recipes. Faster than standard assembler.
   """
 
-  @default_rate 15
+  @default_rate 12
 
   @recipes %{
-    {:copper_ingot, :copper_ingot} => :wire,
-    {:iron_ingot, :iron_ingot} => :plate,
-    {:wire, :quartz_crystal} => :circuit,
-    {:plate, :titanium_ingot} => :frame,
-    {:iron_ingot, :wire} => :motor,
-    {:wire, :polycarbonate} => :cable,
-    {:plate, :iron_ingot} => :reinforced_plate,
-    {:copper_ingot, :sulfur_compound} => :heat_sink
+    {:frame, :reinforced_plate} => :heavy_frame,
+    {:circuit, :cable} => :advanced_circuit,
+    {:polycarbonate, :sulfur_compound} => :plastic_sheet
   }
 
-  @doc "Returns the initial state for a newly placed assembler."
   def initial_state do
     %{input_a: nil, input_b: nil, output_buffer: nil, progress: 0, rate: @default_rate}
   end
 
-  @doc "Process one tick for an assembler. Returns updated building map."
   def tick(_key, building) do
     state = building.state
 
     cond do
-      # Both inputs present and output clear -> processing
       state.input_a != nil and state.input_b != nil and state.output_buffer == nil ->
         if state.progress + 1 >= state.rate do
           output = recipe_output(state.input_a, state.input_b)
@@ -52,21 +39,16 @@ defmodule Spheric.Game.Behaviors.Assembler do
           %{building | state: %{state | progress: state.progress + 1}}
         end
 
-      # Missing inputs or output full -> idle
       true ->
         building
     end
   end
 
-  @doc "Try to accept an item into the appropriate input slot. Returns updated state or nil."
   def try_accept_item(state, item_type) do
-    # Find which recipe slot this item belongs to
     cond do
-      # Slot A is empty and item can go in slot A for some recipe
       state.input_a == nil and can_go_in_slot_a?(item_type, state.input_b) ->
         %{state | input_a: item_type}
 
-      # Slot B is empty and item can go in slot B for some recipe
       state.input_b == nil and can_go_in_slot_b?(state.input_a, item_type) ->
         %{state | input_b: item_type}
 
@@ -91,6 +73,5 @@ defmodule Spheric.Game.Behaviors.Assembler do
     Map.get(@recipes, {input_a, input_b}, input_a)
   end
 
-  @doc "Returns the assembler recipe map."
   def recipes, do: @recipes
 end

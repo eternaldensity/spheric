@@ -28,6 +28,36 @@ defmodule Spheric.Game.ObjectsOfPower do
       name: "Astral Projection",
       description: "See all creature locations on the sphere",
       clearance: 3
+    },
+    4 => %{
+      id: :power_surge,
+      name: "Power Surge",
+      description: "+25% generator fuel duration",
+      clearance: 4
+    },
+    5 => %{
+      id: :logistics_mastery,
+      name: "Logistics Mastery",
+      description: "All conveyors operate 20% faster",
+      clearance: 5
+    },
+    6 => %{
+      id: :altered_resonance,
+      name: "Altered Resonance",
+      description: "Altered item effects are doubled",
+      clearance: 6
+    },
+    7 => %{
+      id: :entity_communion,
+      name: "Entity Communion",
+      description: "+50% creature boost stacking",
+      clearance: 7
+    },
+    8 => %{
+      id: :boards_favor,
+      name: "Board's Favor",
+      description: "Corruption cannot seed within 10 tiles of your buildings",
+      clearance: 8
     }
   }
 

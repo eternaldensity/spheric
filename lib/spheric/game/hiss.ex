@@ -15,7 +15,7 @@ defmodule Spheric.Game.Hiss do
   Player creatures auto-combat Hiss entities when nearby.
   """
 
-  alias Spheric.Game.WorldStore
+  alias Spheric.Game.{WorldStore, Creatures}
   alias Spheric.Geometry.TileNeighbors
 
   require Logger
@@ -203,7 +203,10 @@ defmodule Spheric.Game.Hiss do
 
         if building && building.type not in [:purification_beacon, :defense_turret] do
           damage_ticks = data[:building_damage_ticks] || 0
-          new_damage = damage_ticks + 1
+          # Defense boost from assigned creature reduces damage accumulation
+          defense = Creatures.defense_value(key)
+          increment = if defense > 0, do: max(0.0, 1.0 - defense), else: 1.0
+          new_damage = damage_ticks + increment
 
           if new_damage >= @building_destroy_ticks do
             # Destroy the building

@@ -61,8 +61,8 @@ defmodule Spheric.Game.Research do
     }
   ]
 
-  # Clearance Level 3: Paranatural (future)
-  # Unlocks: future buildings from Phase 3+
+  # Clearance Level 3: Research Clearance
+  # Unlocks: containment_trap, purification_beacon, defense_turret
   @l3_case_files [
     %{
       id: "l3_advanced_components",
@@ -74,13 +74,123 @@ defmodule Spheric.Game.Research do
     }
   ]
 
-  @all_case_files @l1_case_files ++ @l2_case_files ++ @l3_case_files
+  # Clearance Level 4: Industrial Clearance
+  # Unlocks: bio_generator, substation, transfer_station, advanced_smelter
+  @l4_case_files [
+    %{
+      id: "l4_industrial_parts",
+      name: "Industrial Requisition",
+      clearance: 4,
+      requirements: %{motor: 20, cable: 20, heat_sink: 30},
+      description:
+        "Deliver 20 Kinetic Drives, 20 Shielded Cables, and 30 Thermal Regulators to prove industrial capability."
+    },
+    %{
+      id: "l4_biofuel_supply",
+      name: "Organic Energy Mandate",
+      clearance: 4,
+      requirements: %{biofuel: 50, refined_fuel: 20},
+      description:
+        "Deliver 50 Bio-Catalyst and 20 Refined Fuel to establish energy infrastructure."
+    }
+  ]
+
+  # Clearance Level 5: Heavy Industry Clearance
+  # Unlocks: advanced_assembler, fabrication_plant, essence_extractor
+  @l5_case_files [
+    %{
+      id: "l5_heavy_components",
+      name: "Heavy Industry Protocol",
+      clearance: 5,
+      requirements: %{heavy_frame: 15, advanced_circuit: 15},
+      description:
+        "Deliver 15 Reinforced Chassis and 15 Advanced Circuits to unlock heavy manufacturing."
+    },
+    %{
+      id: "l5_creature_research",
+      name: "Entity Research Program",
+      clearance: 5,
+      requirements: %{creature_essence: 30, plastic_sheet: 10},
+      description:
+        "Deliver 30 Entity Essence and 10 Composite Sheeting for paranatural entity research."
+    }
+  ]
+
+  # Clearance Level 6: High-Tech Clearance
+  # Unlocks: particle_collider, nuclear_refinery
+  @l6_case_files [
+    %{
+      id: "l6_computing",
+      name: "Computational Threshold",
+      clearance: 6,
+      requirements: %{computer: 10, motor_housing: 10},
+      description:
+        "Deliver 10 Processing Units and 10 Motor Housings to unlock high-tech fabrication."
+    },
+    %{
+      id: "l6_nuclear_materials",
+      name: "Nuclear Clearance Protocol",
+      clearance: 6,
+      requirements: %{composite: 15, enriched_uranium: 5},
+      description:
+        "Deliver 15 Composite Materials and 5 Enriched Uranium to authorize nuclear operations."
+    }
+  ]
+
+  # Clearance Level 7: Paranatural Clearance
+  # Unlocks: dimensional_stabilizer, paranatural_synthesizer, astral_projection_chamber
+  @l7_case_files [
+    %{
+      id: "l7_paranatural_tech",
+      name: "Paranatural Convergence",
+      clearance: 7,
+      requirements: %{supercomputer: 5, advanced_composite: 5, nuclear_cell: 10},
+      description:
+        "Deliver 5 Supercomputers, 5 Advanced Composites, and 10 Nuclear Cells to unlock paranatural synthesis."
+    },
+    %{
+      id: "l7_containment_research",
+      name: "Entity Containment Mastery",
+      clearance: 7,
+      requirements: %{containment_module: 3, creature_essence: 5},
+      description:
+        "Deliver 3 Containment Modules and 5 Entity Essence to demonstrate paranatural mastery."
+    }
+  ]
+
+  # Clearance Level 8: Board Clearance
+  # Unlocks: board_interface
+  @l8_case_files [
+    %{
+      id: "l8_dimensional_mastery",
+      name: "Dimensional Mastery",
+      clearance: 8,
+      requirements: %{dimensional_core: 3, astral_lens: 3},
+      description:
+        "Deliver 3 Dimensional Cores and 3 Astral Lenses to achieve Board-level clearance."
+    },
+    %{
+      id: "l8_board_resonance",
+      name: "Board Resonance Protocol",
+      clearance: 8,
+      requirements: %{board_resonator: 1},
+      description:
+        "Deliver 1 Board Resonator to establish direct Board contact capability."
+    }
+  ]
+
+  @all_case_files @l1_case_files ++
+                    @l2_case_files ++
+                    @l3_case_files ++
+                    @l4_case_files ++
+                    @l5_case_files ++
+                    @l6_case_files ++ @l7_case_files ++ @l8_case_files
 
   @case_file_map Map.new(@all_case_files, fn cf -> {cf.id, cf} end)
 
   # Buildings unlocked at each clearance level
   @clearance_unlocks %{
-    0 => [:conveyor, :miner, :smelter, :submission_terminal],
+    0 => [:conveyor, :miner, :smelter, :submission_terminal, :gathering_post],
     1 => [
       :splitter,
       :merger,
@@ -91,13 +201,12 @@ defmodule Spheric.Game.Research do
       :crossover
     ],
     2 => [:assembler, :refinery, :conveyor_mk3, :balancer, :underground_conduit],
-    3 => [
-      :containment_trap,
-      :purification_beacon,
-      :defense_turret,
-      :dimensional_stabilizer,
-      :astral_projection_chamber
-    ]
+    3 => [:containment_trap, :purification_beacon, :defense_turret],
+    4 => [:bio_generator, :substation, :transfer_station, :advanced_smelter],
+    5 => [:advanced_assembler, :fabrication_plant, :essence_extractor],
+    6 => [:particle_collider, :nuclear_refinery],
+    7 => [:dimensional_stabilizer, :paranatural_synthesizer, :astral_projection_chamber],
+    8 => [:board_interface]
   }
 
   # --- Public API ---
@@ -136,6 +245,11 @@ defmodule Spheric.Game.Research do
     completed = completed_case_file_ids(player_id)
 
     cond do
+      all_completed?(@l8_case_files, completed) -> 8
+      all_completed?(@l7_case_files, completed) -> 7
+      all_completed?(@l6_case_files, completed) -> 6
+      all_completed?(@l5_case_files, completed) -> 5
+      all_completed?(@l4_case_files, completed) -> 4
       all_completed?(@l3_case_files, completed) -> 3
       all_completed?(@l2_case_files, completed) -> 2
       all_completed?(@l1_case_files, completed) -> 1
@@ -244,7 +358,7 @@ defmodule Spheric.Game.Research do
     # Re-derive Objects of Power from completed case files
     ObjectsOfPower.init()
 
-    for level <- 1..3 do
+    for level <- 1..8 do
       tier_files = case_files_for_level(level)
 
       if all_completed?(tier_files, completed_ids) do

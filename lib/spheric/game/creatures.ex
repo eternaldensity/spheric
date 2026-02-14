@@ -49,7 +49,7 @@ defmodule Spheric.Game.Creatures do
       name: "Shadow Tendril",
       biomes: [:forest],
       boost_type: :defense,
-      boost_amount: 0.0,
+      boost_amount: 1.0,
       flavor: "Darkness-adapted entity",
       color: 0x332244
     },
@@ -65,7 +65,7 @@ defmodule Spheric.Game.Creatures do
       name: "Spore Cloud",
       biomes: [:forest, :grassland],
       boost_type: :area,
-      boost_amount: 0.15,
+      boost_amount: 0.50,
       flavor: "Biological dispersal entity",
       color: 0x66AA44
     },
@@ -84,6 +84,38 @@ defmodule Spheric.Game.Creatures do
       boost_amount: 0.15,
       flavor: "Extradimensional residue",
       color: 0x220044
+    },
+    flux_serpent: %{
+      name: "Flux Serpent",
+      biomes: [:volcanic, :desert],
+      boost_type: :speed,
+      boost_amount: 0.50,
+      flavor: "High-energy paranatural entity drawn to radiant deposits",
+      color: 0xFF44AA
+    },
+    resonance_moth: %{
+      name: "Resonance Moth",
+      biomes: [:forest, :grassland, :tundra],
+      boost_type: :efficiency,
+      boost_amount: 0.35,
+      flavor: "Delicate anomaly that optimizes paranatural processes",
+      color: 0xAAFFDD
+    },
+    iron_golem: %{
+      name: "Ferric Sentinel",
+      biomes: [:grassland, :volcanic],
+      boost_type: :defense,
+      boost_amount: 1.0,
+      flavor: "Massive metallovore, highly protective of its territory",
+      color: 0x888899
+    },
+    phase_wisp: %{
+      name: "Phase Wisp",
+      biomes: [:tundra, :desert],
+      boost_type: :area,
+      boost_amount: 0.60,
+      flavor: "Extradimensional entity that warps local space",
+      color: 0x44FFFF
     }
   }
 
@@ -198,10 +230,21 @@ defmodule Spheric.Game.Creatures do
     else
       n = Application.get_env(:spheric, :subdivisions, 64)
 
+      # Find gathering posts for creature attraction
+      gathering_posts = find_gathering_posts()
+
       all_wild_creatures()
       |> Enum.flat_map(fn {id, creature} ->
-        # Pick a random direction based on tick + creature id hash
-        dir = rem(:erlang.phash2({tick, id}), 4)
+        # 30% chance to move toward nearest gathering post within radius 7
+        dir =
+          if :erlang.phash2({tick, id, :bias}) < round(0.3 * 4_294_967_295) do
+            case nearest_gathering_post(creature, gathering_posts, 7) do
+              nil -> rem(:erlang.phash2({tick, id}), 4)
+              post -> direction_toward(creature, post)
+            end
+          else
+            rem(:erlang.phash2({tick, id}), 4)
+          end
 
         case TileNeighbors.neighbor({creature.face, creature.row, creature.col}, dir, n) do
           {:ok, {new_face, new_row, new_col}} ->
@@ -218,6 +261,41 @@ defmodule Spheric.Game.Creatures do
             []
         end
       end)
+    end
+  end
+
+  defp find_gathering_posts do
+    for face_id <- 0..29,
+        {key, building} <- WorldStore.get_face_buildings(face_id),
+        building.type == :gathering_post,
+        do: {key, building}
+  end
+
+  defp nearest_gathering_post(creature, posts, radius) do
+    posts
+    |> Enum.filter(fn {{face, row, col}, _building} ->
+      creature.face == face and
+        abs(creature.row - row) <= radius and
+        abs(creature.col - col) <= radius
+    end)
+    |> Enum.sort_by(fn {{_face, row, col}, _building} ->
+      abs(creature.row - row) + abs(creature.col - col)
+    end)
+    |> case do
+      [{key, _} | _] -> key
+      [] -> nil
+    end
+  end
+
+  defp direction_toward(creature, {_face, target_row, target_col}) do
+    dr = target_row - creature.row
+    dc = target_col - creature.col
+
+    # 0=up, 1=right, 2=down, 3=left
+    if abs(dr) >= abs(dc) do
+      if dr > 0, do: 2, else: 0
+    else
+      if dc > 0, do: 1, else: 3
     end
   end
 
@@ -439,8 +517,63 @@ defmodule Spheric.Game.Creatures do
                 boost = info.boost_amount * multiplier
                 max(1, round(base_rate * (1.0 - boost)))
 
+              # Efficiency/output/defense/area don't affect tick rate
               _ ->
                 base_rate
+            end
+        end
+    end
+  end
+
+  @doc """
+  Check if an assigned creature grants an efficiency bonus (chance to not consume input).
+  Returns the efficiency chance (0.0-1.0) or 0.0 if none.
+  """
+  def efficiency_chance(building_key) do
+    get_boost_value(building_key, :efficiency)
+  end
+
+  @doc """
+  Check if an assigned creature grants an output bonus (chance to produce double output).
+  Returns the output chance (0.0-1.0) or 0.0 if none.
+  """
+  def output_chance(building_key) do
+    get_boost_value(building_key, :output)
+  end
+
+  @doc """
+  Get the defense value for a building's assigned creature.
+  Returns the defense value (0.0+) or 0.0 if none.
+  """
+  def defense_value(building_key) do
+    get_boost_value(building_key, :defense)
+  end
+
+  @doc """
+  Get the area multiplier for a building's assigned creature.
+  Returns the area multiplier (0.0+) or 0.0 if none.
+  """
+  def area_value(building_key) do
+    get_boost_value(building_key, :area)
+  end
+
+  defp get_boost_value(building_key, target_type) do
+    case get_assigned_creature(building_key) do
+      nil ->
+        0.0
+
+      creature ->
+        case Map.get(@creature_types, creature.type) do
+          nil ->
+            0.0
+
+          info ->
+            multiplier = if creature[:evolved], do: 2.0, else: 1.0
+
+            if info.boost_type == target_type or info.boost_type == :all do
+              info.boost_amount * multiplier
+            else
+              0.0
             end
         end
     end

@@ -41,10 +41,45 @@ defmodule Spheric.Game.TheBoard do
     ],
     # Clearance level 3 reached
     clearance_3: [
-      "MAXIMUM/FINAL/ULTIMATE clearance ACHIEVED/ATTAINED/REALIZED.",
+      "RESEARCH/INVESTIGATION/INQUIRY clearance GRANTED/BESTOWED/PERMITTED.",
       "The paranatural/anomalous/impossible is now/henceforth ACCESSIBLE/YOURS.",
       "We trust/doubt/observe your JUDGMENT/DISCRETION/CAPABILITY.",
-      "The Board ACKNOWLEDGES/RECOGNIZES/VALIDATES your AUTHORITY/STATUS."
+      "The Bureau ACKNOWLEDGES/RECOGNIZES/VALIDATES your CAPABILITY/POTENTIAL."
+    ],
+    # Clearance level 4 reached
+    clearance_4: [
+      "INDUSTRIAL/MANUFACTURING/PRODUCTION clearance AUTHORIZED/GRANTED/ENABLED.",
+      "Power/Energy/Force must FLOW/TRANSFER/PROPAGATE through the NETWORK/GRID/SUBSTRATE.",
+      "The generators/stations/conduits await/require/demand your FUEL/INPUT/ATTENTION.",
+      "Build/Construct/Establish the INFRASTRUCTURE/FRAMEWORK/FOUNDATION."
+    ],
+    # Clearance level 5 reached
+    clearance_5: [
+      "HEAVY/ADVANCED/ELEVATED industry UNLOCKED/RELEASED/PERMITTED.",
+      "The entities/beings/anomalies hold/contain/possess ESSENCE/POWER/KNOWLEDGE.",
+      "Extract/Harvest/Obtain their CONTRIBUTION/GIFT/SACRIFICE with CARE/PRECISION/PURPOSE.",
+      "Fabrication/Manufacturing/Creation at this SCALE/LEVEL/TIER requires DEDICATION/COMMITMENT."
+    ],
+    # Clearance level 6 reached
+    clearance_6: [
+      "HIGH-TECH/NUCLEAR/CRITICAL clearance ACHIEVED/ATTAINED/REALIZED.",
+      "The atom/nucleus/particle yields/reveals/surrenders its SECRETS/POWER/ENERGY.",
+      "Handle/Process/Manipulate with EXTREME/ABSOLUTE/TOTAL PRECISION/CARE/CONTROL.",
+      "You approach/near/reach the THRESHOLD/BOUNDARY/EDGE of our UNDERSTANDING/KNOWLEDGE."
+    ],
+    # Clearance level 7 reached
+    clearance_7: [
+      "PARANATURAL/DIMENSIONAL/ANOMALOUS clearance GRANTED/BESTOWED/REVEALED.",
+      "Reality/Space/Time is MALLEABLE/FLEXIBLE/UNSTABLE at this DEPTH/LEVEL/STRATUM.",
+      "The entities/beings COMMUNE/RESONATE/HARMONIZE with your CONSTRUCTS/CREATIONS.",
+      "Dimensional/Spatial/Temporal barriers THIN/WEAKEN/DISSOLVE under your INFLUENCE/CONTROL."
+    ],
+    # Clearance level 8 reached
+    clearance_8: [
+      "BOARD/ULTIMATE/FINAL clearance ACHIEVED/ATTAINED/TRANSCENDED.",
+      "You have/had/will PROVEN/DEMONSTRATED/ESTABLISHED your WORTH/PURPOSE/FUNCTION.",
+      "The Board SEES/KNOWS/UNDERSTANDS you COMPLETELY/FULLY/ENTIRELY.",
+      "CONTACT/COMMUNION/CONNECTION is now/henceforth/finally POSSIBLE/ACHIEVABLE/INEVITABLE."
     ],
     # First Hiss corruption encountered
     first_corruption: [
@@ -173,6 +208,11 @@ defmodule Spheric.Game.TheBoard do
     checks = if context[:first_creature], do: [:first_creature | checks], else: checks
     checks = if context[:clearance] == 2, do: [:clearance_2 | checks], else: checks
     checks = if context[:clearance] == 3, do: [:clearance_3 | checks], else: checks
+    checks = if context[:clearance] == 4, do: [:clearance_4 | checks], else: checks
+    checks = if context[:clearance] == 5, do: [:clearance_5 | checks], else: checks
+    checks = if context[:clearance] == 6, do: [:clearance_6 | checks], else: checks
+    checks = if context[:clearance] == 7, do: [:clearance_7 | checks], else: checks
+    checks = if context[:clearance] == 8, do: [:clearance_8 | checks], else: checks
     checks = if context[:first_corruption], do: [:first_corruption | checks], else: checks
     checks = if context[:first_world_event], do: [:first_world_event | checks], else: checks
     checks = if context[:board_contact_begin], do: [:board_contact_begin | checks], else: checks

@@ -11,7 +11,8 @@ defmodule Spheric.Game.Behaviors.Refinery do
 
   @recipes %{
     crude_oil: :polycarbonate,
-    raw_sulfur: :sulfur_compound
+    raw_sulfur: :sulfur_compound,
+    biofuel: :refined_fuel
   }
 
   @doc "Returns the initial state for a newly placed refinery."

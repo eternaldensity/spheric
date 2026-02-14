@@ -15,11 +15,13 @@ defmodule Spheric.Game.BoardContact do
 
   # The endgame requirements — massive cooperative item production
   @requirements %{
-    circuit: 500,
-    frame: 300,
-    polycarbonate: 200,
-    sulfur_compound: 200,
-    titanium_ingot: 400,
+    board_resonator: 10,
+    supercomputer: 50,
+    dimensional_core: 20,
+    advanced_composite: 100,
+    nuclear_cell: 50,
+    containment_module: 30,
+    creature_essence: 200,
     hiss_residue: 100
   }
 
@@ -66,7 +68,7 @@ defmodule Spheric.Game.BoardContact do
   @doc "Check if the quest is completed."
   def completed?, do: state().completed
 
-  @doc "Activate the Board Contact quest (requires clearance level 3 from any player)."
+  @doc "Activate the Board Contact quest (requires clearance level 8 from any player)."
   def activate do
     current = state()
     unless current.active or current.completed do

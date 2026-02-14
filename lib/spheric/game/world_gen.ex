@@ -152,12 +152,13 @@ defmodule Spheric.Game.WorldGen do
   # Biome-specific resource distribution weights (must sum to 1.0)
   defp resource_weights(:volcanic),
     do: [
-      {:iron, 0.30},
+      {:iron, 0.27},
       {:copper, 0.10},
-      {:titanium, 0.25},
-      {:sulfur, 0.20},
+      {:titanium, 0.23},
+      {:sulfur, 0.18},
       {:oil, 0.05},
-      {:quartz, 0.10}
+      {:quartz, 0.10},
+      {:uranium, 0.07}
     ]
 
   defp resource_weights(:desert),
@@ -192,12 +193,13 @@ defmodule Spheric.Game.WorldGen do
 
   defp resource_weights(:tundra),
     do: [
-      {:quartz, 0.30},
-      {:copper, 0.25},
+      {:quartz, 0.28},
+      {:copper, 0.24},
       {:iron, 0.15},
-      {:titanium, 0.15},
+      {:titanium, 0.13},
       {:oil, 0.05},
-      {:sulfur, 0.10}
+      {:sulfur, 0.10},
+      {:uranium, 0.05}
     ]
 
   defp pick_weighted(_roll, [{type, _weight}]), do: type

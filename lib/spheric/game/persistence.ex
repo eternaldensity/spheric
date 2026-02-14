@@ -26,7 +26,7 @@ defmodule Spheric.Game.Persistence do
   alias Spheric.Game.Schema.Territory, as: TerritorySchema
   alias Spheric.Game.Schema.Trade
 
-  alias Spheric.Game.{WorldStore, WorldGen, Creatures, Hiss, Territory, Trading, WorldEvents, BoardContact, ShiftCycle}
+  alias Spheric.Game.{WorldStore, WorldGen, Creatures, Hiss, Territory, Trading, WorldEvents, BoardContact, ShiftCycle, GroundItems, StarterKit}
 
   require Logger
 
@@ -227,15 +227,47 @@ defmodule Spheric.Game.Persistence do
     :input_buffer,
     :input_a,
     :input_b,
+    :input_c,
     :last_submitted,
-    :altered_effect
+    :altered_effect,
+    :fuel,
+    :fuel_type,
+    :item_type
   ]
 
   defp atomize_state_value(key, value) when key in @atom_fields and is_binary(value) do
     String.to_atom(value)
   end
 
+  # Nested construction state needs recursive atomization
+  defp atomize_state_value(:construction, value) when is_map(value) do
+    construction = atomize_state_keys(value)
+
+    # Atomize the keys in required/delivered maps
+    construction =
+      if is_map(construction[:required]) do
+        Map.put(construction, :required, atomize_item_map(construction.required))
+      else
+        construction
+      end
+
+    if is_map(construction[:delivered]) do
+      Map.put(construction, :delivered, atomize_item_map(construction.delivered))
+    else
+      construction
+    end
+  end
+
   defp atomize_state_value(_key, value), do: value
+
+  defp atomize_item_map(map) when is_map(map) do
+    Map.new(map, fn {k, v} ->
+      key = if is_binary(k), do: String.to_atom(k), else: k
+      {key, v}
+    end)
+  end
+
+  defp atomize_item_map(other), do: other
 
   # --- Saving ---
 
@@ -550,7 +582,9 @@ defmodule Spheric.Game.Persistence do
     state = %{
       world_events: WorldEvents.state(),
       board_contact: BoardContact.state(),
-      shift_cycle: ShiftCycle.state()
+      shift_cycle: ShiftCycle.state(),
+      ground_items: GroundItems.all(),
+      starter_kits: StarterKit.all()
     }
 
     path = phase8_state_path(world_id)
@@ -570,6 +604,8 @@ defmodule Spheric.Game.Persistence do
         if state[:world_events], do: WorldEvents.put_state(state.world_events)
         if state[:board_contact], do: BoardContact.put_state(state.board_contact)
         if state[:shift_cycle], do: ShiftCycle.put_state(state.shift_cycle)
+        if state[:ground_items], do: GroundItems.put_all(state.ground_items)
+        if state[:starter_kits], do: StarterKit.put_all(state.starter_kits)
         :ok
 
       {:error, _} ->
@@ -585,7 +621,14 @@ defmodule Spheric.Game.Persistence do
   defp serialize_state(state) when is_map(state) do
     Map.new(state, fn {k, v} ->
       key = if is_atom(k), do: Atom.to_string(k), else: k
-      val = if is_atom(v) and not is_nil(v), do: Atom.to_string(v), else: v
+
+      val =
+        cond do
+          is_map(v) -> serialize_state(v)
+          is_atom(v) and not is_nil(v) and not is_boolean(v) -> Atom.to_string(v)
+          true -> v
+        end
+
       {key, val}
     end)
   end
