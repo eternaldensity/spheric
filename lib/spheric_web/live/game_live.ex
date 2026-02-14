@@ -226,7 +226,7 @@ defmodule SphericWeb.GameLive do
 
     <div
       :if={@show_creatures}
-      style="position: fixed; top: 50px; left: 16px; background: rgba(10,10,15,0.92); color: #ddd; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 260px; max-width: 320px; max-height: 60vh; overflow-y: auto; border: 1px solid #333;"
+      style="position: fixed; top: 50px; right: 16px; background: rgba(10,10,15,0.92); color: #ddd; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 260px; max-width: 320px; max-height: 60vh; overflow-y: auto; border: 1px solid #333;"
     >
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #444; padding-bottom: 8px;">
         <span style="font-size: 14px; color: #b8f;">CREATURE ROSTER</span>
@@ -549,17 +549,26 @@ defmodule SphericWeb.GameLive do
 
   @impl true
   def handle_event("toggle_research", _params, socket) do
-    {:noreply, assign(socket, :show_research, !socket.assigns.show_research)}
+    opening = !socket.assigns.show_research
+
+    socket =
+      socket
+      |> assign(:show_research, opening)
+      |> then(fn s -> if opening, do: assign(s, :show_creatures, false), else: s end)
+
+    {:noreply, socket}
   end
 
   @impl true
   def handle_event("toggle_creatures", _params, socket) do
+    opening = !socket.assigns.show_creatures
     roster = Creatures.get_player_roster(socket.assigns.player_id)
 
     socket =
       socket
-      |> assign(:show_creatures, !socket.assigns.show_creatures)
+      |> assign(:show_creatures, opening)
       |> assign(:creature_roster, roster)
+      |> then(fn s -> if opening, do: assign(s, :show_research, false), else: s end)
 
     {:noreply, socket}
   end
@@ -596,17 +605,26 @@ defmodule SphericWeb.GameLive do
 
   @impl true
   def handle_event("keydown", %{"key" => "f"}, socket) do
-    {:noreply, assign(socket, :show_research, !socket.assigns.show_research)}
+    opening = !socket.assigns.show_research
+
+    socket =
+      socket
+      |> assign(:show_research, opening)
+      |> then(fn s -> if opening, do: assign(s, :show_creatures, false), else: s end)
+
+    {:noreply, socket}
   end
 
   @impl true
   def handle_event("keydown", %{"key" => "c"}, socket) do
+    opening = !socket.assigns.show_creatures
     roster = Creatures.get_player_roster(socket.assigns.player_id)
 
     socket =
       socket
-      |> assign(:show_creatures, !socket.assigns.show_creatures)
+      |> assign(:show_creatures, opening)
       |> assign(:creature_roster, roster)
+      |> then(fn s -> if opening, do: assign(s, :show_research, false), else: s end)
 
     {:noreply, socket}
   end
