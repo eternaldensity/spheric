@@ -23,6 +23,7 @@ defmodule Spheric.Game.Buildings do
     :containment_trap,
     :purification_beacon,
     :defense_turret,
+    :crossover,
     :claim_beacon,
     :trade_terminal
   ]
@@ -46,6 +47,7 @@ defmodule Spheric.Game.Buildings do
   def display_name(:balancer), do: "Balancer"
   def display_name(:storage_container), do: "Container"
   def display_name(:underground_conduit), do: "Conduit"
+  def display_name(:crossover), do: "Crossover"
   def display_name(:submission_terminal), do: "Terminal"
   def display_name(:containment_trap), do: "Trap"
   def display_name(:purification_beacon), do: "Beacon"
@@ -86,6 +88,9 @@ defmodule Spheric.Game.Buildings do
 
   def initial_state(:underground_conduit),
     do: Spheric.Game.Behaviors.UndergroundConduit.initial_state()
+
+  def initial_state(:crossover),
+    do: Spheric.Game.Behaviors.Crossover.initial_state()
 
   def initial_state(:submission_terminal),
     do: Spheric.Game.Behaviors.SubmissionTerminal.initial_state()

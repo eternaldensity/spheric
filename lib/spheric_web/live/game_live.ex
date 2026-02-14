@@ -1833,6 +1833,18 @@ defmodule SphericWeb.GameLive do
     end
   end
 
+  defp building_status_text(%{type: :crossover, state: state}) do
+    h = if state[:horizontal], do: Lore.display_name(state.horizontal), else: nil
+    v = if state[:vertical], do: Lore.display_name(state.vertical), else: nil
+
+    case {h, v} do
+      {nil, nil} -> "Empty"
+      {h, nil} -> "H: #{h}"
+      {nil, v} -> "V: #{v}"
+      {h, v} -> "H: #{h} | V: #{v}"
+    end
+  end
+
   defp building_status_text(%{type: :balancer, state: state}) do
     cond do
       state[:item] != nil -> "Routing: #{Lore.display_name(state.item)}"

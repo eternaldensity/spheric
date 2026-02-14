@@ -122,7 +122,7 @@ defmodule Spheric.Game.TickProcessor do
         :miner ->
           {[{key, building} | m], c, s, a, r, t, tt, o}
 
-        type when type in [:conveyor, :conveyor_mk2, :conveyor_mk3] ->
+        type when type in [:conveyor, :conveyor_mk2, :conveyor_mk3, :crossover] ->
           {m, [{key, building} | c], s, a, r, t, tt, o}
 
         :smelter ->
@@ -188,10 +188,7 @@ defmodule Spheric.Game.TickProcessor do
     push_requests =
       buildings
       |> Enum.flat_map(fn {key, building} ->
-        case get_push_request(key, building, n) do
-          nil -> []
-          request -> [request]
-        end
+        get_push_requests(key, building, n)
       end)
 
     # Group by destination to detect conflicts
@@ -214,6 +211,35 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   # --- Push request generation ---
+
+  # Wrapper that returns a list of push requests. Most buildings produce 0 or 1.
+  # Crossover produces 0-2 (one per axis).
+  defp get_push_requests(key, %{type: :crossover, state: state}, n) do
+    h =
+      if state.horizontal != nil and state.h_dir != nil do
+        case TileNeighbors.neighbor(key, state.h_dir, n) do
+          {:ok, dest_key} -> {key, dest_key, state.horizontal}
+          :boundary -> nil
+        end
+      end
+
+    v =
+      if state.vertical != nil and state.v_dir != nil do
+        case TileNeighbors.neighbor(key, state.v_dir, n) do
+          {:ok, dest_key} -> {key, dest_key, state.vertical}
+          :boundary -> nil
+        end
+      end
+
+    Enum.reject([h, v], &is_nil/1)
+  end
+
+  defp get_push_requests(key, building, n) do
+    case get_push_request(key, building, n) do
+      nil -> []
+      request -> [request]
+    end
+  end
 
   defp get_push_request(key, %{type: :conveyor, orientation: dir, state: %{item: item}}, n)
        when not is_nil(item) do
@@ -427,6 +453,9 @@ defmodule Spheric.Game.TickProcessor do
       %{type: :balancer, state: %{item: item}} ->
         item != nil
 
+      %{type: :crossover, state: state} ->
+        state.horizontal != nil and state.vertical != nil
+
       %{type: :storage_container, state: state} ->
         state.count >= state.capacity
 
@@ -546,6 +575,25 @@ defmodule Spheric.Game.TickProcessor do
     accept_from_direction(dest_key, rear_dir, requests, n)
   end
 
+  # Crossover: accepts from any direction into the correct axis slot
+  defp try_accept(dest_key, %{type: :crossover, state: state}, requests, n) do
+    # Try each of the 4 directions to find a valid source
+    Enum.find_value(0..3, fn dir ->
+      slot = if dir in [0, 2], do: :horizontal, else: :vertical
+      slot_val = Map.get(state, slot)
+
+      if slot_val == nil do
+        case TileNeighbors.neighbor(dest_key, dir, n) do
+          {:ok, valid_src} ->
+            Enum.find(requests, fn {src, _dest, _item} -> src == valid_src end)
+
+          :boundary ->
+            nil
+        end
+      end
+    end)
+  end
+
   # Merger: accepts from the two side inputs (left and right of orientation)
   defp try_accept(dest_key, %{type: :merger, orientation: dir, state: %{item: nil}}, requests, n) do
     left_dir = rem(dir + 3, 4)
@@ -587,6 +635,23 @@ defmodule Spheric.Game.TickProcessor do
           do: src
 
     Enum.find(requests, fn {src, _dest, _item} -> MapSet.member?(valid_sources, src) end)
+  end
+
+  # Determine which crossover slot a source maps to, and the exit direction.
+  # Entry from direction D means exit = (D + 2) rem 4 (passthrough).
+  # Directions 0/2 = horizontal axis, 1/3 = vertical axis.
+  defp crossover_slot_for_source(dest_key, src_key, n) do
+    entry_dir =
+      Enum.find(0..3, fn dir ->
+        case TileNeighbors.neighbor(dest_key, dir, n) do
+          {:ok, ^src_key} -> true
+          _ -> false
+        end
+      end)
+
+    exit_dir = rem(entry_dir + 2, 4)
+    slot = if entry_dir in [0, 2], do: :horizontal, else: :vertical
+    {slot, exit_dir}
   end
 
   defp apply_pushes(buildings, accepted) do
@@ -643,6 +708,20 @@ defmodule Spheric.Game.TickProcessor do
             :merger ->
               %{b | state: %{b.state | item: nil}}
 
+            :crossover ->
+              # Determine which slot pushed to this dest by checking h_dir
+              sub_n = Application.get_env(:spheric, :subdivisions, 64)
+
+              h_dest =
+                if b.state.h_dir,
+                  do: TileNeighbors.neighbor(src_key, b.state.h_dir, sub_n)
+
+              if h_dest == {:ok, dest_key} do
+                %{b | state: %{b.state | horizontal: nil, h_dir: nil}}
+              else
+                %{b | state: %{b.state | vertical: nil, v_dir: nil}}
+              end
+
             :storage_container ->
               new_count = max(0, b.state.count - 1)
               new_type = if new_count == 0, do: nil, else: b.state.item_type
@@ -684,6 +763,20 @@ defmodule Spheric.Game.TickProcessor do
             case Behaviors.Assembler.try_accept_item(b.state, item) do
               nil -> b
               new_state -> %{b | state: new_state}
+            end
+
+          :crossover ->
+            sub_n = Application.get_env(:spheric, :subdivisions, 64)
+
+            {slot, exit_dir} =
+              crossover_slot_for_source(dest_key, src_key, sub_n)
+
+            case slot do
+              :horizontal ->
+                %{b | state: %{b.state | horizontal: item, h_dir: exit_dir}}
+
+              :vertical ->
+                %{b | state: %{b.state | vertical: item, v_dir: exit_dir}}
             end
 
           :splitter ->
@@ -776,6 +869,47 @@ defmodule Spheric.Game.TickProcessor do
       items_from_building(key, building, movement_sources)
     end)
     |> Enum.group_by(fn item -> item.face end)
+  end
+
+  # Crossover: up to 2 items (one per axis)
+  defp items_from_building({face, row, col}, %{type: :crossover, state: state}, sources) do
+    from = Map.get(sources, {face, row, col})
+
+    h =
+      if state.horizontal do
+        [
+          %{
+            face: face,
+            row: row,
+            col: col,
+            item: state.horizontal,
+            from_face: if(from, do: elem(from, 0)),
+            from_row: if(from, do: elem(from, 1)),
+            from_col: if(from, do: elem(from, 2))
+          }
+        ]
+      else
+        []
+      end
+
+    v =
+      if state.vertical do
+        [
+          %{
+            face: face,
+            row: row,
+            col: col,
+            item: state.vertical,
+            from_face: nil,
+            from_row: nil,
+            from_col: nil
+          }
+        ]
+      else
+        []
+      end
+
+    h ++ v
   end
 
   defp items_from_building({face, row, col}, %{type: type, state: %{item: item}}, sources)

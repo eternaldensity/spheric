@@ -81,7 +81,15 @@ defmodule Spheric.Game.Research do
   # Buildings unlocked at each clearance level
   @clearance_unlocks %{
     0 => [:conveyor, :miner, :smelter, :submission_terminal],
-    1 => [:splitter, :merger, :claim_beacon, :trade_terminal, :conveyor_mk2, :storage_container],
+    1 => [
+      :splitter,
+      :merger,
+      :claim_beacon,
+      :trade_terminal,
+      :conveyor_mk2,
+      :storage_container,
+      :crossover
+    ],
     2 => [:assembler, :refinery, :conveyor_mk3, :balancer, :underground_conduit],
     3 => [:containment_trap, :purification_beacon, :defense_turret]
   }

@@ -41,6 +41,7 @@ const BUILDING_FILLS = {
   defense_turret: "#cc3333",
   claim_beacon: "#33aa55",
   trade_terminal: "#ddaa33",
+  crossover: "#77aa77",
 };
 
 // Building icon glyphs (drawn procedurally)
@@ -63,6 +64,7 @@ const BUILDING_GLYPHS = {
   defense_turret: drawDefenseTurretGlyph,
   claim_beacon: drawClaimBeaconGlyph,
   trade_terminal: drawTradeTerminalGlyph,
+  crossover: drawCrossoverGlyph,
 };
 
 const PIXELS_PER_TILE = 32;
@@ -428,6 +430,36 @@ function drawUndergroundConduitGlyph(ctx, r) {
   ctx.stroke();
   ctx.strokeStyle = "rgba(255,255,255,0.6)";
   ctx.lineWidth = 1.5;
+}
+
+function drawCrossoverGlyph(ctx, r) {
+  // Plus/cross shape — two perpendicular streams
+  ctx.beginPath();
+  // Horizontal bar
+  ctx.moveTo(-r, -r * 0.25);
+  ctx.lineTo(r, -r * 0.25);
+  ctx.lineTo(r, r * 0.25);
+  ctx.lineTo(-r, r * 0.25);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  // Vertical bar
+  ctx.moveTo(-r * 0.25, -r);
+  ctx.lineTo(r * 0.25, -r);
+  ctx.lineTo(r * 0.25, r);
+  ctx.lineTo(-r * 0.25, r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Center dot
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.15, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(255,255,255,0.9)";
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
 }
 
 function drawSubmissionTerminalGlyph(ctx, r) {

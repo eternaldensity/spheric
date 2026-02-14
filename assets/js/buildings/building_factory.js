@@ -21,6 +21,7 @@ const COLORS = {
   defense_turret: 0xcc3333,
   claim_beacon: 0x33aa55,
   trade_terminal: 0xddaa33,
+  crossover: 0x77aa77,
 };
 
 function makeMaterial(color) {
@@ -485,6 +486,30 @@ function createUndergroundConduit() {
   return group;
 }
 
+function createCrossover() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.crossover);
+
+  // Horizontal belt
+  const hBelt = new THREE.Mesh(new THREE.BoxGeometry(s * 1.6, s * 0.25, s * 0.5), mat);
+  hBelt.position.y = s * 0.125;
+  group.add(hBelt);
+
+  // Vertical belt (perpendicular)
+  const vBelt = new THREE.Mesh(new THREE.BoxGeometry(s * 0.5, s * 0.25, s * 1.6), mat);
+  vBelt.position.y = s * 0.125;
+  group.add(vBelt);
+
+  // Center raised hub
+  const hubMat = makeMaterial(0x559955);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.3, s * 0.3, s * 0.15, 8), hubMat);
+  hub.position.y = s * 0.325;
+  group.add(hub);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
@@ -504,6 +529,7 @@ const BUILDERS = {
   defense_turret: createDefenseTurret,
   claim_beacon: createClaimBeacon,
   trade_terminal: createTradeTerminal,
+  crossover: createCrossover,
 };
 
 /**

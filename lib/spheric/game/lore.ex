@@ -47,6 +47,7 @@ defmodule Spheric.Game.Lore do
   def display_name(:balancer), do: "Load Equalizer"
   def display_name(:storage_container), do: "Containment Vault"
   def display_name(:underground_conduit), do: "Subsurface Link"
+  def display_name(:crossover), do: "Transit Interchange"
   def display_name(:submission_terminal), do: "Terminal"
   def display_name(:containment_trap), do: "Trap"
   def display_name(:purification_beacon), do: "Purification Beacon"
