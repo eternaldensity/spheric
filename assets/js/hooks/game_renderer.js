@@ -686,9 +686,7 @@ const GameRenderer = {
     // --- Phase 8: Shift Cycle & World Events ---
 
     this.handleEvent("shift_cycle_changed", ({ phase, ambient, directional, intensity, bg, sun_x, sun_y, sun_z }) => {
-      if (this.ambientLight) {
-        this.ambientLight.color.setHex(ambient);
-      }
+      if (this.ambientLight) this.ambientLight.color.setHex(ambient);
       if (this.dirLight) {
         this.dirLight.color.setHex(directional);
         this.dirLight.intensity = intensity;
@@ -696,17 +694,28 @@ const GameRenderer = {
           this.dirLight.position.set(sun_x * 5, sun_y * 5, sun_z * 5);
         }
       }
-      if (this.scene.background) {
-        this.scene.background.setHex(bg);
+      if (this.scene.background) this.scene.background.setHex(bg);
+      if (this.scene.fog) this.scene.fog.color.setHex(bg);
+    });
+
+    this.handleEvent("sun_moved", ({ sun_x, sun_y, sun_z, phase, ambient, intensity, bg }) => {
+      if (this.dirLight) {
+        this.dirLight.position.set(sun_x * 5, sun_y * 5, sun_z * 5);
+        if (intensity !== undefined) this.dirLight.intensity = intensity;
       }
-      if (this.scene.fog) {
-        this.scene.fog.color.setHex(bg);
+      if (ambient !== undefined && this.ambientLight) this.ambientLight.color.setHex(ambient);
+      if (bg !== undefined) {
+        if (this.scene.background) this.scene.background.setHex(bg);
+        if (this.scene.fog) this.scene.fog.color.setHex(bg);
       }
     });
 
-    this.handleEvent("sun_moved", ({ sun_x, sun_y, sun_z }) => {
-      if (this.dirLight) {
-        this.dirLight.position.set(sun_x * 5, sun_y * 5, sun_z * 5);
+    this.handleEvent("local_lighting", ({ phase, ambient, intensity, bg }) => {
+      if (this.ambientLight) this.ambientLight.color.setHex(ambient);
+      if (this.dirLight && intensity !== undefined) this.dirLight.intensity = intensity;
+      if (bg !== undefined) {
+        if (this.scene.background) this.scene.background.setHex(bg);
+        if (this.scene.fog) this.scene.fog.color.setHex(bg);
       }
     });
 

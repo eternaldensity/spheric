@@ -12,6 +12,7 @@ defmodule Spheric.Game.ShiftCycle do
   """
 
   alias Spheric.Geometry.RhombicTriacontahedron, as: RT
+  import Bitwise
 
   @cycle_table :spheric_shift_cycle
 
@@ -111,6 +112,61 @@ defmodule Spheric.Game.ShiftCycle do
   @doc "Get lighting settings for the current phase."
   def current_lighting do
     Map.get(@phase_lighting, current_phase(), Map.get(@phase_lighting, :dawn))
+  end
+
+  @doc """
+  Compute camera-local lighting based on how much the camera faces the sun.
+
+  Returns `%{phase, ambient, directional, intensity, bg}` interpolated
+  between the zenith (full sun) and nadir (full shadow) palettes.
+  """
+  def lighting_for_camera({cx, cy, cz}) do
+    {sx, sy, sz} = sun_direction()
+
+    # Normalize camera direction
+    len = :math.sqrt(cx * cx + cy * cy + cz * cz)
+
+    if len < 0.001 do
+      current_lighting() |> Map.put(:phase, current_phase())
+    else
+      nx = cx / len
+      ny = cy / len
+      nz = cz / len
+
+      # dot ∈ [-1, 1]: +1 = looking straight at sun, -1 = looking away
+      dot = sx * nx + sy * ny + sz * nz
+      # Remap to 0..1 where 1 = full sun, 0 = full shadow
+      t = (dot + 1.0) / 2.0
+
+      zenith = @phase_lighting[:zenith]
+      nadir = @phase_lighting[:nadir]
+      dawn = @phase_lighting[:dawn]
+      dusk = @phase_lighting[:dusk]
+
+      # Pick phase name from illumination level
+      phase =
+        cond do
+          t > 0.75 -> :zenith
+          t > 0.45 -> :dawn
+          t > 0.25 -> :dusk
+          true -> :nadir
+        end
+
+      # Interpolate ambient/bg between the two nearest palettes
+      {low, high, local_t} =
+        cond do
+          t > 0.5 -> {dawn, zenith, (t - 0.5) * 2.0}
+          true -> {nadir, dusk, t * 2.0}
+        end
+
+      %{
+        phase: phase,
+        ambient: lerp_color(low.ambient, high.ambient, local_t),
+        directional: lerp_color(low.directional, high.directional, t),
+        intensity: low.intensity + (high.intensity - low.intensity) * t,
+        bg: lerp_color(low.bg, high.bg, local_t)
+      }
+    end
   end
 
   @doc "Get the current sun direction as {x, y, z}."
@@ -244,5 +300,20 @@ defmodule Spheric.Game.ShiftCycle do
   # Float modulo (Elixir's rem/2 is integer-only)
   defp fmod(a, b) do
     a - Float.floor(a / b) * b
+  end
+
+  # Linear interpolation between two 0xRRGGBB hex colors
+  defp lerp_color(c1, c2, t) do
+    t = max(0.0, min(1.0, t))
+    r1 = Bitwise.bsr(c1, 16) |> Bitwise.band(0xFF)
+    g1 = Bitwise.bsr(c1, 8) |> Bitwise.band(0xFF)
+    b1 = Bitwise.band(c1, 0xFF)
+    r2 = Bitwise.bsr(c2, 16) |> Bitwise.band(0xFF)
+    g2 = Bitwise.bsr(c2, 8) |> Bitwise.band(0xFF)
+    b2 = Bitwise.band(c2, 0xFF)
+    r = round(r1 + (r2 - r1) * t)
+    g = round(g1 + (g2 - g1) * t)
+    b = round(b1 + (b2 - b1) * t)
+    Bitwise.bsl(r, 16) + Bitwise.bsl(g, 8) + b
   end
 end

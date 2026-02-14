@@ -151,17 +151,18 @@ defmodule SphericWeb.GameLive do
         # Stream terrain data per-face via push_event (too large for data-attribute at 64x64)
         send(self(), :send_terrain)
 
-        # Send initial shift cycle lighting + sun direction
-        lighting = ShiftCycle.current_lighting()
+        # Send initial shift cycle lighting relative to camera position
+        cam = {camera.x, camera.y, camera.z}
+        local = ShiftCycle.lighting_for_camera(cam)
         {sx, sy, sz} = ShiftCycle.sun_direction()
 
         socket =
           push_event(socket, "shift_cycle_changed", %{
-            phase: Atom.to_string(ShiftCycle.current_phase()),
-            ambient: lighting.ambient,
-            directional: lighting.directional,
-            intensity: lighting.intensity,
-            bg: lighting.bg,
+            phase: Atom.to_string(local.phase),
+            ambient: local.ambient,
+            directional: local.directional,
+            intensity: local.intensity,
+            bg: local.bg,
             sun_x: sx,
             sun_y: sy,
             sun_z: sz
@@ -1824,11 +1825,21 @@ defmodule SphericWeb.GameLive do
       Map.put(meta, :camera, %{x: x, y: y, z: z})
     end)
 
+    # Recompute local lighting for the new camera direction
+    local = ShiftCycle.lighting_for_camera(camera_pos)
+
     socket =
       socket
       |> assign(:camera_pos, camera_pos)
       |> assign(:visible_faces, visible)
       |> assign(:subscribed_faces, new_faces)
+      |> assign(:shift_phase, local.phase)
+      |> push_event("local_lighting", %{
+        phase: Atom.to_string(local.phase),
+        ambient: local.ambient,
+        intensity: local.intensity,
+        bg: local.bg
+      })
 
     {:noreply, socket}
   end
@@ -2107,18 +2118,19 @@ defmodule SphericWeb.GameLive do
   end
 
   @impl true
-  def handle_info({:shift_cycle_changed, phase, lighting, _modifiers, sun_dir}, socket) do
+  def handle_info({:shift_cycle_changed, _phase, _lighting, _modifiers, sun_dir}, socket) do
     {sx, sy, sz} = sun_dir
+    local = ShiftCycle.lighting_for_camera(socket.assigns.camera_pos)
 
     socket =
       socket
-      |> assign(:shift_phase, phase)
+      |> assign(:shift_phase, local.phase)
       |> push_event("shift_cycle_changed", %{
-        phase: Atom.to_string(phase),
-        ambient: lighting.ambient,
-        directional: lighting.directional,
-        intensity: lighting.intensity,
-        bg: lighting.bg,
+        phase: Atom.to_string(local.phase),
+        ambient: local.ambient,
+        directional: local.directional,
+        intensity: local.intensity,
+        bg: local.bg,
         sun_x: sx,
         sun_y: sy,
         sun_z: sz
@@ -2130,12 +2142,19 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_info({:sun_moved, sun_dir}, socket) do
     {sx, sy, sz} = sun_dir
+    local = ShiftCycle.lighting_for_camera(socket.assigns.camera_pos)
 
     socket =
-      push_event(socket, "sun_moved", %{
+      socket
+      |> assign(:shift_phase, local.phase)
+      |> push_event("sun_moved", %{
         sun_x: sx,
         sun_y: sy,
-        sun_z: sz
+        sun_z: sz,
+        phase: Atom.to_string(local.phase),
+        ambient: local.ambient,
+        intensity: local.intensity,
+        bg: local.bg
       })
 
     {:noreply, socket}
