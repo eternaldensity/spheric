@@ -13,6 +13,7 @@ defmodule Spheric.Game.Research do
 
   alias Spheric.Repo
   alias Spheric.Game.Schema.ResearchProgress
+  alias Spheric.Game.ObjectsOfPower
 
   require Logger
 
@@ -177,6 +178,10 @@ defmodule Spheric.Game.Research do
         if case_file_complete?(case_file, new_submissions) do
           mark_completed(world_id, player_id, case_file.id, new_submissions)
           refresh_unlock_cache(player_id)
+
+          # Check if entire clearance tier is now complete → grant Object of Power
+          check_clearance_complete(world_id, player_id, case_file.clearance)
+
           {:completed, case_file.id}
         else
           {:ok, new_submissions}
@@ -213,6 +218,18 @@ defmodule Spheric.Game.Research do
       |> MapSet.new()
 
     :ets.insert(@unlock_table, {player_id, completed_ids})
+
+    # Re-derive Objects of Power from completed case files
+    ObjectsOfPower.init()
+
+    for level <- 1..3 do
+      tier_files = case_files_for_level(level)
+
+      if all_completed?(tier_files, completed_ids) do
+        ObjectsOfPower.grant(player_id, level)
+      end
+    end
+
     :ok
   end
 
@@ -311,6 +328,15 @@ defmodule Spheric.Game.Research do
     )
 
     Logger.info("Player #{player_id} completed case file: #{case_file_id}")
+  end
+
+  defp check_clearance_complete(_world_id, player_id, clearance_level) do
+    completed = completed_case_file_ids(player_id)
+    tier_files = case_files_for_level(clearance_level)
+
+    if all_completed?(tier_files, completed) do
+      ObjectsOfPower.grant(player_id, clearance_level)
+    end
   end
 
   defp refresh_unlock_cache(player_id) do

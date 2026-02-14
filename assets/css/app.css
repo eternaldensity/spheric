@@ -103,3 +103,25 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* ═══════════════════════════════════════════
+   Federal Bureau of Control — Theme
+   ═══════════════════════════════════════════ */
+:root {
+  --fbc-bg: #0a0a0f;
+  --fbc-panel: rgba(15, 12, 10, 0.92);
+  --fbc-panel-solid: #0f0c0a;
+  --fbc-border: #332822;
+  --fbc-border-light: #4a3d33;
+  --fbc-text: #c8b8a0;
+  --fbc-text-dim: #887766;
+  --fbc-text-bright: #e8d8c0;
+  --fbc-accent: #cc3333;
+  --fbc-accent-dim: #882222;
+  --fbc-highlight: #ddaa66;
+  --fbc-cream: #d4c4a8;
+  --fbc-stamp: #cc3333;
+  --fbc-success: #668844;
+  --fbc-info: #8899aa;
+  --fbc-gold: #ccaa44;
+}

@@ -3,7 +3,19 @@ defmodule SphericWeb.GameLive do
 
   alias Spheric.Geometry.RhombicTriacontahedron, as: RT
   alias Spheric.Geometry.Coordinate
-  alias Spheric.Game.{WorldServer, WorldStore, Buildings, Persistence, Research, Creatures}
+
+  alias Spheric.Game.{
+    WorldServer,
+    WorldStore,
+    Buildings,
+    Persistence,
+    Research,
+    Creatures,
+    Lore,
+    AlteredItems,
+    ObjectsOfPower
+  }
+
   alias SphericWeb.Presence
 
   require Logger
@@ -91,6 +103,7 @@ defmodule SphericWeb.GameLive do
       |> assign(:clearance_level, clearance)
       |> assign(:show_creatures, false)
       |> assign(:creature_roster, Creatures.get_player_roster(player_id))
+      |> assign(:objects_of_power, ObjectsOfPower.player_objects(player_id))
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
 
     # Tell the client to restore camera and persist any newly-generated identity
@@ -128,49 +141,68 @@ defmodule SphericWeb.GameLive do
     >
     </div>
 
+    <%!-- === PLAYER INFO (top-right) === --%>
     <div
       id="player-info"
-      style="position: fixed; top: 16px; right: 16px; background: rgba(0,0,0,0.7); color: #fff; padding: 6px 12px; border-radius: 6px; font-family: monospace; font-size: 12px; pointer-events: none; display: flex; align-items: center; gap: 6px;"
+      style="position: fixed; top: 16px; right: 16px; background: var(--fbc-panel); color: var(--fbc-text); padding: 6px 12px; border: 1px solid var(--fbc-border); font-family: 'Courier New', monospace; font-size: 12px; pointer-events: none; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.05em;"
     >
       <span style={"display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #{@player_color};"}>
       </span>
       {@player_name}
     </div>
 
+    <%!-- === TILE INFO (top-left) === --%>
     <div
       :if={@tile_info}
-      style="position: fixed; top: 16px; left: 16px; background: rgba(0,0,0,0.8); color: #fff; padding: 10px 14px; border-radius: 6px; font-family: monospace; font-size: 13px; line-height: 1.6; pointer-events: auto; min-width: 180px;"
+      style="position: fixed; top: 16px; left: 16px; background: var(--fbc-panel); color: var(--fbc-text); padding: 10px 14px; border: 1px solid var(--fbc-border); font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; pointer-events: auto; min-width: 200px;"
     >
-      <div style="color: #aaa; font-size: 11px; margin-bottom: 4px;">
-        Face {@tile_info.face} &middot; Row {@tile_info.row} &middot; Col {@tile_info.col}
+      <div style="color: var(--fbc-text-dim); font-size: 10px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">
+        Sector {@tile_info.face} &middot; {@tile_info.row},{@tile_info.col}
       </div>
       <div>
-        Terrain: <span style="color: #8cd">{@tile_info.terrain}</span>
+        Terrain:
+        <span style="color: var(--fbc-info);">{Lore.display_name_str(@tile_info.terrain)}</span>
       </div>
       <div :if={@tile_info.resource}>
-        Resource: <span style="color: #fc8">{@tile_info.resource_type}</span>
-        ({@tile_info.resource_amount})
+        Resource:
+        <span style="color: var(--fbc-highlight);">
+          {Lore.display_name_str(@tile_info.resource_type)}
+        </span>
+        <span style="color: var(--fbc-text-dim);">({@tile_info.resource_amount})</span>
       </div>
-      <div :if={@tile_info.resource == nil} style="color: #666;">
-        No resources
+      <div :if={@tile_info.resource == nil} style="color: var(--fbc-text-dim);">
+        No deposits detected
+      </div>
+      <div
+        :if={@tile_info[:altered_item]}
+        style="margin-top: 4px; border-top: 1px solid var(--fbc-accent-dim); padding-top: 4px;"
+      >
+        <div style="color: var(--fbc-accent); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;">
+          Altered Item
+        </div>
+        <div style="color: var(--fbc-gold);">{@tile_info.altered_item.name}</div>
+        <div style="color: var(--fbc-text-dim); font-size: 11px;">
+          {@tile_info.altered_item.description}
+        </div>
       </div>
       <div
         :if={@tile_info.building}
-        style="margin-top: 4px; border-top: 1px solid #444; padding-top: 4px;"
+        style="margin-top: 4px; border-top: 1px solid var(--fbc-border); padding-top: 4px;"
       >
-        <div>
-          Building: <span style="color: #fd4">{@tile_info.building_name}</span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="color: var(--fbc-accent); font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em;">
+            CLASSIFIED
+          </span>
+          <span style="color: var(--fbc-highlight);">{@tile_info.building_name}</span>
         </div>
-        <div style="color: #aaa; font-size: 11px;">
-          Orientation: {@tile_info.building_orientation} ({direction_label(
-            @tile_info.building_orientation
-          )})
+        <div style="color: var(--fbc-text-dim); font-size: 11px;">
+          Facing: {direction_label(@tile_info.building_orientation)}
         </div>
-        <div :if={@tile_info.building_status} style="color: #aaa; font-size: 11px;">
+        <div :if={@tile_info.building_status} style="color: var(--fbc-text-dim); font-size: 11px;">
           {@tile_info.building_status}
         </div>
-        <div :if={@tile_info.building_owner_name} style="color: #aaa; font-size: 11px;">
-          Built by: <span style="color: #9be">{@tile_info.building_owner_name}</span>
+        <div :if={@tile_info.building_owner_name} style="color: var(--fbc-text-dim); font-size: 11px;">
+          Operator: <span style="color: var(--fbc-info);">{@tile_info.building_owner_name}</span>
         </div>
         <button
           :if={@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id}
@@ -178,89 +210,121 @@ defmodule SphericWeb.GameLive do
           phx-value-face={@tile_info.face}
           phx-value-row={@tile_info.row}
           phx-value-col={@tile_info.col}
-          style="margin-top: 6px; padding: 4px 10px; border: 1px solid #a44; border-radius: 4px; background: rgba(170,68,68,0.3); color: #f88; cursor: pointer; font-family: monospace; font-size: 11px;"
+          style="margin-top: 6px; padding: 4px 10px; border: 1px solid var(--fbc-accent-dim); background: rgba(136,34,34,0.2); color: var(--fbc-accent); cursor: pointer; font-family: 'Courier New', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;"
         >
-          Remove
+          Decommission
         </button>
       </div>
-      <div :if={@tile_info.building == nil} style="color: #666; margin-top: 4px;">
-        No building
+      <div :if={@tile_info.building == nil} style="color: var(--fbc-text-dim); margin-top: 4px;">
+        No structure
       </div>
     </div>
 
+    <%!-- === CASE FILES / RESEARCH PANEL (top-right) === --%>
     <div
       :if={@show_research}
-      style="position: fixed; top: 50px; right: 16px; background: rgba(10,10,15,0.92); color: #ddd; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 280px; max-width: 340px; max-height: 70vh; overflow-y: auto; border: 1px solid #333;"
+      style="position: fixed; top: 50px; right: 16px; background: var(--fbc-panel); color: var(--fbc-text); padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 280px; max-width: 340px; max-height: 70vh; overflow-y: auto; border: 1px solid var(--fbc-border);"
     >
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #444; padding-bottom: 8px;">
-        <span style="font-size: 14px; color: #fc8;">CASE FILES</span>
-        <span style="font-size: 11px; color: #888;">Clearance L{@clearance_level}</span>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--fbc-border); padding-bottom: 8px;">
+        <span style="font-size: 13px; color: var(--fbc-cream); text-transform: uppercase; letter-spacing: 0.15em;">
+          Case Files
+        </span>
+        <span style="font-size: 10px; color: var(--fbc-accent); text-transform: uppercase; letter-spacing: 0.1em; border: 1px solid var(--fbc-accent-dim); padding: 2px 6px;">
+          Clearance L{@clearance_level}
+        </span>
       </div>
       <div
         :for={cf <- @research_summary}
-        style={"margin-bottom: 10px; padding: 8px; border: 1px solid #{if cf.completed, do: "#4a4", else: "#444"}; border-radius: 4px; background: #{if cf.completed, do: "rgba(68,170,68,0.08)", else: "rgba(255,255,255,0.03)"};"}
+        style={"margin-bottom: 10px; padding: 8px; border: 1px solid #{if cf.completed, do: "var(--fbc-success)", else: "var(--fbc-border)"}; background: #{if cf.completed, do: "rgba(102,136,68,0.08)", else: "rgba(255,255,255,0.02)"};"}
       >
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style={"color: #{if cf.completed, do: "#4a4", else: "#ddd"}; font-size: 12px;"}>
+          <span style={"color: #{if cf.completed, do: "var(--fbc-success)", else: "var(--fbc-cream)"}; font-size: 12px;"}>
             {cf.name}
           </span>
-          <span style={"font-size: 10px; color: #{if cf.completed, do: "#4a4", else: "#888"};"}>
-            {if cf.completed, do: "COMPLETE", else: "L#{cf.clearance}"}
+          <span style={"font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: #{if cf.completed, do: "var(--fbc-success)", else: "var(--fbc-text-dim)"};"}>
+            {if cf.completed, do: "APPROVED", else: "L#{cf.clearance}"}
           </span>
         </div>
-        <div style="color: #888; font-size: 10px; margin-top: 2px;">{cf.description}</div>
+        <div style="color: var(--fbc-text-dim); font-size: 10px; margin-top: 2px;">
+          {cf.description}
+        </div>
         <div :for={req <- cf.requirements} style="margin-top: 4px; font-size: 11px;">
-          <span style={"color: #{if req.submitted >= req.required, do: "#4a4", else: "#fc8"};"}>
-            {req.item}
+          <span style={"color: #{if req.submitted >= req.required, do: "var(--fbc-success)", else: "var(--fbc-highlight)"};"}>
+            {Lore.display_name(req.item)}
           </span>
-          <span style="color: #888;">
+          <span style="color: var(--fbc-text-dim);">
             {req.submitted}/{req.required}
           </span>
-          <div style="background: #222; height: 3px; border-radius: 2px; margin-top: 2px;">
-            <div style={"background: #{if req.submitted >= req.required, do: "#4a4", else: "#fc8"}; height: 3px; border-radius: 2px; width: #{min(100, trunc(req.submitted / max(req.required, 1) * 100))}%;"}>
+          <div style="background: var(--fbc-border); height: 3px; margin-top: 2px;">
+            <div style={"background: #{if req.submitted >= req.required, do: "var(--fbc-success)", else: "var(--fbc-accent)"}; height: 3px; width: #{min(100, trunc(req.submitted / max(req.required, 1) * 100))}%;"}>
             </div>
           </div>
         </div>
       </div>
+      <%!-- Objects of Power section --%>
+      <div
+        :if={@objects_of_power != []}
+        style="margin-top: 12px; border-top: 1px solid var(--fbc-border); padding-top: 10px;"
+      >
+        <div style="font-size: 11px; color: var(--fbc-gold); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 8px;">
+          Objects of Power
+        </div>
+        <div
+          :for={obj <- @objects_of_power}
+          style="margin-bottom: 6px; padding: 6px 8px; border: 1px solid var(--fbc-gold); background: rgba(204,170,68,0.08);"
+        >
+          <div style="color: var(--fbc-gold); font-size: 11px;">{obj.name}</div>
+          <div style="color: var(--fbc-text-dim); font-size: 10px;">{obj.description}</div>
+        </div>
+      </div>
     </div>
 
+    <%!-- === CONTAINMENT RECORDS / CREATURE ROSTER (top-right) === --%>
     <div
       :if={@show_creatures}
-      style="position: fixed; top: 50px; right: 16px; background: rgba(10,10,15,0.92); color: #ddd; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 260px; max-width: 320px; max-height: 60vh; overflow-y: auto; border: 1px solid #333;"
+      style="position: fixed; top: 50px; right: 16px; background: var(--fbc-panel); color: var(--fbc-text); padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 260px; max-width: 320px; max-height: 60vh; overflow-y: auto; border: 1px solid var(--fbc-border);"
     >
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #444; padding-bottom: 8px;">
-        <span style="font-size: 14px; color: #b8f;">CREATURE ROSTER</span>
-        <span style="font-size: 11px; color: #888;">
-          {length(@creature_roster)} captured
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--fbc-border); padding-bottom: 8px;">
+        <span style="font-size: 13px; color: var(--fbc-cream); text-transform: uppercase; letter-spacing: 0.15em;">
+          Containment Records
+        </span>
+        <span style="font-size: 10px; color: var(--fbc-text-dim);">
+          {length(@creature_roster)} contained
         </span>
       </div>
-      <div :if={@creature_roster == []} style="color: #666; font-size: 11px;">
-        No creatures captured yet. Build a Containment Trap near wild creatures.
+      <div :if={@creature_roster == []} style="color: var(--fbc-text-dim); font-size: 11px;">
+        No entities contained. Deploy a Containment Array near altered entities.
       </div>
       <div
         :for={creature <- @creature_roster}
-        style="margin-bottom: 8px; padding: 8px; border: 1px solid #444; border-radius: 4px; background: rgba(255,255,255,0.03);"
+        style="margin-bottom: 8px; padding: 8px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.02);"
       >
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="color: #b8f; font-size: 12px;">
+          <span style="color: var(--fbc-highlight); font-size: 12px;">
             {Creatures.display_name(creature.type)}
           </span>
-          <span style="font-size: 10px; color: #888;">
+          <span style="font-size: 10px; color: var(--fbc-text-dim);">
             {creature_boost_label(creature.type)}
           </span>
         </div>
-        <div :if={creature.assigned_to} style="color: #888; font-size: 10px; margin-top: 2px;">
-          Assigned to: {format_building_key(creature.assigned_to)}
+        <div
+          :if={creature.assigned_to}
+          style="color: var(--fbc-text-dim); font-size: 10px; margin-top: 2px;"
+        >
+          Assigned: {format_building_key(creature.assigned_to)}
           <button
             phx-click="unassign_creature"
             phx-value-creature_id={creature.id}
-            style="margin-left: 6px; padding: 2px 6px; border: 1px solid #a44; border-radius: 3px; background: rgba(170,68,68,0.2); color: #f88; cursor: pointer; font-family: monospace; font-size: 10px;"
+            style="margin-left: 6px; padding: 2px 6px; border: 1px solid var(--fbc-accent-dim); background: rgba(136,34,34,0.15); color: var(--fbc-accent); cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase;"
           >
             Recall
           </button>
         </div>
-        <div :if={creature.assigned_to == nil} style="color: #666; font-size: 10px; margin-top: 2px;">
-          Unassigned — select a building tile to assign
+        <div
+          :if={creature.assigned_to == nil}
+          style="color: var(--fbc-text-dim); font-size: 10px; margin-top: 2px;"
+        >
+          Unassigned — select a structure to deploy
         </div>
         <button
           :if={(creature.assigned_to == nil and @tile_info) && @tile_info.building}
@@ -269,79 +333,83 @@ defmodule SphericWeb.GameLive do
           phx-value-face={@tile_info.face}
           phx-value-row={@tile_info.row}
           phx-value-col={@tile_info.col}
-          style="margin-top: 4px; padding: 3px 8px; border: 1px solid #4a4; border-radius: 3px; background: rgba(68,170,68,0.15); color: #8f8; cursor: pointer; font-family: monospace; font-size: 10px;"
+          style="margin-top: 4px; padding: 3px 8px; border: 1px solid var(--fbc-success); background: rgba(102,136,68,0.12); color: var(--fbc-success); cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase;"
         >
-          Assign to selected building
+          Deploy to selected structure
         </button>
       </div>
     </div>
 
-    <div style="position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; padding: 12px; background: rgba(0,0,0,0.75); pointer-events: auto;">
+    <%!-- === BOTTOM TOOLBAR === --%>
+    <div style="position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; padding: 12px; background: var(--fbc-panel); border-top: 1px solid var(--fbc-border); pointer-events: auto;">
       <button
         phx-click="toggle_research"
         style={"
           padding: 8px 12px;
-          border: 2px solid #{if @show_research, do: "#fc8", else: "#666"};
-          border-radius: 6px;
-          background: #{if @show_research, do: "rgba(255,204,136,0.2)", else: "rgba(255,255,255,0.1)"};
-          color: #{if @show_research, do: "#fc8", else: "#999"};
+          border: 1px solid #{if @show_research, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
+          background: #{if @show_research, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
+          color: #{if @show_research, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
           cursor: pointer;
-          font-family: monospace;
-          font-size: 13px;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
         "}
         title="Case Files (F key)"
       >
-        Files
+        Case Files
       </button>
       <button
         phx-click="toggle_creatures"
         style={"
           padding: 8px 12px;
-          border: 2px solid #{if @show_creatures, do: "#b8f", else: "#666"};
-          border-radius: 6px;
-          background: #{if @show_creatures, do: "rgba(187,136,255,0.2)", else: "rgba(255,255,255,0.1)"};
-          color: #{if @show_creatures, do: "#b8f", else: "#999"};
+          border: 1px solid #{if @show_creatures, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
+          background: #{if @show_creatures, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
+          color: #{if @show_creatures, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
           cursor: pointer;
-          font-family: monospace;
-          font-size: 13px;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
           margin-right: 8px;
         "}
-        title="Creature Roster (C key)"
+        title="Containment Records (C key)"
       >
-        Creatures
+        Entities
       </button>
       <button
         :for={type <- @building_types}
         phx-click="select_building"
         phx-value-type={type}
         style={"
-          padding: 8px 16px;
-          border: 2px solid #{if @selected_building_type == type, do: "#ffdd44", else: "#555"};
-          border-radius: 6px;
-          background: #{if @selected_building_type == type, do: "rgba(255,221,68,0.2)", else: "rgba(255,255,255,0.1)"};
-          color: #{if @selected_building_type == type, do: "#ffdd44", else: "#ccc"};
+          padding: 8px 14px;
+          border: 1px solid #{if @selected_building_type == type, do: "var(--fbc-accent)", else: "var(--fbc-border)"};
+          background: #{if @selected_building_type == type, do: "rgba(204,51,51,0.15)", else: "rgba(255,255,255,0.04)"};
+          color: #{if @selected_building_type == type, do: "var(--fbc-accent)", else: "var(--fbc-text)"};
           cursor: pointer;
-          font-family: monospace;
-          font-size: 13px;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
           font-weight: #{if @selected_building_type == type, do: "bold", else: "normal"};
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         "}
       >
-        {Buildings.display_name(type)}
+        {Lore.display_name(type)}
       </button>
       <div
         :if={@selected_building_type}
-        style="display: flex; align-items: center; gap: 4px; margin-left: 8px; padding-left: 8px; border-left: 1px solid #555;"
+        style="display: flex; align-items: center; gap: 4px; margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--fbc-border);"
       >
         <button
           phx-click="rotate_building"
-          style="padding: 8px 12px; border: 2px solid #77aaff; border-radius: 6px; background: rgba(119,170,255,0.15); color: #aaddff; cursor: pointer; font-family: monospace; font-size: 13px;"
+          style="padding: 8px 12px; border: 1px solid var(--fbc-border-light); background: rgba(255,255,255,0.04); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 12px; text-transform: uppercase;"
           title="Rotate (R key)"
         >
           {direction_label(@placement_orientation)}
         </button>
         <button
           phx-click="toggle_line_mode"
-          style={"padding: 8px 12px; border: 2px solid #{if @line_mode, do: "#44ddff", else: "#77aaff"}; border-radius: 6px; background: #{if @line_mode, do: "rgba(68,221,255,0.25)", else: "rgba(119,170,255,0.15)"}; color: #{if @line_mode, do: "#44ddff", else: "#aaddff"}; cursor: pointer; font-family: monospace; font-size: 13px; font-weight: #{if @line_mode, do: "bold", else: "normal"};"}
+          style={"padding: 8px 12px; border: 1px solid #{if @line_mode, do: "var(--fbc-highlight)", else: "var(--fbc-border-light)"}; background: #{if @line_mode, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"}; color: #{if @line_mode, do: "var(--fbc-highlight)", else: "var(--fbc-info)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 12px; text-transform: uppercase; font-weight: #{if @line_mode, do: "bold", else: "normal"};"}
           title="Line draw mode (L key)"
         >
           Line
@@ -349,7 +417,7 @@ defmodule SphericWeb.GameLive do
         <button
           phx-click="select_building"
           phx-value-type="none"
-          style="padding: 8px 16px; border: 2px solid #888; border-radius: 6px; background: rgba(255,255,255,0.1); color: #aaa; cursor: pointer; font-family: monospace; font-size: 13px;"
+          style="padding: 8px 14px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.04); color: var(--fbc-text-dim); cursor: pointer; font-family: 'Courier New', monospace; font-size: 12px; text-transform: uppercase;"
         >
           Cancel
         </button>
@@ -764,6 +832,12 @@ defmodule SphericWeb.GameLive do
     refresh_research(socket)
   end
 
+  @impl true
+  def handle_info({:object_of_power_granted, _object}, socket) do
+    objects = ObjectsOfPower.player_objects(socket.assigns.player_id)
+    {:noreply, assign(socket, :objects_of_power, objects)}
+  end
+
   # --- Creature Handlers ---
 
   @impl true
@@ -831,7 +905,17 @@ defmodule SphericWeb.GameLive do
     socket =
       Enum.reduce(0..29, socket, fn face_id, sock ->
         terrain = build_face_terrain(face_id, subdivisions)
-        push_event(sock, "terrain_face", %{face: face_id, terrain: terrain})
+
+        altered =
+          AlteredItems.get_face_items(face_id)
+          |> Enum.map(fn {{_f, row, col}, type_id} ->
+            info = AlteredItems.get_type(type_id)
+            %{row: row, col: col, type: Atom.to_string(type_id), color: info.color}
+          end)
+
+        sock
+        |> push_event("terrain_face", %{face: face_id, terrain: terrain})
+        |> push_event("altered_items", %{face: face_id, items: altered})
       end)
 
     {:noreply, socket}
@@ -912,6 +996,8 @@ defmodule SphericWeb.GameLive do
         _ -> {nil, nil}
       end
 
+    altered_item = AlteredItems.get(key)
+
     base = %{
       face: face,
       row: row,
@@ -920,14 +1006,15 @@ defmodule SphericWeb.GameLive do
       resource: tile.resource,
       resource_type: resource_type,
       resource_amount: resource_amount,
-      building: building
+      building: building,
+      altered_item: altered_item
     }
 
     if building do
       owner_name = Persistence.get_player_name(building[:owner_id])
 
       Map.merge(base, %{
-        building_name: Buildings.display_name(building.type),
+        building_name: Lore.display_name(building.type),
         building_orientation: building.orientation,
         building_status: building_status_text(building),
         building_owner_id: building[:owner_id],
@@ -946,37 +1033,37 @@ defmodule SphericWeb.GameLive do
 
   defp building_status_text(%{type: :miner, state: state}) do
     cond do
-      state[:output_buffer] != nil -> "Output: #{state.output_buffer}"
-      state[:progress] > 0 -> "Mining... #{state.progress}/#{state.rate}"
+      state[:output_buffer] != nil -> "Output: #{Lore.display_name(state.output_buffer)}"
+      state[:progress] > 0 -> "Extracting... #{state.progress}/#{state.rate}"
       true -> "Idle"
     end
   end
 
   defp building_status_text(%{type: :smelter, state: state}) do
     cond do
-      state[:output_buffer] != nil -> "Output: #{state.output_buffer}"
-      state[:input_buffer] != nil -> "Smelting... #{state.progress}/#{state.rate}"
+      state[:output_buffer] != nil -> "Output: #{Lore.display_name(state.output_buffer)}"
+      state[:input_buffer] != nil -> "Processing... #{state.progress}/#{state.rate}"
       true -> "Idle"
     end
   end
 
   defp building_status_text(%{type: :conveyor, state: state}) do
-    if state[:item], do: "Carrying: #{state.item}", else: "Empty"
+    if state[:item], do: "Carrying: #{Lore.display_name(state.item)}", else: "Empty"
   end
 
   defp building_status_text(%{type: :assembler, state: state}) do
     cond do
       state[:output_buffer] != nil ->
-        "Output: #{state.output_buffer}"
+        "Output: #{Lore.display_name(state.output_buffer)}"
 
       state[:input_a] != nil and state[:input_b] != nil ->
-        "Assembling... #{state.progress}/#{state.rate}"
+        "Fabricating... #{state.progress}/#{state.rate}"
 
       state[:input_a] != nil ->
-        "Input A: #{state.input_a} (waiting for B)"
+        "Input A: #{Lore.display_name(state.input_a)} (awaiting B)"
 
       state[:input_b] != nil ->
-        "Input B: #{state.input_b} (waiting for A)"
+        "Input B: #{Lore.display_name(state.input_b)} (awaiting A)"
 
       true ->
         "Idle"
@@ -985,8 +1072,8 @@ defmodule SphericWeb.GameLive do
 
   defp building_status_text(%{type: :refinery, state: state}) do
     cond do
-      state[:output_buffer] != nil -> "Output: #{state.output_buffer}"
-      state[:input_buffer] != nil -> "Refining... #{state.progress}/#{state.rate}"
+      state[:output_buffer] != nil -> "Output: #{Lore.display_name(state.output_buffer)}"
+      state[:input_buffer] != nil -> "Distilling... #{state.progress}/#{state.rate}"
       true -> "Idle"
     end
   end
@@ -994,23 +1081,23 @@ defmodule SphericWeb.GameLive do
   defp building_status_text(%{type: :submission_terminal, state: state}) do
     cond do
       state[:input_buffer] != nil ->
-        "Receiving: #{state.input_buffer}"
+        "Receiving: #{Lore.display_name(state.input_buffer)}"
 
       state[:last_submitted] != nil ->
-        "Last: #{state.last_submitted} (#{state.total_submitted} total)"
+        "Last: #{Lore.display_name(state.last_submitted)} (#{state.total_submitted} total)"
 
       true ->
-        "Awaiting items"
+        "Awaiting submissions"
     end
   end
 
   defp building_status_text(%{type: :containment_trap, state: state}) do
     cond do
       state[:capturing] != nil ->
-        "Capturing... #{state.capture_progress}/15"
+        "Containing... #{state.capture_progress}/15"
 
       true ->
-        "Scanning for creatures"
+        "Scanning for entities"
     end
   end
 

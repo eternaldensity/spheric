@@ -167,7 +167,15 @@ defmodule Spheric.Game.Persistence do
 
   defp atomize_state_keys(other), do: other
 
-  @atom_fields [:item, :output_buffer, :input_buffer, :input_a, :input_b, :last_submitted]
+  @atom_fields [
+    :item,
+    :output_buffer,
+    :input_buffer,
+    :input_a,
+    :input_b,
+    :last_submitted,
+    :altered_effect
+  ]
 
   defp atomize_state_value(key, value) when key in @atom_fields and is_binary(value) do
     String.to_atom(value)

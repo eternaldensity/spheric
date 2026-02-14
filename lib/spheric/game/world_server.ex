@@ -19,7 +19,8 @@ defmodule Spheric.Game.WorldServer do
     Persistence,
     SaveServer,
     Research,
-    Creatures
+    Creatures,
+    AlteredItems
   }
 
   require Logger
@@ -87,6 +88,8 @@ defmodule Spheric.Game.WorldServer do
     WorldStore.init()
     Research.init()
     Creatures.init()
+    AlteredItems.init()
+    Spheric.Game.ObjectsOfPower.init()
 
     # Try to load an existing world from the database
     {world_id, actual_seed} =
@@ -134,10 +137,19 @@ defmodule Spheric.Game.WorldServer do
         {:reply, {:error, :not_unlocked}, state}
 
       true ->
+        initial_state = Buildings.initial_state(type)
+
+        # Apply altered item effect if tile has one
+        state_with_altered =
+          case AlteredItems.get(key) do
+            nil -> initial_state
+            altered -> Map.put(initial_state, :altered_effect, altered.id)
+          end
+
         building = %{
           type: type,
           orientation: orientation,
-          state: Buildings.initial_state(type),
+          state: state_with_altered,
           owner_id: owner[:id]
         }
 
@@ -177,10 +189,18 @@ defmodule Spheric.Game.WorldServer do
             {key, {:error, :not_unlocked}}
 
           true ->
+            initial_state = Buildings.initial_state(type)
+
+            state_with_altered =
+              case AlteredItems.get(key) do
+                nil -> initial_state
+                altered -> Map.put(initial_state, :altered_effect, altered.id)
+              end
+
             building = %{
               type: type,
               orientation: orientation,
-              state: Buildings.initial_state(type),
+              state: state_with_altered,
               owner_id: owner[:id]
             }
 

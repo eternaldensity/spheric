@@ -13,7 +13,7 @@ defmodule Spheric.Game.TickProcessor do
   `face_id => [item_update]` for broadcasting to clients.
   """
 
-  alias Spheric.Game.{WorldStore, Behaviors, Creatures}
+  alias Spheric.Game.{WorldStore, Behaviors, Creatures, ObjectsOfPower}
   alias Spheric.Geometry.TileNeighbors
 
   require Logger
@@ -78,6 +78,9 @@ defmodule Spheric.Game.TickProcessor do
 
     # Phase 3: Push resolution — move items between buildings
     {final_buildings, movements} = resolve_pushes(all_buildings)
+
+    # Phase 4: Altered item duplication (5% chance to refill output after push)
+    final_buildings = apply_duplication_effects(final_buildings, movements)
 
     # Batch write all modified building states to ETS
     write_changes(buildings, final_buildings)
@@ -490,13 +493,54 @@ defmodule Spheric.Game.TickProcessor do
 
   defp items_from_building(_key, _building, _sources), do: []
 
-  # Apply creature boost to a building's tick rate.
+  # Altered item: duplication effect.
+  # For buildings with :duplication that just pushed their output, there's a 5%
+  # chance the output buffer gets refilled with the same item (free duplication).
+  defp apply_duplication_effects(buildings, movements) do
+    # Find source buildings that pushed items and have duplication effect
+    Enum.reduce(movements, buildings, fn {src_key, _dest_key, item}, acc ->
+      building = Map.get(acc, src_key)
+
+      if building && building.state[:altered_effect] == :duplication &&
+           building.state[:output_buffer] == nil do
+        if :rand.uniform(100) <= 5 do
+          Map.put(acc, src_key, %{
+            building
+            | state: Map.put(building.state, :output_buffer, item)
+          })
+        else
+          acc
+        end
+      else
+        acc
+      end
+    end)
+  end
+
+  # Apply creature boost and altered item effects to a building's tick rate.
   # Temporarily adjusts the rate in the building state so the behavior
   # module uses the boosted rate for its progress check.
   defp apply_creature_boost(key, building) do
     case building.state do
       %{rate: base_rate} ->
         boosted = Creatures.boosted_rate(key, base_rate)
+
+        # Altered item: overclock halves the effective rate
+        boosted =
+          if building.state[:altered_effect] == :overclock do
+            max(1, div(boosted, 2))
+          else
+            boosted
+          end
+
+        # Object of Power: production_surge gives 10% speed boost
+        boosted =
+          if building[:owner_id] &&
+               ObjectsOfPower.player_has?(building.owner_id, :production_surge) do
+            max(1, round(boosted * 0.9))
+          else
+            boosted
+          end
 
         if boosted != base_rate do
           %{building | state: %{building.state | rate: boosted}}

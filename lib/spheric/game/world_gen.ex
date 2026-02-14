@@ -11,7 +11,7 @@ defmodule Spheric.Game.WorldGen do
   """
 
   alias Spheric.Geometry.RhombicTriacontahedron, as: RT
-  alias Spheric.Game.WorldStore
+  alias Spheric.Game.{WorldStore, AlteredItems}
 
   @default_seed 42
   @default_subdivisions 64
@@ -44,7 +44,7 @@ defmodule Spheric.Game.WorldGen do
     # Seed the RNG and get the state
     rng = :rand.seed_s(:exsss, {seed, seed * 7, seed * 13})
 
-    {tiles, _rng} =
+    {tiles, rng} =
       Enum.reduce(0..29, {[], rng}, fn face_id, {acc, rng} ->
         # Precompute biomes for each of the 4x4 cells on this face
         cell_biomes = compute_cell_biomes(face_id, verts)
@@ -69,6 +69,13 @@ defmodule Spheric.Game.WorldGen do
       end)
 
     WorldStore.put_tiles(tiles)
+
+    # Place Altered Items (~0.1% of tiles)
+    {altered_count, _rng} = AlteredItems.generate(rng, subdivisions)
+
+    require Logger
+    Logger.info("World gen: #{length(tiles)} tiles, #{altered_count} altered items")
+
     length(tiles)
   end
 
