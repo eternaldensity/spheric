@@ -1436,12 +1436,18 @@ defmodule SphericWeb.GameLive do
   def handle_event("keydown", %{"key" => key}, socket)
       when key in ["1", "2", "3", "4", "5"] do
     slot_idx = String.to_integer(key) - 1
-    type = Enum.at(socket.assigns.hotbar, slot_idx)
 
-    if type do
-      handle_event("hotbar_select", %{"slot" => Integer.to_string(slot_idx)}, socket)
+    if socket.assigns.show_catalog do
+      # Catalog is open — set target slot so next building click assigns to it
+      {:noreply, assign(socket, :catalog_target_slot, slot_idx)}
     else
-      handle_event("open_catalog", %{"slot" => Integer.to_string(slot_idx)}, socket)
+      type = Enum.at(socket.assigns.hotbar, slot_idx)
+
+      if type do
+        handle_event("hotbar_select", %{"slot" => Integer.to_string(slot_idx)}, socket)
+      else
+        handle_event("open_catalog", %{"slot" => Integer.to_string(slot_idx)}, socket)
+      end
     end
   end
 
