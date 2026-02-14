@@ -32,6 +32,7 @@ defmodule Spheric.Game.Lore do
   def display_name(:plate), do: "Structural Plate"
   def display_name(:circuit), do: "Resonance Circuit"
   def display_name(:frame), do: "Astral Frame"
+  def display_name(:hiss_residue), do: "Hiss Residue"
 
   # Buildings
   def display_name(:conveyor), do: "Conduit"
@@ -43,6 +44,8 @@ defmodule Spheric.Game.Lore do
   def display_name(:merger), do: "Converger"
   def display_name(:submission_terminal), do: "Terminal"
   def display_name(:containment_trap), do: "Trap"
+  def display_name(:purification_beacon), do: "Purification Beacon"
+  def display_name(:defense_turret), do: "Defense Array"
 
   # Biomes
   def display_name(:grassland), do: "Threshold Plain"

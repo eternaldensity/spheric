@@ -16,6 +16,7 @@ const ITEM_COLORS = {
   plate: 0xbbbbbb,
   circuit: 0x44ff88,
   frame: 0x667788,
+  hiss_residue: 0xff2244,
 };
 
 const ITEM_SCALE = 0.003;

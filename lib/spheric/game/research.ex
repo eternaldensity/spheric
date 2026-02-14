@@ -81,7 +81,7 @@ defmodule Spheric.Game.Research do
     0 => [:conveyor, :miner, :smelter, :submission_terminal],
     1 => [:splitter, :merger],
     2 => [:assembler, :refinery],
-    3 => [:containment_trap]
+    3 => [:containment_trap, :purification_beacon, :defense_turret]
   }
 
   # --- Public API ---

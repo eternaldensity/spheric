@@ -13,7 +13,8 @@ defmodule SphericWeb.GameLive do
     Creatures,
     Lore,
     AlteredItems,
-    ObjectsOfPower
+    ObjectsOfPower,
+    Hiss
   }
 
   alias SphericWeb.Presence
@@ -183,6 +184,21 @@ defmodule SphericWeb.GameLive do
         <div style="color: var(--fbc-gold);">{@tile_info.altered_item.name}</div>
         <div style="color: var(--fbc-text-dim); font-size: 11px;">
           {@tile_info.altered_item.description}
+        </div>
+      </div>
+      <div
+        :if={@tile_info[:corruption] && @tile_info.corruption > 0}
+        style="margin-top: 4px; border-top: 1px solid #882222; padding-top: 4px;"
+      >
+        <div style="color: #ff4444; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; animation: pulse 2s ease-in-out infinite;">
+          Hiss Corruption
+        </div>
+        <div style="color: #ff6666; font-size: 12px;">
+          Intensity: {@tile_info.corruption}/10
+        </div>
+        <div style="background: #331111; height: 4px; margin-top: 2px;">
+          <div style={"background: #ff2222; height: 4px; width: #{@tile_info.corruption * 10}%;"}>
+          </div>
         </div>
       </div>
       <div
@@ -896,6 +912,103 @@ defmodule SphericWeb.GameLive do
     end
   end
 
+  # --- Hiss Corruption Handlers ---
+
+  @impl true
+  def handle_info({:corruption_update, face_id, tiles}, socket) do
+    if MapSet.member?(socket.assigns.visible_faces, face_id) do
+      socket = push_event(socket, "corruption_update", %{face: face_id, tiles: tiles})
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:corruption_cleared, face_id, tiles}, socket) do
+    if MapSet.member?(socket.assigns.visible_faces, face_id) do
+      socket = push_event(socket, "corruption_cleared", %{face: face_id, tiles: tiles})
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:corruption_sync, face_id, tiles}, socket) do
+    if MapSet.member?(socket.assigns.visible_faces, face_id) do
+      socket = push_event(socket, "corruption_sync", %{face: face_id, tiles: tiles})
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:hiss_spawned, id, entity}, socket) do
+    socket =
+      push_event(socket, "hiss_spawned", %{
+        id: id,
+        entity: %{face: entity.face, row: entity.row, col: entity.col, health: entity.health}
+      })
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:hiss_moved, id, entity}, socket) do
+    socket =
+      push_event(socket, "hiss_moved", %{
+        id: id,
+        entity: %{face: entity.face, row: entity.row, col: entity.col, health: entity.health}
+      })
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:hiss_killed, id, _killer}, socket) do
+    socket = push_event(socket, "hiss_killed", %{id: id})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:hiss_sync, face_id, entities}, socket) do
+    if MapSet.member?(socket.assigns.visible_faces, face_id) do
+      socket = push_event(socket, "hiss_sync", %{face: face_id, entities: entities})
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:building_damage, {face, row, col}, action}, socket) do
+    socket =
+      push_event(socket, "building_damaged", %{
+        face: face,
+        row: row,
+        col: col,
+        action: Atom.to_string(action)
+      })
+
+    # If the building was destroyed, update tile info if selected
+    socket =
+      if action == :destroyed and socket.assigns.selected_tile do
+        sel = socket.assigns.selected_tile
+
+        if sel.face == face and sel.row == row and sel.col == col do
+          assign(socket, :tile_info, build_tile_info({face, row, col}))
+        else
+          socket
+        end
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
   # --- Terrain Streaming ---
 
   @impl true
@@ -913,9 +1026,19 @@ defmodule SphericWeb.GameLive do
             %{row: row, col: col, type: Atom.to_string(type_id), color: info.color}
           end)
 
+        corruption = Hiss.corrupted_on_face(face_id)
+
+        hiss_entities =
+          Hiss.hiss_entities_on_face(face_id)
+          |> Enum.map(fn {id, e} ->
+            %{id: id, face: e.face, row: e.row, col: e.col, health: e.health}
+          end)
+
         sock
         |> push_event("terrain_face", %{face: face_id, terrain: terrain})
         |> push_event("altered_items", %{face: face_id, items: altered})
+        |> push_event("corruption_sync", %{face: face_id, tiles: corruption})
+        |> push_event("hiss_sync", %{face: face_id, entities: hiss_entities})
       end)
 
     {:noreply, socket}
@@ -997,6 +1120,7 @@ defmodule SphericWeb.GameLive do
       end
 
     altered_item = AlteredItems.get(key)
+    corruption = Hiss.corruption_at(key)
 
     base = %{
       face: face,
@@ -1007,7 +1131,8 @@ defmodule SphericWeb.GameLive do
       resource_type: resource_type,
       resource_amount: resource_amount,
       building: building,
-      altered_item: altered_item
+      altered_item: altered_item,
+      corruption: corruption
     }
 
     if building do
@@ -1098,6 +1223,23 @@ defmodule SphericWeb.GameLive do
 
       true ->
         "Scanning for entities"
+    end
+  end
+
+  defp building_status_text(%{type: :purification_beacon, state: state}) do
+    "Active — Radius #{state[:radius] || 5}"
+  end
+
+  defp building_status_text(%{type: :defense_turret, state: state}) do
+    cond do
+      state[:output_buffer] != nil ->
+        "Output: #{Lore.display_name(state.output_buffer)} (#{state[:kills] || 0} kills)"
+
+      (state[:kills] || 0) > 0 ->
+        "Scanning — #{state.kills} kills"
+
+      true ->
+        "Scanning for hostiles"
     end
   end
 

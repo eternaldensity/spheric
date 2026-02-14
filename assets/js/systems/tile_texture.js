@@ -32,6 +32,8 @@ const BUILDING_FILLS = {
   merger: "#8844aa",
   submission_terminal: "#aa8833",
   containment_trap: "#664488",
+  purification_beacon: "#44aadd",
+  defense_turret: "#cc3333",
 };
 
 // Building icon glyphs (drawn procedurally)
@@ -45,6 +47,8 @@ const BUILDING_GLYPHS = {
   merger: drawMergerGlyph,
   submission_terminal: drawSubmissionTerminalGlyph,
   containment_trap: drawContainmentTrapGlyph,
+  purification_beacon: drawPurificationBeaconGlyph,
+  defense_turret: drawDefenseTurretGlyph,
 };
 
 const PIXELS_PER_TILE = 32;
@@ -324,4 +328,42 @@ function drawContainmentTrapGlyph(ctx, r) {
   ctx.strokeStyle = "rgba(255,255,255,0.8)";
   ctx.stroke();
   ctx.strokeStyle = "rgba(255,255,255,0.6)";
+}
+
+function drawPurificationBeaconGlyph(ctx, r) {
+  // Hexagon with radiating lines (purification field)
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(angle) * r * 0.8;
+    const y = Math.sin(angle) * r * 0.8;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Center dot (emitter)
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.25, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(255,255,255,0.9)";
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+}
+
+function drawDefenseTurretGlyph(ctx, r) {
+  // Square base with barrel pointing right
+  ctx.fillRect(-r * 0.5, -r * 0.5, r * 1.0, r * 1.0);
+  ctx.strokeRect(-r * 0.5, -r * 0.5, r * 1.0, r * 1.0);
+
+  // Barrel
+  ctx.fillRect(r * 0.2, -r * 0.15, r * 0.8, r * 0.3);
+  ctx.strokeRect(r * 0.2, -r * 0.15, r * 0.8, r * 0.3);
+
+  // Muzzle flash dot
+  ctx.beginPath();
+  ctx.arc(r * 0.9, 0, r * 0.12, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,50,50,0.8)";
+  ctx.fill();
 }

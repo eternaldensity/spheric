@@ -232,6 +232,18 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
+  defp get_push_request(
+         key,
+         %{type: :defense_turret, orientation: dir, state: %{output_buffer: item}},
+         n
+       )
+       when not is_nil(item) do
+    case TileNeighbors.neighbor(key, dir, n) do
+      {:ok, dest_key} -> {key, dest_key, item}
+      :boundary -> nil
+    end
+  end
+
   defp get_push_request(_key, _building, _n), do: nil
 
   # Try to accept an item at the destination building
@@ -333,6 +345,9 @@ defmodule Spheric.Game.TickProcessor do
               %{b | state: %{b.state | output_buffer: nil}}
 
             :refinery ->
+              %{b | state: %{b.state | output_buffer: nil}}
+
+            :defense_turret ->
               %{b | state: %{b.state | output_buffer: nil}}
 
             :splitter ->
@@ -485,6 +500,15 @@ defmodule Spheric.Game.TickProcessor do
   defp items_from_building(
          {face, row, col},
          %{type: :refinery, state: %{output_buffer: item}},
+         _
+       )
+       when not is_nil(item) do
+    [%{face: face, row: row, col: col, item: item, from_face: nil, from_row: nil, from_col: nil}]
+  end
+
+  defp items_from_building(
+         {face, row, col},
+         %{type: :defense_turret, state: %{output_buffer: item}},
          _
        )
        when not is_nil(item) do

@@ -11,8 +11,8 @@ defmodule Spheric.Game.Persistence do
   import Ecto.Query
 
   alias Spheric.Repo
-  alias Spheric.Game.Schema.{World, Building, TileResource, Player, Creature}
-  alias Spheric.Game.{WorldStore, WorldGen, Creatures}
+  alias Spheric.Game.Schema.{World, Building, TileResource, Player, Creature, Corruption, HissEntity}
+  alias Spheric.Game.{WorldStore, WorldGen, Creatures, Hiss}
 
   require Logger
 
@@ -69,6 +69,9 @@ defmodule Spheric.Game.Persistence do
         # Load all saved creatures
         load_creatures(world.id)
 
+        # Load corruption state
+        load_corruption(world.id)
+
         {:ok, world}
     end
   end
@@ -87,6 +90,7 @@ defmodule Spheric.Game.Persistence do
     save_buildings(world_id, dirty_buildings, now)
     delete_buildings(world_id, removed_buildings)
     save_creatures(world_id, now)
+    save_corruption(world_id, now)
 
     :ok
   end
@@ -393,6 +397,98 @@ defmodule Spheric.Game.Persistence do
       |> Enum.chunk_every(500)
       |> Enum.each(fn chunk ->
         Repo.insert_all(Creature, chunk)
+      end)
+    end
+  end
+
+  defp load_corruption(world_id) do
+    Corruption
+    |> where([c], c.world_id == ^world_id)
+    |> Repo.all()
+    |> Enum.each(fn c ->
+      key = {c.face_id, c.row, c.col}
+
+      data = %{
+        intensity: c.intensity,
+        seeded_at: c.seeded_at,
+        building_damage_ticks: c.building_damage_ticks
+      }
+
+      Hiss.put_corruption(key, data)
+    end)
+
+    HissEntity
+    |> where([h], h.world_id == ^world_id)
+    |> Repo.all()
+    |> Enum.each(fn h ->
+      entity = %{
+        face: h.face_id,
+        row: h.row,
+        col: h.col,
+        health: h.health,
+        spawned_at: h.spawned_at
+      }
+
+      Hiss.put_hiss_entity(h.entity_id, entity)
+    end)
+  end
+
+  defp save_corruption(world_id, now) do
+    # Delete and rewrite all corruption
+    Corruption
+    |> where([c], c.world_id == ^world_id)
+    |> Repo.delete_all()
+
+    corruption_entries =
+      Hiss.all_corrupted()
+      |> Enum.map(fn {{face_id, row, col}, data} ->
+        %{
+          world_id: world_id,
+          face_id: face_id,
+          row: row,
+          col: col,
+          intensity: data.intensity,
+          seeded_at: data[:seeded_at] || 0,
+          building_damage_ticks: data[:building_damage_ticks] || 0,
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+
+    if corruption_entries != [] do
+      corruption_entries
+      |> Enum.chunk_every(500)
+      |> Enum.each(fn chunk ->
+        Repo.insert_all(Corruption, chunk)
+      end)
+    end
+
+    # Delete and rewrite all Hiss entities
+    HissEntity
+    |> where([h], h.world_id == ^world_id)
+    |> Repo.delete_all()
+
+    hiss_entries =
+      Hiss.all_hiss_entities()
+      |> Enum.map(fn {id, e} ->
+        %{
+          world_id: world_id,
+          entity_id: id,
+          face_id: e.face,
+          row: e.row,
+          col: e.col,
+          health: e.health,
+          spawned_at: e[:spawned_at] || 0,
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+
+    if hiss_entries != [] do
+      hiss_entries
+      |> Enum.chunk_every(500)
+      |> Enum.each(fn chunk ->
+        Repo.insert_all(HissEntity, chunk)
       end)
     end
   end

@@ -15,7 +15,9 @@ defmodule Spheric.Game.Buildings do
     :splitter,
     :merger,
     :submission_terminal,
-    :containment_trap
+    :containment_trap,
+    :purification_beacon,
+    :defense_turret
   ]
 
   @doc "Returns the list of all building type atoms."
@@ -34,6 +36,8 @@ defmodule Spheric.Game.Buildings do
   def display_name(:merger), do: "Merger"
   def display_name(:submission_terminal), do: "Terminal"
   def display_name(:containment_trap), do: "Trap"
+  def display_name(:purification_beacon), do: "Beacon"
+  def display_name(:defense_turret), do: "Turret"
 
   @doc """
   Check if a building type can be placed on the given tile data.
@@ -43,6 +47,10 @@ defmodule Spheric.Game.Buildings do
   def can_place_on?(:miner, %{resource: nil}), do: false
   def can_place_on?(:miner, %{resource: {_type, amount}}) when amount > 0, do: true
   def can_place_on?(:miner, _tile), do: false
+  # Purification beacons and defense turrets can be placed on corrupted tiles
+  def can_place_on?(type, _tile)
+      when type in [:purification_beacon, :defense_turret] and type in @types,
+      do: true
   def can_place_on?(type, _tile) when type in @types, do: true
   def can_place_on?(_type, _tile), do: false
 
@@ -60,6 +68,12 @@ defmodule Spheric.Game.Buildings do
 
   def initial_state(:containment_trap),
     do: Spheric.Game.Behaviors.ContainmentTrap.initial_state()
+
+  def initial_state(:purification_beacon),
+    do: Spheric.Game.Behaviors.PurificationBeacon.initial_state()
+
+  def initial_state(:defense_turret),
+    do: Spheric.Game.Behaviors.DefenseTurret.initial_state()
 
   def initial_state(_type), do: %{}
 end

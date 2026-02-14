@@ -12,6 +12,8 @@ const COLORS = {
   merger: 0x8844aa,
   submission_terminal: 0xaa8833,
   containment_trap: 0x664488,
+  purification_beacon: 0x44aadd,
+  defense_turret: 0xcc3333,
 };
 
 function makeMaterial(color) {
@@ -210,6 +212,68 @@ function createContainmentTrap() {
   return group;
 }
 
+function createPurificationBeacon() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.purification_beacon);
+
+  // Hexagonal base platform
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.9, s * 1.0, s * 0.3, 6), mat);
+  base.position.y = s * 0.15;
+  group.add(base);
+
+  // Central pillar (tall, thin)
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.15, s * 0.25, s * 1.4, 6), mat);
+  pillar.position.y = s * 0.9;
+  group.add(pillar);
+
+  // Top emitter (glowing sphere)
+  const emitterMat = new THREE.MeshLambertMaterial({ color: 0x88ddff, emissive: 0x44aadd, emissiveIntensity: 0.5 });
+  const emitter = new THREE.Mesh(new THREE.SphereGeometry(s * 0.35, 8, 8), emitterMat);
+  emitter.position.y = s * 1.8;
+  group.add(emitter);
+
+  // Shield ring (floating torus)
+  const ringMat = new THREE.MeshLambertMaterial({ color: 0x66ccee, transparent: true, opacity: 0.6 });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(s * 0.7, s * 0.06, 6, 12), ringMat);
+  ring.position.y = s * 1.3;
+  ring.rotation.x = Math.PI / 2;
+  group.add(ring);
+
+  return group;
+}
+
+function createDefenseTurret() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.defense_turret);
+
+  // Base platform
+  const base = new THREE.Mesh(new THREE.BoxGeometry(s * 1.2, s * 0.4, s * 1.2), mat);
+  base.position.y = s * 0.2;
+  group.add(base);
+
+  // Turret body (rotatable dome)
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(s * 0.5, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat);
+  dome.position.y = s * 0.4;
+  group.add(dome);
+
+  // Barrel (pointing forward in +X direction)
+  const barrelMat = makeMaterial(0x444444);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.1, s * 0.1, s * 0.8, 6), barrelMat);
+  barrel.rotation.z = -Math.PI / 2;
+  barrel.position.set(s * 0.6, s * 0.65, 0);
+  group.add(barrel);
+
+  // Muzzle flash indicator (small red sphere at barrel tip)
+  const muzzleMat = new THREE.MeshLambertMaterial({ color: 0xff2222, emissive: 0xff0000, emissiveIntensity: 0.3 });
+  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(s * 0.12, 6, 6), muzzleMat);
+  muzzle.position.set(s * 1.0, s * 0.65, 0);
+  group.add(muzzle);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
@@ -220,6 +284,8 @@ const BUILDERS = {
   merger: createMerger,
   submission_terminal: createSubmissionTerminal,
   containment_trap: createContainmentTrap,
+  purification_beacon: createPurificationBeacon,
+  defense_turret: createDefenseTurret,
 };
 
 /**

@@ -20,7 +20,8 @@ defmodule Spheric.Game.WorldServer do
     SaveServer,
     Research,
     Creatures,
-    AlteredItems
+    AlteredItems,
+    Hiss
   }
 
   require Logger
@@ -90,6 +91,7 @@ defmodule Spheric.Game.WorldServer do
     Creatures.init()
     AlteredItems.init()
     Spheric.Game.ObjectsOfPower.init()
+    Hiss.init()
 
     # Try to load an existing world from the database
     {world_id, actual_seed} =
@@ -135,6 +137,9 @@ defmodule Spheric.Game.WorldServer do
 
       not Research.can_place?(owner[:id], type) ->
         {:reply, {:error, :not_unlocked}, state}
+
+      Hiss.blocks_placement?(key) and type not in [:purification_beacon, :defense_turret] ->
+        {:reply, {:error, :corrupted_tile}, state}
 
       true ->
         initial_state = Buildings.initial_state(type)
@@ -187,6 +192,9 @@ defmodule Spheric.Game.WorldServer do
 
           not Research.can_place?(owner[:id], type) ->
             {key, {:error, :not_unlocked}}
+
+          Hiss.blocks_placement?(key) and type not in [:purification_beacon, :defense_turret] ->
+            {key, {:error, :corrupted_tile}}
 
           true ->
             initial_state = Buildings.initial_state(type)
@@ -296,6 +304,43 @@ defmodule Spheric.Game.WorldServer do
       broadcast_creature_sync()
     end
 
+    # --- Hiss Corruption Processing ---
+
+    # Seed new corruption zones
+    new_corruption = Hiss.maybe_seed_corruption(new_tick, state.seed)
+    broadcast_corruption_updates(new_corruption)
+
+    # Spread existing corruption
+    spread_updates = Hiss.spread_corruption(new_tick)
+    broadcast_corruption_updates(spread_updates)
+
+    # Process purification beacons (clear corruption)
+    purified = Hiss.process_purification(new_tick)
+    broadcast_corruption_cleared(purified)
+
+    # Building damage from corruption
+    damage_results = Hiss.process_building_damage(new_tick)
+    broadcast_building_damage(damage_results)
+
+    # Spawn Hiss entities
+    spawned_hiss = Hiss.maybe_spawn_hiss_entities(new_tick, state.seed)
+    broadcast_hiss_spawns(spawned_hiss)
+
+    # Move Hiss entities
+    moved_hiss = Hiss.move_hiss_entities(new_tick)
+    broadcast_hiss_moves(moved_hiss)
+
+    # Combat: turrets and creatures vs Hiss entities
+    {kills, drops} = Hiss.process_combat(new_tick)
+    broadcast_hiss_kills(kills)
+    process_hiss_drops(drops)
+
+    # Broadcast full corruption sync every 10 ticks
+    if rem(new_tick, 10) == 0 do
+      broadcast_corruption_sync()
+      broadcast_hiss_sync()
+    end
+
     schedule_tick()
     {:noreply, %{state | tick: new_tick, prev_item_faces: current_item_faces}}
   end
@@ -373,6 +418,141 @@ defmodule Spheric.Game.WorldServer do
         Spheric.PubSub,
         "world:face:#{face_id}",
         {:creature_sync, face_id, creatures}
+      )
+    end
+  end
+
+  # --- Hiss Corruption Broadcast Helpers ---
+
+  defp broadcast_corruption_updates([]), do: :ok
+
+  defp broadcast_corruption_updates(updates) do
+    by_face =
+      Enum.group_by(updates, fn {{face, _r, _c}, _data} -> face end)
+
+    for {face_id, face_updates} <- by_face do
+      tiles =
+        Enum.map(face_updates, fn {{face, row, col}, data} ->
+          %{face: face, row: row, col: col, intensity: data.intensity}
+        end)
+
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{face_id}",
+        {:corruption_update, face_id, tiles}
+      )
+    end
+  end
+
+  defp broadcast_corruption_cleared([]), do: :ok
+
+  defp broadcast_corruption_cleared(purified_keys) do
+    by_face = Enum.group_by(purified_keys, fn {face, _r, _c} -> face end)
+
+    for {face_id, keys} <- by_face do
+      tiles = Enum.map(keys, fn {face, row, col} -> %{face: face, row: row, col: col} end)
+
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{face_id}",
+        {:corruption_cleared, face_id, tiles}
+      )
+    end
+  end
+
+  defp broadcast_building_damage([]), do: :ok
+
+  defp broadcast_building_damage(results) do
+    for {key, action} <- results do
+      {face_id, _row, _col} = key
+
+      if action == :destroyed do
+        Phoenix.PubSub.broadcast(
+          Spheric.PubSub,
+          "world:face:#{face_id}",
+          {:building_removed, key}
+        )
+      end
+
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{face_id}",
+        {:building_damage, key, action}
+      )
+    end
+  end
+
+  defp broadcast_hiss_spawns([]), do: :ok
+
+  defp broadcast_hiss_spawns(spawned) do
+    for {id, entity} <- spawned do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{entity.face}",
+        {:hiss_spawned, id, entity}
+      )
+    end
+  end
+
+  defp broadcast_hiss_moves([]), do: :ok
+
+  defp broadcast_hiss_moves(moved) do
+    for {id, entity} <- moved do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{entity.face}",
+        {:hiss_moved, id, entity}
+      )
+    end
+  end
+
+  defp broadcast_hiss_kills([]), do: :ok
+
+  defp broadcast_hiss_kills(kills) do
+    for {hiss_id, killer} <- kills do
+      # Broadcast on all faces since we don't track the entity's face after deletion
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:0",
+        {:hiss_killed, hiss_id, killer}
+      )
+    end
+  end
+
+  defp process_hiss_drops([]), do: :ok
+
+  defp process_hiss_drops(drops) do
+    # Place hiss_residue into turret output buffers
+    for {turret_key, item} <- drops do
+      building = WorldStore.get_building(turret_key)
+
+      if building && building.state[:output_buffer] == nil do
+        new_state = %{building.state | output_buffer: item, kills: (building.state[:kills] || 0) + 1}
+        WorldStore.put_building(turret_key, %{building | state: new_state})
+      end
+    end
+  end
+
+  defp broadcast_corruption_sync do
+    by_face = Hiss.corrupted_by_face()
+
+    for {face_id, tiles} <- by_face do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{face_id}",
+        {:corruption_sync, face_id, tiles}
+      )
+    end
+  end
+
+  defp broadcast_hiss_sync do
+    by_face = Hiss.hiss_entities_by_face()
+
+    for {face_id, entities} <- by_face do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{face_id}",
+        {:hiss_sync, face_id, entities}
       )
     end
   end
