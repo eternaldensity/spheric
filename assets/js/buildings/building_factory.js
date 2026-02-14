@@ -10,6 +10,7 @@ const COLORS = {
   refinery: 0x2288aa,
   splitter: 0x22aa88,
   merger: 0x8844aa,
+  submission_terminal: 0xaa8833,
 };
 
 function makeMaterial(color) {
@@ -156,6 +157,30 @@ function createRefinery() {
   return group;
 }
 
+function createSubmissionTerminal() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.submission_terminal);
+
+  // Pedestal base
+  const base = new THREE.Mesh(new THREE.BoxGeometry(s * 1.0, s * 0.5, s * 1.0), mat);
+  base.position.y = s * 0.25;
+  group.add(base);
+
+  // Upright panel (the terminal screen)
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(s * 0.8, s * 0.7, s * 0.15), mat);
+  panel.position.set(0, s * 0.85, -s * 0.3);
+  group.add(panel);
+
+  // Screen surface (darker inset)
+  const screenMat = makeMaterial(0x334422);
+  const screen = new THREE.Mesh(new THREE.BoxGeometry(s * 0.6, s * 0.45, s * 0.05), screenMat);
+  screen.position.set(0, s * 0.9, -s * 0.2);
+  group.add(screen);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
@@ -164,6 +189,7 @@ const BUILDERS = {
   refinery: createRefinery,
   splitter: createSplitter,
   merger: createMerger,
+  submission_terminal: createSubmissionTerminal,
 };
 
 /**

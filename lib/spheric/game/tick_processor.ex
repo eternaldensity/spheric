@@ -16,13 +16,16 @@ defmodule Spheric.Game.TickProcessor do
   alias Spheric.Game.{WorldStore, Behaviors}
   alias Spheric.Geometry.TileNeighbors
 
+  require Logger
+
   @doc """
   Process one tick. Returns `{tick, items_by_face}`.
   """
   def process_tick(tick) do
     buildings = gather_all_buildings()
 
-    {miners, _conveyors, smelters, assemblers, refineries, _others} = classify(buildings)
+    {miners, _conveyors, smelters, assemblers, refineries, terminals, _others} =
+      classify(buildings)
 
     # Phase 1: Miners tick
     miner_updates =
@@ -48,11 +51,29 @@ defmodule Spheric.Game.TickProcessor do
         {key, Behaviors.Assembler.tick(key, building)}
       end)
 
+    # Phase 2d: Submission terminals tick (consume items, report submissions)
+    {terminal_updates, submissions} =
+      Enum.reduce(terminals, {[], []}, fn {key, building}, {updates, subs} ->
+        {updated, consumed_item} = Behaviors.SubmissionTerminal.tick(key, building)
+
+        new_updates = [{key, updated} | updates]
+
+        new_subs =
+          if consumed_item do
+            [{key, building.owner_id, consumed_item} | subs]
+          else
+            subs
+          end
+
+        {new_updates, new_subs}
+      end)
+
     # Merge updates into the full building map
     all_buildings =
       merge_updates(
         buildings,
-        miner_updates ++ smelter_updates ++ refinery_updates ++ assembler_updates
+        miner_updates ++
+          smelter_updates ++ refinery_updates ++ assembler_updates ++ terminal_updates
       )
 
     # Phase 3: Push resolution — move items between buildings
@@ -64,7 +85,7 @@ defmodule Spheric.Game.TickProcessor do
     # Build per-face item state for broadcasting
     items_by_face = build_item_snapshot(final_buildings, movements)
 
-    {tick, items_by_face}
+    {tick, items_by_face, submissions}
   end
 
   defp gather_all_buildings do
@@ -76,14 +97,16 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   defp classify(buildings) do
-    Enum.reduce(buildings, {[], [], [], [], [], []}, fn {key, building}, {m, c, s, a, r, o} ->
+    Enum.reduce(buildings, {[], [], [], [], [], [], []}, fn {key, building},
+                                                            {m, c, s, a, r, t, o} ->
       case building.type do
-        :miner -> {[{key, building} | m], c, s, a, r, o}
-        :conveyor -> {m, [{key, building} | c], s, a, r, o}
-        :smelter -> {m, c, [{key, building} | s], a, r, o}
-        :assembler -> {m, c, s, [{key, building} | a], r, o}
-        :refinery -> {m, c, s, a, [{key, building} | r], o}
-        _ -> {m, c, s, a, r, [{key, building} | o]}
+        :miner -> {[{key, building} | m], c, s, a, r, t, o}
+        :conveyor -> {m, [{key, building} | c], s, a, r, t, o}
+        :smelter -> {m, c, [{key, building} | s], a, r, t, o}
+        :assembler -> {m, c, s, [{key, building} | a], r, t, o}
+        :refinery -> {m, c, s, a, [{key, building} | r], t, o}
+        :submission_terminal -> {m, c, s, a, r, [{key, building} | t], o}
+        _ -> {m, c, s, a, r, t, [{key, building} | o]}
       end
     end)
   end
@@ -219,6 +242,17 @@ defmodule Spheric.Game.TickProcessor do
   defp try_accept(_key, %{type: :refinery, state: %{input_buffer: nil}}, [winner | _], _n),
     do: winner
 
+  # Submission terminal: accepts any item into input_buffer from the rear
+  defp try_accept(
+         dest_key,
+         %{type: :submission_terminal, orientation: dir, state: %{input_buffer: nil}},
+         requests,
+         n
+       ) do
+    rear_dir = rem(dir + 2, 4)
+    accept_from_direction(dest_key, rear_dir, requests, n)
+  end
+
   # Assembler: accepts from rear, routes item to correct input slot via dual-input logic
   defp try_accept(dest_key, %{type: :assembler, orientation: dir, state: state}, requests, n) do
     rear_dir = rem(dir + 2, 4)
@@ -333,6 +367,9 @@ defmodule Spheric.Game.TickProcessor do
 
           :merger ->
             %{b | state: %{b.state | item: item}}
+
+          :submission_terminal ->
+            %{b | state: %{b.state | input_buffer: item}}
 
           _ ->
             b

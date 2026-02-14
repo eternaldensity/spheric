@@ -30,6 +30,7 @@ const BUILDING_FILLS = {
   refinery: "#2288aa",
   splitter: "#22aa88",
   merger: "#8844aa",
+  submission_terminal: "#aa8833",
 };
 
 // Building icon glyphs (drawn procedurally)
@@ -41,6 +42,7 @@ const BUILDING_GLYPHS = {
   refinery: drawRefineryGlyph,
   splitter: drawSplitterGlyph,
   merger: drawMergerGlyph,
+  submission_terminal: drawSubmissionTerminalGlyph,
 };
 
 const PIXELS_PER_TILE = 32;
@@ -284,5 +286,21 @@ function drawMergerGlyph(ctx, r) {
   ctx.lineTo(0, 0);
   ctx.lineWidth = r * 0.3;
   ctx.stroke();
+  ctx.lineWidth = 1.5;
+}
+
+function drawSubmissionTerminalGlyph(ctx, r) {
+  // Box with an arrow pointing into it (item sink)
+  ctx.fillRect(-r * 0.6, -r * 0.5, r * 1.2, r * 1.0);
+  ctx.strokeRect(-r * 0.6, -r * 0.5, r * 1.2, r * 1.0);
+
+  // Inward arrow (from left toward center)
+  ctx.strokeStyle = "rgba(0,0,0,0.5)";
+  ctx.lineWidth = r * 0.2;
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.9, 0);
+  ctx.lineTo(-r * 0.2, 0);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
   ctx.lineWidth = 1.5;
 }

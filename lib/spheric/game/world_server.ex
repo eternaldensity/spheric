@@ -11,7 +11,15 @@ defmodule Spheric.Game.WorldServer do
 
   use GenServer
 
-  alias Spheric.Game.{WorldStore, WorldGen, Buildings, TickProcessor, Persistence, SaveServer}
+  alias Spheric.Game.{
+    WorldStore,
+    WorldGen,
+    Buildings,
+    TickProcessor,
+    Persistence,
+    SaveServer,
+    Research
+  }
 
   require Logger
 
@@ -76,6 +84,7 @@ defmodule Spheric.Game.WorldServer do
     Logger.info("WorldServer starting (seed=#{seed}, subdivisions=#{subdivisions})")
 
     WorldStore.init()
+    Research.init()
 
     # Try to load an existing world from the database
     {world_id, actual_seed} =
@@ -119,6 +128,9 @@ defmodule Spheric.Game.WorldServer do
       not Buildings.can_place_on?(type, tile) ->
         {:reply, {:error, :invalid_placement}, state}
 
+      not Research.can_place?(owner[:id], type) ->
+        {:reply, {:error, :not_unlocked}, state}
+
       true ->
         building = %{
           type: type,
@@ -158,6 +170,9 @@ defmodule Spheric.Game.WorldServer do
 
           not Buildings.can_place_on?(type, tile) ->
             {key, {:error, :invalid_placement}}
+
+          not Research.can_place?(owner[:id], type) ->
+            {key, {:error, :not_unlocked}}
 
           true ->
             building = %{
@@ -216,7 +231,7 @@ defmodule Spheric.Game.WorldServer do
   def handle_info(:tick, state) do
     new_tick = state.tick + 1
 
-    {_tick, items_by_face} = TickProcessor.process_tick(new_tick)
+    {_tick, items_by_face, submissions} = TickProcessor.process_tick(new_tick)
 
     current_item_faces = items_by_face |> Map.keys() |> MapSet.new()
 
@@ -239,8 +254,38 @@ defmodule Spheric.Game.WorldServer do
       )
     end
 
+    # Process research submissions from submission terminals
+    process_submissions(submissions, state.world_id)
+
     schedule_tick()
     {:noreply, %{state | tick: new_tick, prev_item_faces: current_item_faces}}
+  end
+
+  defp process_submissions([], _world_id), do: :ok
+
+  defp process_submissions(submissions, world_id) do
+    for {_key, player_id, item} <- submissions, player_id != nil do
+      case Research.submit_item(world_id, player_id, item) do
+        {:completed, case_file_id} ->
+          Logger.info("Case file completed: #{case_file_id} by #{player_id}")
+
+          Phoenix.PubSub.broadcast(
+            Spheric.PubSub,
+            "research:#{player_id}",
+            {:case_file_completed, case_file_id}
+          )
+
+        {:ok, _submissions} ->
+          Phoenix.PubSub.broadcast(
+            Spheric.PubSub,
+            "research:#{player_id}",
+            {:research_progress, item}
+          )
+
+        :no_match ->
+          :ok
+      end
+    end
   end
 
   @impl true

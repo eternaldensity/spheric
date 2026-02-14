@@ -3,7 +3,7 @@ defmodule SphericWeb.GameLive do
 
   alias Spheric.Geometry.RhombicTriacontahedron, as: RT
   alias Spheric.Geometry.Coordinate
-  alias Spheric.Game.{WorldServer, WorldStore, Buildings, Persistence}
+  alias Spheric.Game.{WorldServer, WorldStore, Buildings, Persistence, Research}
   alias SphericWeb.Presence
 
   require Logger
@@ -42,6 +42,20 @@ defmodule SphericWeb.GameLive do
     # Persist player identity mapping (id -> name, color)
     if connected?(socket), do: Persistence.upsert_player(player_id, player_name, player_color)
 
+    # Load research unlocks and subscribe to research updates
+    world_id =
+      if connected?(socket) do
+        case Spheric.Repo.get_by(Spheric.Game.Schema.World, name: "default") do
+          nil -> nil
+          world -> world.id
+        end
+      end
+
+    if connected?(socket) and world_id do
+      Research.load_player_unlocks(world_id, player_id)
+      Phoenix.PubSub.subscribe(Spheric.PubSub, "research:#{player_id}")
+    end
+
     # Track presence (only when connected)
     if connected?(socket) do
       Presence.track(self(), @presence_topic, player_id, %{
@@ -50,6 +64,10 @@ defmodule SphericWeb.GameLive do
         camera: %{x: camera.x, y: camera.y, z: camera.z}
       })
     end
+
+    unlocked = if world_id, do: Research.unlocked_buildings(player_id), else: Buildings.types()
+    research_summary = if world_id, do: Research.progress_summary(world_id, player_id), else: []
+    clearance = if world_id, do: Research.clearance_level(player_id), else: 0
 
     socket =
       socket
@@ -62,11 +80,15 @@ defmodule SphericWeb.GameLive do
       |> assign(:camera_pos, {camera.x, camera.y, camera.z})
       |> assign(:visible_faces, initial_faces)
       |> assign(:subscribed_faces, initial_faces)
-      |> assign(:building_types, Buildings.types())
+      |> assign(:building_types, unlocked)
       |> assign(:line_mode, false)
       |> assign(:player_id, player_id)
       |> assign(:player_name, player_name)
       |> assign(:player_color, player_color)
+      |> assign(:world_id, world_id)
+      |> assign(:show_research, false)
+      |> assign(:research_summary, research_summary)
+      |> assign(:clearance_level, clearance)
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
 
     # Tell the client to restore camera and persist any newly-generated identity
@@ -164,7 +186,60 @@ defmodule SphericWeb.GameLive do
       </div>
     </div>
 
+    <div
+      :if={@show_research}
+      style="position: fixed; top: 50px; right: 16px; background: rgba(10,10,15,0.92); color: #ddd; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 280px; max-width: 340px; max-height: 70vh; overflow-y: auto; border: 1px solid #333;"
+    >
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #444; padding-bottom: 8px;">
+        <span style="font-size: 14px; color: #fc8;">CASE FILES</span>
+        <span style="font-size: 11px; color: #888;">Clearance L{@clearance_level}</span>
+      </div>
+      <div
+        :for={cf <- @research_summary}
+        style={"margin-bottom: 10px; padding: 8px; border: 1px solid #{if cf.completed, do: "#4a4", else: "#444"}; border-radius: 4px; background: #{if cf.completed, do: "rgba(68,170,68,0.08)", else: "rgba(255,255,255,0.03)"};"}
+      >
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style={"color: #{if cf.completed, do: "#4a4", else: "#ddd"}; font-size: 12px;"}>
+            {cf.name}
+          </span>
+          <span style={"font-size: 10px; color: #{if cf.completed, do: "#4a4", else: "#888"};"}>
+            {if cf.completed, do: "COMPLETE", else: "L#{cf.clearance}"}
+          </span>
+        </div>
+        <div style="color: #888; font-size: 10px; margin-top: 2px;">{cf.description}</div>
+        <div :for={req <- cf.requirements} style="margin-top: 4px; font-size: 11px;">
+          <span style={"color: #{if req.submitted >= req.required, do: "#4a4", else: "#fc8"};"}>
+            {req.item}
+          </span>
+          <span style="color: #888;">
+            {req.submitted}/{req.required}
+          </span>
+          <div style="background: #222; height: 3px; border-radius: 2px; margin-top: 2px;">
+            <div style={"background: #{if req.submitted >= req.required, do: "#4a4", else: "#fc8"}; height: 3px; border-radius: 2px; width: #{min(100, trunc(req.submitted / max(req.required, 1) * 100))}%;"}>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div style="position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; padding: 12px; background: rgba(0,0,0,0.75); pointer-events: auto;">
+      <button
+        phx-click="toggle_research"
+        style={"
+          padding: 8px 12px;
+          border: 2px solid #{if @show_research, do: "#fc8", else: "#666"};
+          border-radius: 6px;
+          background: #{if @show_research, do: "rgba(255,204,136,0.2)", else: "rgba(255,255,255,0.1)"};
+          color: #{if @show_research, do: "#fc8", else: "#999"};
+          cursor: pointer;
+          font-family: monospace;
+          font-size: 13px;
+          margin-right: 8px;
+        "}
+        title="Case Files (F key)"
+      >
+        Files
+      </button>
       <button
         :for={type <- @building_types}
         phx-click="select_building"
@@ -403,6 +478,16 @@ defmodule SphericWeb.GameLive do
   end
 
   @impl true
+  def handle_event("toggle_research", _params, socket) do
+    {:noreply, assign(socket, :show_research, !socket.assigns.show_research)}
+  end
+
+  @impl true
+  def handle_event("keydown", %{"key" => "f"}, socket) do
+    {:noreply, assign(socket, :show_research, !socket.assigns.show_research)}
+  end
+
+  @impl true
   def handle_event("keydown", %{"key" => "r"}, socket) do
     if socket.assigns.selected_building_type do
       new_orientation = rem(socket.assigns.placement_orientation + 3, 4)
@@ -525,6 +610,18 @@ defmodule SphericWeb.GameLive do
     end
   end
 
+  # --- Research Handlers ---
+
+  @impl true
+  def handle_info({:case_file_completed, _case_file_id}, socket) do
+    refresh_research(socket)
+  end
+
+  @impl true
+  def handle_info({:research_progress, _item}, socket) do
+    refresh_research(socket)
+  end
+
   # --- Terrain Streaming ---
 
   @impl true
@@ -576,6 +673,27 @@ defmodule SphericWeb.GameLive do
 
         %{t: Atom.to_string(tile.terrain), r: resource_type}
       end
+    end
+  end
+
+  defp refresh_research(socket) do
+    world_id = socket.assigns.world_id
+    player_id = socket.assigns.player_id
+
+    if world_id do
+      research_summary = Research.progress_summary(world_id, player_id)
+      clearance = Research.clearance_level(player_id)
+      unlocked = Research.unlocked_buildings(player_id)
+
+      socket =
+        socket
+        |> assign(:research_summary, research_summary)
+        |> assign(:clearance_level, clearance)
+        |> assign(:building_types, unlocked)
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
     end
   end
 
@@ -670,6 +788,19 @@ defmodule SphericWeb.GameLive do
       state[:output_buffer] != nil -> "Output: #{state.output_buffer}"
       state[:input_buffer] != nil -> "Refining... #{state.progress}/#{state.rate}"
       true -> "Idle"
+    end
+  end
+
+  defp building_status_text(%{type: :submission_terminal, state: state}) do
+    cond do
+      state[:input_buffer] != nil ->
+        "Receiving: #{state.input_buffer}"
+
+      state[:last_submitted] != nil ->
+        "Last: #{state.last_submitted} (#{state.total_submitted} total)"
+
+      true ->
+        "Awaiting items"
     end
   end
 
