@@ -43,3 +43,4 @@ npm-debug.log
 .claude/
 .mcp.json
 nul
+priv/data/
