@@ -16,18 +16,21 @@ const CREATURE_COLORS = {
 
 const CREATURE_SCALE = 0.004;
 const CREATURE_HEIGHT = 1.015; // Above sphere, below items
+const MOVE_DURATION = 1.0; // seconds — matches server @move_interval (5 ticks × 200ms)
 
 /**
  * CreatureRenderer manages the 3D meshes for wild creatures on the sphere.
  * Uses an object pool to avoid creating/destroying meshes every frame.
  * Creatures bob and rotate gently for visual life.
+ * Movement is smoothly interpolated between tile positions.
  */
 export class CreatureRenderer {
   constructor(scene, getTileCenter) {
     this.scene = scene;
     this.getTileCenter = getTileCenter;
     this.pool = [];
-    this.active = new Map(); // creature_id -> { mesh, data }
+    // creature_id -> { mesh, data, fromPos, toPos, moveT, moveStarted }
+    this.active = new Map();
     this.materials = {};
     this.time = 0;
 
@@ -92,12 +95,23 @@ export class CreatureRenderer {
       let entry = this.active.get(c.id);
       if (!entry) {
         const mesh = this.acquireMesh(c.type);
-        entry = { mesh, data: c };
+        const pos = this.getTileCenter(c.face, c.row, c.col);
+        entry = { mesh, data: c, fromPos: pos, toPos: pos, moveT: 1.0 };
         this.active.set(c.id, entry);
+      } else if (
+        c.face !== entry.data.face ||
+        c.row !== entry.data.row ||
+        c.col !== entry.data.col
+      ) {
+        // Position changed via sync — snap toPos to corrected location
+        const pos = this.getTileCenter(c.face, c.row, c.col);
+        entry.toPos = pos;
+        entry.data = c;
+        // If already done moving, snap immediately; otherwise let current lerp finish to new target
+        if (entry.moveT >= 1.0) {
+          entry.fromPos = pos;
+        }
       }
-
-      // Update data
-      entry.data = c;
 
       // Update material if type changed
       const mat = this.materials[c.type];
@@ -111,21 +125,32 @@ export class CreatureRenderer {
         entry.mesh.geometry = geo;
       }
 
-      // Position on sphere
-      const pos = this.getTileCenter(c.face, c.row, c.col);
-      if (pos) {
-        const normal = pos.clone().normalize();
+      // Advance interpolation
+      if (entry.moveT < 1.0) {
+        entry.moveT = Math.min(entry.moveT + deltaTime / MOVE_DURATION, 1.0);
+      }
+
+      // Interpolate position on sphere surface
+      if (entry.fromPos && entry.toPos) {
+        // Smooth ease-in-out
+        const t = entry.moveT;
+        const smooth = t * t * (3 - 2 * t);
+
+        // Slerp between the two surface normals for arc movement
+        const from = entry.fromPos.clone().normalize();
+        const to = entry.toPos.clone().normalize();
+        const interp = from.lerp(to, smooth).normalize();
 
         // Bob up and down gently
         const bobOffset =
           Math.sin(this.time * 3 + c.id.charCodeAt(9) * 0.5) * 0.001;
         entry.mesh.position
-          .copy(normal)
+          .copy(interp)
           .multiplyScalar(CREATURE_HEIGHT + bobOffset);
-
-        // Gentle rotation
-        entry.mesh.rotation.y += deltaTime * 1.5;
       }
+
+      // Gentle rotation
+      entry.mesh.rotation.y += deltaTime * 1.5;
 
       entry.mesh.visible = true;
     }
@@ -157,7 +182,7 @@ export class CreatureRenderer {
   }
 
   /**
-   * Handle a creature spawn event (add immediately).
+   * Handle a creature spawn event (add immediately, no lerp).
    */
   onCreatureSpawned(id, creature) {
     if (this.active.has(id)) return;
@@ -169,17 +194,27 @@ export class CreatureRenderer {
       mesh.position.copy(normal).multiplyScalar(CREATURE_HEIGHT);
     }
     mesh.visible = true;
-    this.active.set(id, { mesh, data: creature });
+    this.active.set(id, {
+      mesh,
+      data: creature,
+      fromPos: pos,
+      toPos: pos,
+      moveT: 1.0,
+    });
   }
 
   /**
-   * Handle a creature move event (update position).
+   * Handle a creature move event (start smooth interpolation to new tile).
    */
   onCreatureMoved(id, creature) {
     const entry = this.active.get(id);
     if (entry) {
+      // Current interpolated position becomes the start of the new lerp
+      const newPos = this.getTileCenter(creature.face, creature.row, creature.col);
+      entry.fromPos = entry.toPos;
+      entry.toPos = newPos;
+      entry.moveT = 0.0;
       entry.data = creature;
-      // Position update happens in next update() call
     } else {
       this.onCreatureSpawned(id, creature);
     }
