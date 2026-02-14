@@ -507,6 +507,12 @@ const GameRenderer = {
       }
     });
 
+    this.handleEvent("save_hotbar", ({ hotbar }) => {
+      try {
+        localStorage.setItem("spheric_hotbar", JSON.stringify(hotbar));
+      } catch (_e) { /* localStorage unavailable */ }
+    });
+
     this.handleEvent("players_update", ({ players }) => {
       this.updatePlayerMarkers(players);
     });

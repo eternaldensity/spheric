@@ -88,6 +88,73 @@ defmodule Spheric.Game.Buildings do
   def display_name(:paranatural_synthesizer), do: "Synthesizer"
   def display_name(:board_interface), do: "Board"
 
+  @categories [
+    :logistics,
+    :production,
+    :advanced,
+    :power,
+    :storage,
+    :defense
+  ]
+
+  @doc "Returns the ordered list of category atoms."
+  def categories, do: @categories
+
+  @doc "Returns the display name for a building category."
+  def category_display_name(:logistics), do: "Logistics"
+  def category_display_name(:production), do: "Production"
+  def category_display_name(:advanced), do: "Advanced"
+  def category_display_name(:power), do: "Power & Energy"
+  def category_display_name(:storage), do: "Storage & Trade"
+  def category_display_name(:defense), do: "Defense & Paranatural"
+
+  @doc "Returns the category for a building type."
+  def category(:conveyor), do: :logistics
+  def category(:conveyor_mk2), do: :logistics
+  def category(:conveyor_mk3), do: :logistics
+  def category(:splitter), do: :logistics
+  def category(:merger), do: :logistics
+  def category(:balancer), do: :logistics
+  def category(:underground_conduit), do: :logistics
+  def category(:crossover), do: :logistics
+  def category(:transfer_station), do: :logistics
+  def category(:miner), do: :production
+  def category(:smelter), do: :production
+  def category(:assembler), do: :production
+  def category(:refinery), do: :production
+  def category(:advanced_smelter), do: :production
+  def category(:advanced_assembler), do: :production
+  def category(:fabrication_plant), do: :advanced
+  def category(:particle_collider), do: :advanced
+  def category(:nuclear_refinery), do: :advanced
+  def category(:paranatural_synthesizer), do: :advanced
+  def category(:board_interface), do: :advanced
+  def category(:bio_generator), do: :power
+  def category(:shadow_panel), do: :power
+  def category(:lamp), do: :power
+  def category(:substation), do: :power
+  def category(:essence_extractor), do: :power
+  def category(:storage_container), do: :storage
+  def category(:submission_terminal), do: :storage
+  def category(:trade_terminal), do: :storage
+  def category(:gathering_post), do: :storage
+  def category(:purification_beacon), do: :defense
+  def category(:defense_turret), do: :defense
+  def category(:containment_trap), do: :defense
+  def category(:claim_beacon), do: :defense
+  def category(:dimensional_stabilizer), do: :defense
+  def category(:astral_projection_chamber), do: :defense
+
+  @doc "Returns buildings grouped by category as a keyword list."
+  def buildings_by_category do
+    Enum.map(@categories, fn cat ->
+      {cat, Enum.filter(@types, fn t -> category(t) == cat end)}
+    end)
+  end
+
+  @doc "Returns the default hotbar for new players."
+  def default_hotbar, do: [:conveyor, :miner, :smelter, nil, nil]
+
   @doc """
   Check if a building type can be placed on the given tile data.
 

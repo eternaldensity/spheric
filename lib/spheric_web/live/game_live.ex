@@ -126,6 +126,10 @@ defmodule SphericWeb.GameLive do
       |> assign(:stats_summary, [])
       |> assign(:blueprint_mode, nil)
       |> assign(:blueprint_count, 0)
+      |> assign(:hotbar, restore_hotbar(if(connected?(socket), do: get_connect_params(socket), else: %{}), unlocked))
+      |> assign(:show_catalog, false)
+      |> assign(:catalog_tab, :logistics)
+      |> assign(:catalog_target_slot, nil)
       |> assign(:board_message, nil)
       |> assign(:active_event, WorldEvents.active_event())
       |> assign(:shift_phase, ShiftCycle.current_phase())
@@ -654,13 +658,6 @@ defmodule SphericWeb.GameLive do
       {world_event_label(@active_event)}
     </div>
 
-    <%!-- === SHIFT CYCLE INDICATOR (bottom-left) === --%>
-    <div style="position: fixed; bottom: 60px; left: 16px; background: var(--fbc-panel); color: var(--fbc-text); padding: 6px 12px; border: 1px solid var(--fbc-border); font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; pointer-events: none;">
-      <span style={"color: #{shift_phase_color(@shift_phase)};"}>
-        {shift_phase_label(@shift_phase)}
-      </span>
-    </div>
-
     <%!-- === BOARD CONTACT QUEST PANEL (top-right) === --%>
     <div
       :if={@show_board_contact}
@@ -715,193 +712,235 @@ defmodule SphericWeb.GameLive do
       </div>
     </div>
 
+    <%!-- === FULLSCREEN BUILDING CATALOG === --%>
+    <div
+      :if={@show_catalog}
+      phx-click="close_catalog"
+      style="position: fixed; inset: 0; background: rgba(5,4,3,0.85); z-index: 100; display: flex; align-items: center; justify-content: center; pointer-events: auto;"
+    >
+      <div
+        phx-click="noop"
+        style="width: min(900px, 90vw); max-height: 80vh; background: var(--fbc-panel-solid); border: 1px solid var(--fbc-border); display: flex; flex-direction: column; font-family: 'Courier New', monospace;"
+      >
+        <%!-- Catalog header --%>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--fbc-border);">
+          <span style="font-size: 14px; color: var(--fbc-cream); text-transform: uppercase; letter-spacing: 0.15em;">
+            Building Catalog
+          </span>
+          <button
+            phx-click="close_catalog"
+            style="padding: 4px 10px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.04); color: var(--fbc-text-dim); cursor: pointer; font-family: 'Courier New', monospace; font-size: 11px; text-transform: uppercase;"
+          >
+            Close (Esc)
+          </button>
+        </div>
+        <%!-- Category tabs --%>
+        <div style="display: flex; gap: 0; border-bottom: 1px solid var(--fbc-border); overflow-x: auto;">
+          <button
+            :for={cat <- Buildings.categories()}
+            phx-click="catalog_tab"
+            phx-value-tab={cat}
+            style={"
+              padding: 10px 16px;
+              border: none;
+              border-bottom: 2px solid #{if @catalog_tab == cat, do: "var(--fbc-accent)", else: "transparent"};
+              background: #{if @catalog_tab == cat, do: "rgba(204,51,51,0.1)", else: "transparent"};
+              color: #{if @catalog_tab == cat, do: "var(--fbc-accent)", else: "var(--fbc-text-dim)"};
+              cursor: pointer;
+              font-family: 'Courier New', monospace;
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              white-space: nowrap;
+            "}
+          >
+            {Buildings.category_display_name(cat)}
+          </button>
+        </div>
+        <%!-- Building grid --%>
+        <div style="padding: 16px; overflow-y: auto; flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; align-content: start;">
+          <button
+            :for={type <- catalog_buildings(@catalog_tab, @building_types)}
+            phx-click="catalog_select"
+            phx-value-type={type}
+            style={"
+              padding: 12px 10px;
+              border: 1px solid #{if @selected_building_type == type, do: "var(--fbc-accent)", else: "var(--fbc-border)"};
+              background: #{if @selected_building_type == type, do: "rgba(204,51,51,0.12)", else: "rgba(255,255,255,0.03)"};
+              color: #{if @selected_building_type == type, do: "var(--fbc-accent)", else: "var(--fbc-text)"};
+              cursor: pointer;
+              font-family: 'Courier New', monospace;
+              font-size: 12px;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              text-align: center;
+            "}
+          >
+            {Lore.display_name(type)}
+          </button>
+          <div
+            :if={catalog_buildings(@catalog_tab, @building_types) == []}
+            style="grid-column: 1 / -1; color: var(--fbc-text-dim); font-size: 11px; text-align: center; padding: 20px;"
+          >
+            No buildings unlocked in this category.
+          </div>
+        </div>
+        <%!-- Catalog footer hint --%>
+        <div
+          :if={@catalog_target_slot != nil}
+          style="padding: 8px 18px; border-top: 1px solid var(--fbc-border); color: var(--fbc-text-dim); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;"
+        >
+          Assigning to hotbar slot {@catalog_target_slot + 1}
+        </div>
+      </div>
+    </div>
+
     <%!-- === BOTTOM TOOLBAR === --%>
-    <div style="position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; padding: 12px; background: var(--fbc-panel); border-top: 1px solid var(--fbc-border); pointer-events: auto;">
+    <div style="position: fixed; bottom: 0; left: 0; right: 0; display: flex; align-items: center; gap: 4px; padding: 8px 12px; background: var(--fbc-panel); border-top: 1px solid var(--fbc-border); pointer-events: auto; z-index: 50;">
+      <%!-- Panel toggle buttons --%>
       <button
         phx-click="toggle_research"
-        style={"
-          padding: 8px 12px;
-          border: 1px solid #{if @show_research, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
-          background: #{if @show_research, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
-          color: #{if @show_research, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
-          cursor: pointer;
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        "}
-        title="Case Files (F key)"
+        style={"padding: 6px 10px; border: 1px solid #{if @show_research, do: "var(--fbc-highlight)", else: "var(--fbc-border)"}; background: #{if @show_research, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"}; color: #{if @show_research, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;"}
+        title="Case Files (F)"
       >
-        Case Files
+        Files
       </button>
       <button
         phx-click="toggle_creatures"
-        style={"
-          padding: 8px 12px;
-          border: 1px solid #{if @show_creatures, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
-          background: #{if @show_creatures, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
-          color: #{if @show_creatures, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
-          cursor: pointer;
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          margin-right: 8px;
-        "}
-        title="Containment Records (C key)"
+        style={"padding: 6px 10px; border: 1px solid #{if @show_creatures, do: "var(--fbc-highlight)", else: "var(--fbc-border)"}; background: #{if @show_creatures, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"}; color: #{if @show_creatures, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;"}
+        title="Entities (C)"
       >
-        Entities
+        Ent
       </button>
       <button
         phx-click="toggle_trading"
-        style={"
-          padding: 8px 12px;
-          border: 1px solid #{if @show_trading, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
-          background: #{if @show_trading, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
-          color: #{if @show_trading, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
-          cursor: pointer;
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          margin-right: 8px;
-        "}
-        title="Exchange Requisitions (T key)"
+        style={"padding: 6px 10px; border: 1px solid #{if @show_trading, do: "var(--fbc-highlight)", else: "var(--fbc-border)"}; background: #{if @show_trading, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"}; color: #{if @show_trading, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;"}
+        title="Trades (T)"
       >
-        Trades
+        Trade
       </button>
       <button
         phx-click="toggle_recipes"
-        style={"
-          padding: 8px 12px;
-          border: 1px solid #{if @show_recipes, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
-          background: #{if @show_recipes, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
-          color: #{if @show_recipes, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
-          cursor: pointer;
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        "}
-        title="Bureau Protocols (B key)"
+        style={"padding: 6px 10px; border: 1px solid #{if @show_recipes, do: "var(--fbc-highlight)", else: "var(--fbc-border)"}; background: #{if @show_recipes, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"}; color: #{if @show_recipes, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;"}
+        title="Protocols (B)"
       >
-        Protocols
+        Proto
       </button>
       <button
         phx-click="toggle_stats"
-        style={"
-          padding: 8px 12px;
-          border: 1px solid #{if @show_stats, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
-          background: #{if @show_stats, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
-          color: #{if @show_stats, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
-          cursor: pointer;
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          margin-right: 8px;
-        "}
-        title="Production Report (P key)"
+        style={"padding: 6px 10px; border: 1px solid #{if @show_stats, do: "var(--fbc-highlight)", else: "var(--fbc-border)"}; background: #{if @show_stats, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"}; color: #{if @show_stats, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;"}
+        title="Report (P)"
       >
-        Report
+        Rpt
       </button>
       <button
         phx-click="toggle_board_contact"
-        style={"
-          padding: 8px 12px;
-          border: 1px solid #{if @show_board_contact, do: "var(--fbc-gold)", else: "var(--fbc-border)"};
-          background: #{if @show_board_contact, do: "rgba(204,170,68,0.15)", else: "rgba(255,255,255,0.04)"};
-          color: #{if @show_board_contact, do: "var(--fbc-gold)", else: "var(--fbc-text-dim)"};
-          cursor: pointer;
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        "}
-        title="Board Contact (G key)"
+        style={"padding: 6px 10px; border: 1px solid #{if @show_board_contact, do: "var(--fbc-gold)", else: "var(--fbc-border)"}; background: #{if @show_board_contact, do: "rgba(204,170,68,0.15)", else: "rgba(255,255,255,0.04)"}; color: #{if @show_board_contact, do: "var(--fbc-gold)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;"}
+        title="Board Contact (G)"
       >
-        Contact
+        Board
       </button>
+      <%!-- Blueprint buttons --%>
       <button
         phx-click="blueprint_capture"
-        style={"
-          padding: 8px 12px;
-          border: 1px solid #{if @blueprint_mode == :capture, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
-          background: #{if @blueprint_mode == :capture, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
-          color: #{if @blueprint_mode == :capture, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
-          cursor: pointer;
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          margin-right: 8px;
-        "}
-        title="Capture blueprint (select area)"
+        style={"padding: 6px 10px; border: 1px solid #{if @blueprint_mode == :capture, do: "var(--fbc-highlight)", else: "var(--fbc-border)"}; background: #{if @blueprint_mode == :capture, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"}; color: #{if @blueprint_mode == :capture, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;"}
+        title="Capture blueprint"
       >
-        Capture
+        Cap
       </button>
       <button
         :if={@blueprint_count > 0}
         phx-click="blueprint_stamp"
-        style={"
-          padding: 8px 12px;
-          border: 1px solid #{if @blueprint_mode == :stamp, do: "var(--fbc-highlight)", else: "var(--fbc-border)"};
-          background: #{if @blueprint_mode == :stamp, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"};
-          color: #{if @blueprint_mode == :stamp, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
-          cursor: pointer;
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        "}
-        title="Stamp last blueprint"
+        style={"padding: 6px 10px; border: 1px solid #{if @blueprint_mode == :stamp, do: "var(--fbc-highlight)", else: "var(--fbc-border)"}; background: #{if @blueprint_mode == :stamp, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"}; color: #{if @blueprint_mode == :stamp, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;"}
+        title="Stamp blueprint"
       >
-        Stamp
+        Stp
       </button>
+
+      <%!-- Separator --%>
+      <div style="width: 1px; height: 28px; background: var(--fbc-border); margin: 0 6px;"></div>
+
+      <%!-- Hotbar slots --%>
+      <div style="display: flex; gap: 4px; align-items: center;">
+        <button
+          :for={{slot_type, idx} <- Enum.with_index(@hotbar)}
+          phx-click={if slot_type, do: "hotbar_select", else: "open_catalog"}
+          phx-value-slot={idx}
+          style={"
+            width: 72px;
+            padding: 6px 4px;
+            border: 1px solid #{cond do
+              slot_type && @selected_building_type == slot_type -> "var(--fbc-accent)"
+              slot_type -> "var(--fbc-border-light)"
+              true -> "var(--fbc-border)"
+            end};
+            background: #{cond do
+              slot_type && @selected_building_type == slot_type -> "rgba(204,51,51,0.18)"
+              slot_type -> "rgba(255,255,255,0.06)"
+              true -> "rgba(255,255,255,0.02)"
+            end};
+            color: #{cond do
+              slot_type && @selected_building_type == slot_type -> "var(--fbc-accent)"
+              slot_type -> "var(--fbc-text)"
+              true -> "var(--fbc-text-dim)"
+            end};
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            text-align: center;
+            position: relative;
+          "}
+          title={"Hotbar #{idx + 1} (#{idx + 1} key)#{if slot_type, do: " — Right-click to change", else: " — Click to assign"}"}
+        >
+          <span style="font-size: 8px; color: var(--fbc-text-dim); position: absolute; top: 2px; left: 4px;">{idx + 1}</span>
+          {if slot_type, do: Lore.display_name(slot_type), else: "+"}
+        </button>
+      </div>
+
+      <%!-- Catalog open button --%>
       <button
-        :for={type <- @building_types}
-        phx-click="select_building"
-        phx-value-type={type}
-        style={"
-          padding: 8px 14px;
-          border: 1px solid #{if @selected_building_type == type, do: "var(--fbc-accent)", else: "var(--fbc-border)"};
-          background: #{if @selected_building_type == type, do: "rgba(204,51,51,0.15)", else: "rgba(255,255,255,0.04)"};
-          color: #{if @selected_building_type == type, do: "var(--fbc-accent)", else: "var(--fbc-text)"};
-          cursor: pointer;
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
-          font-weight: #{if @selected_building_type == type, do: "bold", else: "normal"};
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        "}
+        phx-click="open_catalog"
+        style="padding: 6px 10px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.04); color: var(--fbc-text-dim); cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;"
+        title="Building Catalog (Q)"
       >
-        {Lore.display_name(type)}
+        Catalog
       </button>
+
+      <%!-- Building placement controls (when a building is selected) --%>
       <div
         :if={@selected_building_type}
-        style="display: flex; align-items: center; gap: 4px; margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--fbc-border);"
+        style="display: flex; align-items: center; gap: 4px; margin-left: 4px; padding-left: 8px; border-left: 1px solid var(--fbc-border);"
       >
         <button
           phx-click="rotate_building"
-          style="padding: 8px 12px; border: 1px solid var(--fbc-border-light); background: rgba(255,255,255,0.04); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 12px; text-transform: uppercase;"
-          title="Rotate (R key)"
+          style="padding: 6px 10px; border: 1px solid var(--fbc-border-light); background: rgba(255,255,255,0.04); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase;"
+          title="Rotate (R)"
         >
           {direction_label(@placement_orientation)}
         </button>
         <button
           phx-click="toggle_line_mode"
-          style={"padding: 8px 12px; border: 1px solid #{if @line_mode, do: "var(--fbc-highlight)", else: "var(--fbc-border-light)"}; background: #{if @line_mode, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"}; color: #{if @line_mode, do: "var(--fbc-highlight)", else: "var(--fbc-info)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 12px; text-transform: uppercase; font-weight: #{if @line_mode, do: "bold", else: "normal"};"}
-          title="Line draw mode (L key)"
+          style={"padding: 6px 10px; border: 1px solid #{if @line_mode, do: "var(--fbc-highlight)", else: "var(--fbc-border-light)"}; background: #{if @line_mode, do: "rgba(221,170,102,0.15)", else: "rgba(255,255,255,0.04)"}; color: #{if @line_mode, do: "var(--fbc-highlight)", else: "var(--fbc-info)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; font-weight: #{if @line_mode, do: "bold", else: "normal"};"}
+          title="Line mode (L)"
         >
           Line
         </button>
         <button
           phx-click="select_building"
           phx-value-type="none"
-          style="padding: 8px 14px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.04); color: var(--fbc-text-dim); cursor: pointer; font-family: 'Courier New', monospace; font-size: 12px; text-transform: uppercase;"
+          style="padding: 6px 10px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.04); color: var(--fbc-text-dim); cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase;"
         >
           Cancel
         </button>
+      </div>
+
+      <%!-- Shift cycle indicator (right-aligned) --%>
+      <div style="margin-left: auto; color: var(--fbc-text); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; pointer-events: none;">
+        <span style={"color: #{shift_phase_color(@shift_phase)};"}>
+          {shift_phase_label(@shift_phase)}
+        </span>
       </div>
     </div>
     """
@@ -1371,6 +1410,42 @@ defmodule SphericWeb.GameLive do
   end
 
   @impl true
+  def handle_event("keydown", %{"key" => "q"}, socket) do
+    if socket.assigns.show_catalog do
+      handle_event("close_catalog", %{}, socket)
+    else
+      handle_event("open_catalog", %{}, socket)
+    end
+  end
+
+  @impl true
+  def handle_event("keydown", %{"key" => "Escape"}, socket) do
+    cond do
+      socket.assigns.show_catalog ->
+        handle_event("close_catalog", %{}, socket)
+
+      socket.assigns.selected_building_type ->
+        handle_event("select_building", %{"type" => "none"}, socket)
+
+      true ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("keydown", %{"key" => key}, socket)
+      when key in ["1", "2", "3", "4", "5"] do
+    slot_idx = String.to_integer(key) - 1
+    type = Enum.at(socket.assigns.hotbar, slot_idx)
+
+    if type do
+      handle_event("hotbar_select", %{"slot" => Integer.to_string(slot_idx)}, socket)
+    else
+      handle_event("open_catalog", %{"slot" => Integer.to_string(slot_idx)}, socket)
+    end
+  end
+
+  @impl true
   def handle_event("keydown", _params, socket) do
     {:noreply, socket}
   end
@@ -1482,6 +1557,129 @@ defmodule SphericWeb.GameLive do
     else
       {:noreply, socket}
     end
+  end
+
+  # --- Hotbar & Catalog events ---
+
+  @impl true
+  def handle_event("open_catalog", params, socket) do
+    target_slot =
+      case params["slot"] do
+        nil -> nil
+        s when is_binary(s) -> String.to_integer(s)
+        s when is_integer(s) -> s
+      end
+
+    socket =
+      socket
+      |> assign(:show_catalog, true)
+      |> assign(:catalog_target_slot, target_slot)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("close_catalog", _params, socket) do
+    socket =
+      socket
+      |> assign(:show_catalog, false)
+      |> assign(:catalog_target_slot, nil)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("catalog_tab", %{"tab" => tab_str}, socket) do
+    tab = String.to_existing_atom(tab_str)
+
+    if tab in Buildings.categories() do
+      {:noreply, assign(socket, :catalog_tab, tab)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("catalog_select", %{"type" => type_str}, socket) do
+    type = String.to_existing_atom(type_str)
+
+    if Buildings.valid_type?(type) do
+      case socket.assigns.catalog_target_slot do
+        nil ->
+          # No target slot — select for placement and close catalog
+          socket =
+            socket
+            |> assign(:selected_building_type, type)
+            |> assign(:blueprint_mode, nil)
+            |> assign(:show_catalog, false)
+            |> assign(:catalog_target_slot, nil)
+            |> push_event("placement_mode", %{
+              type: type_str,
+              orientation: socket.assigns.placement_orientation
+            })
+            |> push_event("blueprint_mode", %{mode: nil})
+
+          {:noreply, socket}
+
+        slot_idx when is_integer(slot_idx) and slot_idx >= 0 and slot_idx < 5 ->
+          # Assign to hotbar slot
+          hotbar = List.replace_at(socket.assigns.hotbar, slot_idx, type)
+
+          socket =
+            socket
+            |> assign(:hotbar, hotbar)
+            |> assign(:show_catalog, false)
+            |> assign(:catalog_target_slot, nil)
+            |> push_event("save_hotbar", %{hotbar: Enum.map(hotbar, fn t -> if t, do: Atom.to_string(t), else: nil end)})
+
+          {:noreply, socket}
+
+        _ ->
+          {:noreply, assign(socket, :show_catalog, false)}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("hotbar_select", %{"slot" => slot_str}, socket) do
+    slot_idx = String.to_integer(slot_str)
+    type = Enum.at(socket.assigns.hotbar, slot_idx)
+
+    if type && Buildings.valid_type?(type) do
+      socket =
+        socket
+        |> assign(:selected_building_type, type)
+        |> assign(:blueprint_mode, nil)
+        |> push_event("placement_mode", %{
+          type: Atom.to_string(type),
+          orientation: socket.assigns.placement_orientation
+        })
+        |> push_event("blueprint_mode", %{mode: nil})
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("hotbar_clear", %{"slot" => slot_str}, socket) do
+    slot_idx = String.to_integer(slot_str)
+    hotbar = List.replace_at(socket.assigns.hotbar, slot_idx, nil)
+
+    socket =
+      socket
+      |> assign(:hotbar, hotbar)
+      |> push_event("save_hotbar", %{hotbar: Enum.map(hotbar, fn t -> if t, do: Atom.to_string(t), else: nil end)})
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("noop", _params, socket) do
+    {:noreply, socket}
   end
 
   # --- Blueprint events ---
@@ -2331,6 +2529,42 @@ defmodule SphericWeb.GameLive do
 
   defp format_building_key({face, row, col}), do: "F#{face} R#{row} C#{col}"
   defp format_building_key(_), do: "—"
+
+  defp catalog_buildings(category, unlocked_types) do
+    Buildings.buildings_by_category()
+    |> Enum.find(fn {cat, _} -> cat == category end)
+    |> case do
+      {_, types} -> Enum.filter(types, &(&1 in unlocked_types))
+      nil -> []
+    end
+  end
+
+  defp restore_hotbar(params, unlocked_buildings) do
+    case params["hotbar"] do
+      raw when is_binary(raw) and raw != "" ->
+        case Jason.decode(raw) do
+          {:ok, list} when is_list(list) ->
+            list
+            |> Enum.take(5)
+            |> Enum.map(fn
+              nil -> nil
+              "" -> nil
+              s when is_binary(s) ->
+                atom = String.to_existing_atom(s)
+                if atom in unlocked_buildings, do: atom, else: nil
+            end)
+            |> then(fn slots -> slots ++ List.duplicate(nil, 5 - length(slots)) end)
+
+          _ ->
+            Buildings.default_hotbar()
+        end
+
+      _ ->
+        Buildings.default_hotbar()
+    end
+  rescue
+    _ -> Buildings.default_hotbar()
+  end
 
   defp restore_player(params) do
     player_id =
