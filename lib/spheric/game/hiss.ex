@@ -113,11 +113,16 @@ defmodule Spheric.Game.Hiss do
 
   @doc "Get corrupted tiles on a specific face."
   def corrupted_on_face(face_id) do
-    all_corrupted()
-    |> Enum.filter(fn {{face, _r, _c}, _data} -> face == face_id end)
-    |> Enum.map(fn {{face, row, col}, data} ->
-      %{face: face, row: row, col: col, intensity: data.intensity}
-    end)
+    case :ets.whereis(@corruption_table) do
+      :undefined ->
+        []
+
+      _ ->
+        :ets.match_object(@corruption_table, {{face_id, :_, :_}, :_})
+        |> Enum.map(fn {{face, row, col}, data} ->
+          %{face: face, row: row, col: col, intensity: data.intensity}
+        end)
+    end
   end
 
   @doc "Count of corrupted tiles."
@@ -302,33 +307,40 @@ defmodule Spheric.Game.Hiss do
   - drops: list of `{key, :hiss_residue}` items dropped by killed entities
   """
   def process_combat(_tick) do
-    # Gather turrets
-    turrets =
-      for face_id <- 0..29,
-          {key, building} <- WorldStore.get_face_buildings(face_id),
-          building.type == :defense_turret,
-          do: {key, building}
-
-    # Gather assigned creatures (for auto-combat)
-    combat_creatures = gather_combat_creatures()
+    # Gather turrets and creatures, indexed by face for fast lookup
+    turrets_by_face = gather_turrets_by_face()
+    creatures_by_face = gather_combat_creatures_by_face()
 
     hiss = all_hiss_entities()
 
     {kills, drops} =
       Enum.reduce(hiss, {[], []}, fn {hiss_id, entity}, {kills_acc, drops_acc} ->
         hiss_key = {entity.face, entity.row, entity.col}
+        face = entity.face
 
-        # Check turret range
+        # Only check turrets on the same face (within_radius? requires same face)
         turret_hit =
-          Enum.find(turrets, fn {turret_key, _building} ->
-            within_radius?(turret_key, hiss_key, @turret_radius)
-          end)
+          case Map.get(turrets_by_face, face) do
+            nil ->
+              nil
 
-        # Check creature range (creatures fight Hiss if within 2 tiles)
+            face_turrets ->
+              Enum.find(face_turrets, fn {turret_key, _building} ->
+                within_radius?(turret_key, hiss_key, @turret_radius)
+              end)
+          end
+
+        # Only check creatures on the same face
         creature_hit =
-          Enum.find(combat_creatures, fn {creature_key, _creature} ->
-            within_radius?(creature_key, hiss_key, 2)
-          end)
+          case Map.get(creatures_by_face, face) do
+            nil ->
+              nil
+
+            face_creatures ->
+              Enum.find(face_creatures, fn {creature_key, _creature} ->
+                within_radius?(creature_key, hiss_key, 2)
+              end)
+          end
 
         cond do
           turret_hit != nil ->
@@ -378,42 +390,55 @@ defmodule Spheric.Game.Hiss do
           building.type == :purification_beacon,
           do: key
 
-    purified =
-      Enum.flat_map(beacons, fn beacon_key ->
-        all_corrupted()
-        |> Enum.flat_map(fn {corrupted_key, data} ->
-          if within_radius?(beacon_key, corrupted_key, @beacon_radius) do
-            new_intensity = data.intensity - 1
+    if beacons == [] do
+      []
+    else
+      # Single pass: scan corrupted tiles once, check against all beacons
+      corrupted = all_corrupted()
 
-            if new_intensity <= 0 do
-              :ets.delete(@corruption_table, corrupted_key)
-              [{corrupted_key, :cleared}]
-            else
-              :ets.insert(@corruption_table, {corrupted_key, %{data | intensity: new_intensity}})
-              [{corrupted_key, :reduced}]
-            end
-          else
+      # Group beacons by face for fast same-face filtering
+      beacons_by_face =
+        Enum.group_by(beacons, fn {face, _r, _c} -> face end)
+
+      corrupted
+      |> Enum.flat_map(fn {corrupted_key, data} ->
+        {face, _r, _c} = corrupted_key
+
+        # Only check beacons on the same face (within_radius? requires same face)
+        case Map.get(beacons_by_face, face) do
+          nil ->
             []
-          end
-        end)
-      end)
 
-    Enum.map(purified, fn {key, _action} -> key end)
-    |> Enum.uniq()
+          face_beacons ->
+            hits =
+              Enum.count(face_beacons, fn beacon_key ->
+                within_radius?(beacon_key, corrupted_key, @beacon_radius)
+              end)
+
+            if hits > 0 do
+              # Each beacon in range reduces intensity by 1
+              new_intensity = data.intensity - hits
+
+              if new_intensity <= 0 do
+                :ets.delete(@corruption_table, corrupted_key)
+                [corrupted_key]
+              else
+                :ets.insert(@corruption_table, {corrupted_key, %{data | intensity: new_intensity}})
+                [corrupted_key]
+              end
+            else
+              []
+            end
+        end
+      end)
+      |> Enum.uniq()
+    end
   end
 
   @doc "Check if a tile is within a purification beacon's or dimensional stabilizer's protected zone."
   def protected_by_beacon?(key) do
-    stabilizer_radius = Spheric.Game.Behaviors.DimensionalStabilizer.radius()
-
-    for face_id <- 0..29,
-        {beacon_key, building} <- WorldStore.get_face_buildings(face_id),
-        building.type in [:purification_beacon, :dimensional_stabilizer],
-        radius = if(building.type == :dimensional_stabilizer, do: stabilizer_radius, else: @beacon_radius),
-        within_radius?(beacon_key, key, radius),
-        reduce: false do
-      _acc -> true
-    end
+    zones = gather_protection_zones()
+    tile_in_protection_zones?(key, zones)
   end
 
   @doc "Put corruption data directly (used for loading from DB)."
@@ -439,9 +464,45 @@ defmodule Spheric.Game.Hiss do
 
   # --- Internal ---
 
+  # Gather all beacon/stabilizer positions with their radii, grouped by face.
+  # Returns %{face_id => [{key, radius}, ...]}
+  defp gather_protection_zones do
+    stabilizer_radius = Spheric.Game.Behaviors.DimensionalStabilizer.radius()
+
+    zones =
+      for face_id <- 0..29,
+          {key, building} <- WorldStore.get_face_buildings(face_id),
+          building.type in [:purification_beacon, :dimensional_stabilizer] do
+        radius =
+          if building.type == :dimensional_stabilizer,
+            do: stabilizer_radius,
+            else: @beacon_radius
+
+        {key, radius}
+      end
+
+    Enum.group_by(zones, fn {{face, _r, _c}, _radius} -> face end)
+  end
+
+  # Check if a tile falls within any cached protection zone.
+  defp tile_in_protection_zones?({face, _r, _c} = key, zones_by_face) do
+    case Map.get(zones_by_face, face) do
+      nil ->
+        false
+
+      face_zones ->
+        Enum.any?(face_zones, fn {zone_key, radius} ->
+          within_radius?(zone_key, key, radius)
+        end)
+    end
+  end
+
   defp do_seed_corruption(tick, seed) do
     rng = :rand.seed_s(:exsss, {seed, tick, tick * 13})
     n = Application.get_env(:spheric, :subdivisions, 64)
+
+    # Cache protection zones once for all seed attempts
+    zones = gather_protection_zones()
 
     # Scale seed count with world age (more corruption over time)
     age_factor = div(tick - @corruption_start_tick, 1000) + 1
@@ -457,7 +518,7 @@ defmodule Spheric.Game.Hiss do
         # Don't seed on existing buildings or already-corrupted tiles or beacon zones
         if not WorldStore.has_building?(key) and
              not corrupted?(key) and
-             not protected_by_beacon?(key) do
+             not tile_in_protection_zones?(key, zones) do
           data = %{
             intensity: 1,
             seeded_at: tick,
@@ -474,10 +535,19 @@ defmodule Spheric.Game.Hiss do
     new_tiles
   end
 
-  defp do_spread_corruption(_tick) do
+  defp do_spread_corruption(tick) do
     n = Application.get_env(:spheric, :subdivisions, 64)
 
-    all_corrupted()
+    # Cache protection zones once for entire spread pass
+    zones = gather_protection_zones()
+
+    # Snapshot current corrupted tiles (iterate over snapshot, not live table)
+    corrupted_snapshot = all_corrupted()
+
+    # Build a set of already-corrupted keys for O(1) membership checks
+    corrupted_set = MapSet.new(corrupted_snapshot, fn {key, _data} -> key end)
+
+    corrupted_snapshot
     |> Enum.flat_map(fn {key, data} ->
       if data.intensity < @max_intensity do
         # Increase intensity of existing tile
@@ -488,18 +558,18 @@ defmodule Spheric.Game.Hiss do
         spread_targets =
           for dir <- 0..3,
               {:ok, neighbor_key} <- [TileNeighbors.neighbor(key, dir, n)],
-              not corrupted?(neighbor_key),
+              not MapSet.member?(corrupted_set, neighbor_key),
+              not tile_in_protection_zones?(neighbor_key, zones),
               not WorldStore.has_building?(neighbor_key) or
                 WorldStore.get_building(neighbor_key).type not in [
                   :purification_beacon,
                   :defense_turret
-                ],
-              not protected_by_beacon?(neighbor_key) do
+                ] do
             neighbor_key
           end
 
-        # Only spread to 1-2 neighbors per tick (not all 4)
-        targets = Enum.take(Enum.shuffle(spread_targets), min(2, length(spread_targets)))
+        # Pick 1-2 neighbors deterministically using hash instead of Enum.shuffle
+        targets = pick_spread_targets(spread_targets, key, tick)
 
         new_corruptions =
           Enum.map(targets, fn target_key ->
@@ -520,17 +590,47 @@ defmodule Spheric.Game.Hiss do
     end)
   end
 
+  # Pick 1-2 spread targets deterministically using a hash-based selection.
+  # Avoids the cost of Enum.shuffle for small lists.
+  defp pick_spread_targets([], _key, _tick), do: []
+  defp pick_spread_targets([single], _key, _tick), do: [single]
+
+  defp pick_spread_targets(targets, key, tick) do
+    len = length(targets)
+    hash = :erlang.phash2({key, tick})
+    count = rem(hash, 2) + 1
+    idx1 = rem(hash, len)
+
+    if count == 1 or len == 1 do
+      [Enum.at(targets, idx1)]
+    else
+      idx2 = rem(Bitwise.bsr(hash, 16), len - 1)
+      idx2 = if idx2 >= idx1, do: idx2 + 1, else: idx2
+      [Enum.at(targets, idx1), Enum.at(targets, idx2)]
+    end
+  end
+
   defp within_radius?({f1, r1, c1}, {f2, r2, c2}, radius) do
     # Simple same-face distance check
     f1 == f2 and abs(r1 - r2) <= radius and abs(c1 - c2) <= radius
   end
 
-  defp gather_combat_creatures do
-    # Get all assigned creatures that have a building key and are shadow_tendril type
-    # or any creature type — all creatures fight Hiss when nearby
+  # Gather turrets indexed by face for O(1) face lookup in combat.
+  defp gather_turrets_by_face do
+    for face_id <- 0..29,
+        {key, building} <- WorldStore.get_face_buildings(face_id),
+        building.type == :defense_turret,
+        reduce: %{} do
+      acc ->
+        Map.update(acc, face_id, [{key, building}], &[{key, building} | &1])
+    end
+  end
+
+  # Gather combat creatures indexed by face for O(1) face lookup.
+  defp gather_combat_creatures_by_face do
     case :ets.whereis(:spheric_player_creatures) do
       :undefined ->
-        []
+        %{}
 
       _ ->
         :ets.tab2list(:spheric_player_creatures)
@@ -543,6 +643,7 @@ defmodule Spheric.Game.Hiss do
             end
           end)
         end)
+        |> Enum.group_by(fn {{face, _r, _c}, _creature} -> face end)
     end
   end
 
