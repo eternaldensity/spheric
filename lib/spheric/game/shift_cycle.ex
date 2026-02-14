@@ -195,6 +195,8 @@ defmodule Spheric.Game.ShiftCycle do
 
   @doc "Put state directly (for persistence)."
   def put_state(s) do
+    # Migrate old state that lacks sun_angle
+    s = if Map.has_key?(s, :sun_angle), do: s, else: Map.put(s, :sun_angle, 0.0)
     :ets.insert(@cycle_table, {:state, s})
   end
 
