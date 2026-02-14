@@ -18,7 +18,8 @@ defmodule Spheric.Game.WorldServer do
     TickProcessor,
     Persistence,
     SaveServer,
-    Research
+    Research,
+    Creatures
   }
 
   require Logger
@@ -85,6 +86,7 @@ defmodule Spheric.Game.WorldServer do
 
     WorldStore.init()
     Research.init()
+    Creatures.init()
 
     # Try to load an existing world from the database
     {world_id, actual_seed} =
@@ -257,6 +259,23 @@ defmodule Spheric.Game.WorldServer do
     # Process research submissions from submission terminals
     process_submissions(submissions, state.world_id)
 
+    # Creature spawning
+    spawned = Creatures.maybe_spawn(new_tick, state.seed)
+    broadcast_creature_spawns(spawned)
+
+    # Creature movement
+    moved = Creatures.move_creatures(new_tick)
+    broadcast_creature_moves(moved)
+
+    # Containment trap processing
+    captures = Creatures.process_traps(new_tick)
+    broadcast_creature_captures(captures)
+
+    # Broadcast full creature state every 5 ticks for sync
+    if rem(new_tick, 5) == 0 do
+      broadcast_creature_sync()
+    end
+
     schedule_tick()
     {:noreply, %{state | tick: new_tick, prev_item_faces: current_item_faces}}
   end
@@ -285,6 +304,56 @@ defmodule Spheric.Game.WorldServer do
         :no_match ->
           :ok
       end
+    end
+  end
+
+  defp broadcast_creature_spawns([]), do: :ok
+
+  defp broadcast_creature_spawns(spawned) do
+    for {id, creature} <- spawned do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{creature.face}",
+        {:creature_spawned, id, creature}
+      )
+    end
+  end
+
+  defp broadcast_creature_moves([]), do: :ok
+
+  defp broadcast_creature_moves(moved) do
+    for {id, creature} <- moved do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{creature.face}",
+        {:creature_moved, id, creature}
+      )
+    end
+  end
+
+  defp broadcast_creature_captures([]), do: :ok
+
+  defp broadcast_creature_captures(captures) do
+    for {trap_key, creature_id, creature} <- captures do
+      {face_id, _row, _col} = trap_key
+
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{face_id}",
+        {:creature_captured, creature_id, creature, trap_key}
+      )
+    end
+  end
+
+  defp broadcast_creature_sync do
+    creatures_by_face = Creatures.creatures_by_face()
+
+    for {face_id, creatures} <- creatures_by_face do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{face_id}",
+        {:creature_sync, face_id, creatures}
+      )
     end
   end
 

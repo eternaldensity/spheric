@@ -13,7 +13,7 @@ defmodule Spheric.Game.TickProcessor do
   `face_id => [item_update]` for broadcasting to clients.
   """
 
-  alias Spheric.Game.{WorldStore, Behaviors}
+  alias Spheric.Game.{WorldStore, Behaviors, Creatures}
   alias Spheric.Geometry.TileNeighbors
 
   require Logger
@@ -27,28 +27,28 @@ defmodule Spheric.Game.TickProcessor do
     {miners, _conveyors, smelters, assemblers, refineries, terminals, _others} =
       classify(buildings)
 
-    # Phase 1: Miners tick
+    # Phase 1: Miners tick (with creature boost)
     miner_updates =
       Enum.map(miners, fn {key, building} ->
-        {key, Behaviors.Miner.tick(key, building)}
+        {key, Behaviors.Miner.tick(key, apply_creature_boost(key, building))}
       end)
 
-    # Phase 2: Smelters tick
+    # Phase 2: Smelters tick (with creature boost)
     smelter_updates =
       Enum.map(smelters, fn {key, building} ->
-        {key, Behaviors.Smelter.tick(key, building)}
+        {key, Behaviors.Smelter.tick(key, apply_creature_boost(key, building))}
       end)
 
-    # Phase 2b: Refineries tick
+    # Phase 2b: Refineries tick (with creature boost)
     refinery_updates =
       Enum.map(refineries, fn {key, building} ->
-        {key, Behaviors.Refinery.tick(key, building)}
+        {key, Behaviors.Refinery.tick(key, apply_creature_boost(key, building))}
       end)
 
-    # Phase 2c: Assemblers tick
+    # Phase 2c: Assemblers tick (with creature boost)
     assembler_updates =
       Enum.map(assemblers, fn {key, building} ->
-        {key, Behaviors.Assembler.tick(key, building)}
+        {key, Behaviors.Assembler.tick(key, apply_creature_boost(key, building))}
       end)
 
     # Phase 2d: Submission terminals tick (consume items, report submissions)
@@ -489,4 +489,23 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   defp items_from_building(_key, _building, _sources), do: []
+
+  # Apply creature boost to a building's tick rate.
+  # Temporarily adjusts the rate in the building state so the behavior
+  # module uses the boosted rate for its progress check.
+  defp apply_creature_boost(key, building) do
+    case building.state do
+      %{rate: base_rate} ->
+        boosted = Creatures.boosted_rate(key, base_rate)
+
+        if boosted != base_rate do
+          %{building | state: %{building.state | rate: boosted}}
+        else
+          building
+        end
+
+      _ ->
+        building
+    end
+  end
 end

@@ -3,6 +3,7 @@ import { TrackballControls } from "three/examples/jsm/controls/TrackballControls
 import { createBuildingMesh } from "../buildings/building_factory.js";
 import { ItemInterpolator } from "../systems/item_interpolator.js";
 import { ItemRenderer } from "../systems/item_renderer.js";
+import { CreatureRenderer } from "../systems/creature_renderer.js";
 import { ChunkManager } from "../systems/chunk_manager.js";
 import { TileTextureGenerator } from "../systems/tile_texture.js";
 
@@ -95,6 +96,13 @@ const GameRenderer = {
       this.scene,
       (face, row, col) => this.getTileCenter(face, row, col)
     );
+
+    // Creature rendering
+    this.creatureRenderer = new CreatureRenderer(
+      this.scene,
+      (face, row, col) => this.getTileCenter(face, row, col)
+    );
+    this.creatureData = []; // current creature sync data for rendering
 
     // Do initial LOD update with starting camera position
     this.chunkManager.update(this.camera.position);
@@ -408,6 +416,35 @@ const GameRenderer = {
           this.selectedTile.col === col;
         this.setTileOverlay(face, row, col, wasSelected ? "selected" : null);
       }, 300);
+    });
+
+    // --- Creature event handlers ---
+
+    this.handleEvent("creature_sync", ({ face, creatures }) => {
+      // Replace creature data for this face
+      this.creatureData = this.creatureData.filter(c => c.face !== face);
+      this.creatureData.push(...creatures);
+    });
+
+    this.handleEvent("creature_spawned", ({ id, creature }) => {
+      this.creatureRenderer.onCreatureSpawned(id, creature);
+      this.creatureData.push({ id, ...creature });
+    });
+
+    this.handleEvent("creature_moved", ({ id, creature }) => {
+      this.creatureRenderer.onCreatureMoved(id, creature);
+      // Update local data
+      const idx = this.creatureData.findIndex(c => c.id === id);
+      if (idx >= 0) {
+        this.creatureData[idx] = { id, ...creature };
+      } else {
+        this.creatureData.push({ id, ...creature });
+      }
+    });
+
+    this.handleEvent("creature_captured", ({ id }) => {
+      this.creatureRenderer.onCreatureCaptured(id);
+      this.creatureData = this.creatureData.filter(c => c.id !== id);
     });
   },
 
@@ -913,6 +950,10 @@ const GameRenderer = {
     const interpolated = this.itemInterpolator.getInterpolatedItems(now);
     this.itemRenderer.update(interpolated);
 
+    // Update creature positions with bobbing animation
+    const deltaTime = 1 / 60; // approximate frame time
+    this.creatureRenderer.update(this.creatureData, deltaTime);
+
     this.renderer.render(this.scene, this.camera);
   },
 
@@ -1019,6 +1060,7 @@ const GameRenderer = {
     this.clearLinePreview();
     this.disposePlayerMarkers();
     if (this.itemRenderer) this.itemRenderer.dispose();
+    if (this.creatureRenderer) this.creatureRenderer.dispose();
     if (this.chunkManager) this.chunkManager.dispose();
     if (this.tileTextures) this.tileTextures.dispose();
     this.controls.dispose();

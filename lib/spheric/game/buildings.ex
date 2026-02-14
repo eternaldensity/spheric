@@ -14,7 +14,8 @@ defmodule Spheric.Game.Buildings do
     :refinery,
     :splitter,
     :merger,
-    :submission_terminal
+    :submission_terminal,
+    :containment_trap
   ]
 
   @doc "Returns the list of all building type atoms."
@@ -32,6 +33,7 @@ defmodule Spheric.Game.Buildings do
   def display_name(:splitter), do: "Splitter"
   def display_name(:merger), do: "Merger"
   def display_name(:submission_terminal), do: "Terminal"
+  def display_name(:containment_trap), do: "Trap"
 
   @doc """
   Check if a building type can be placed on the given tile data.
@@ -55,6 +57,9 @@ defmodule Spheric.Game.Buildings do
 
   def initial_state(:submission_terminal),
     do: Spheric.Game.Behaviors.SubmissionTerminal.initial_state()
+
+  def initial_state(:containment_trap),
+    do: Spheric.Game.Behaviors.ContainmentTrap.initial_state()
 
   def initial_state(_type), do: %{}
 end

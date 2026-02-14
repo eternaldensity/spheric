@@ -11,8 +11,8 @@ defmodule Spheric.Game.Persistence do
   import Ecto.Query
 
   alias Spheric.Repo
-  alias Spheric.Game.Schema.{World, Building, TileResource, Player}
-  alias Spheric.Game.{WorldStore, WorldGen}
+  alias Spheric.Game.Schema.{World, Building, TileResource, Player, Creature}
+  alias Spheric.Game.{WorldStore, WorldGen, Creatures}
 
   require Logger
 
@@ -66,6 +66,9 @@ defmodule Spheric.Game.Persistence do
         # Load all saved buildings
         load_buildings(world.id)
 
+        # Load all saved creatures
+        load_creatures(world.id)
+
         {:ok, world}
     end
   end
@@ -83,6 +86,7 @@ defmodule Spheric.Game.Persistence do
     save_tile_resources(world_id, dirty_tiles, now)
     save_buildings(world_id, dirty_buildings, now)
     delete_buildings(world_id, removed_buildings)
+    save_creatures(world_id, now)
 
     :ok
   end
@@ -268,6 +272,121 @@ defmodule Spheric.Game.Persistence do
       )
       |> Repo.delete_all()
     end)
+  end
+
+  defp load_creatures(world_id) do
+    Creature
+    |> where([c], c.world_id == ^world_id)
+    |> Repo.all()
+    |> Enum.each(fn c ->
+      type = String.to_atom(c.creature_type)
+
+      if c.owner_id do
+        # Captured creature — add to player roster
+        assigned_to =
+          if c.assigned_to_face do
+            {c.assigned_to_face, c.assigned_to_row, c.assigned_to_col}
+          else
+            nil
+          end
+
+        captured = %{
+          id: c.creature_id,
+          type: type,
+          assigned_to: assigned_to,
+          captured_at: c.spawned_at
+        }
+
+        roster = Creatures.get_player_roster(c.owner_id)
+        Creatures.put_player_roster(c.owner_id, [captured | roster])
+      else
+        # Wild creature — add to wild creatures table
+        creature = %{
+          type: type,
+          face: c.face_id,
+          row: c.row,
+          col: c.col,
+          spawned_at: c.spawned_at
+        }
+
+        Creatures.put_wild_creature(c.creature_id, creature)
+      end
+    end)
+  end
+
+  defp save_creatures(world_id, now) do
+    # Delete all existing creature records for this world and rewrite
+    Creature
+    |> where([c], c.world_id == ^world_id)
+    |> Repo.delete_all()
+
+    entries = []
+
+    # Save wild creatures
+    wild_entries =
+      Creatures.all_wild_creatures()
+      |> Enum.map(fn {id, c} ->
+        %{
+          world_id: world_id,
+          creature_id: id,
+          creature_type: Atom.to_string(c.type),
+          face_id: c.face,
+          row: c.row,
+          col: c.col,
+          owner_id: nil,
+          assigned_to_face: nil,
+          assigned_to_row: nil,
+          assigned_to_col: nil,
+          spawned_at: c[:spawned_at] || 0,
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+
+    # Save captured creatures (from all player rosters)
+    captured_entries =
+      case :ets.whereis(:spheric_player_creatures) do
+        :undefined ->
+          []
+
+        _ ->
+          :ets.tab2list(:spheric_player_creatures)
+          |> Enum.flat_map(fn {player_id, roster} ->
+            Enum.map(roster, fn c ->
+              {a_face, a_row, a_col} =
+                case c.assigned_to do
+                  {f, r, co} -> {f, r, co}
+                  _ -> {nil, nil, nil}
+                end
+
+              %{
+                world_id: world_id,
+                creature_id: c.id,
+                creature_type: Atom.to_string(c.type),
+                face_id: 0,
+                row: 0,
+                col: 0,
+                owner_id: player_id,
+                assigned_to_face: a_face,
+                assigned_to_row: a_row,
+                assigned_to_col: a_col,
+                spawned_at: c[:captured_at] || 0,
+                inserted_at: now,
+                updated_at: now
+              }
+            end)
+          end)
+      end
+
+    all_entries = entries ++ wild_entries ++ captured_entries
+
+    if all_entries != [] do
+      all_entries
+      |> Enum.chunk_every(500)
+      |> Enum.each(fn chunk ->
+        Repo.insert_all(Creature, chunk)
+      end)
+    end
   end
 
   defp serialize_state(state) when is_map(state) do

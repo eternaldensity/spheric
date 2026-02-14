@@ -4,9 +4,9 @@ defmodule Spheric.Game.BuildingsTest do
   alias Spheric.Game.Buildings
 
   describe "types/0" do
-    test "returns all 8 building types" do
+    test "returns all 9 building types" do
       types = Buildings.types()
-      assert length(types) == 8
+      assert length(types) == 9
       assert :conveyor in types
       assert :miner in types
       assert :smelter in types
@@ -15,6 +15,7 @@ defmodule Spheric.Game.BuildingsTest do
       assert :splitter in types
       assert :merger in types
       assert :submission_terminal in types
+      assert :containment_trap in types
     end
   end
 

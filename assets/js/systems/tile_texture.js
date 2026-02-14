@@ -31,6 +31,7 @@ const BUILDING_FILLS = {
   splitter: "#22aa88",
   merger: "#8844aa",
   submission_terminal: "#aa8833",
+  containment_trap: "#664488",
 };
 
 // Building icon glyphs (drawn procedurally)
@@ -43,6 +44,7 @@ const BUILDING_GLYPHS = {
   splitter: drawSplitterGlyph,
   merger: drawMergerGlyph,
   submission_terminal: drawSubmissionTerminalGlyph,
+  containment_trap: drawContainmentTrapGlyph,
 };
 
 const PIXELS_PER_TILE = 32;
@@ -303,4 +305,23 @@ function drawSubmissionTerminalGlyph(ctx, r) {
   ctx.stroke();
   ctx.strokeStyle = "rgba(255,255,255,0.6)";
   ctx.lineWidth = 1.5;
+}
+
+function drawContainmentTrapGlyph(ctx, r) {
+  // Diamond (rotated square) with a circle inside
+  ctx.beginPath();
+  ctx.moveTo(0, -r);
+  ctx.lineTo(r, 0);
+  ctx.lineTo(0, r);
+  ctx.lineTo(-r, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Inner circle (containment field)
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(255,255,255,0.8)";
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
 }

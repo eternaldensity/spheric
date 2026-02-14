@@ -11,6 +11,7 @@ const COLORS = {
   splitter: 0x22aa88,
   merger: 0x8844aa,
   submission_terminal: 0xaa8833,
+  containment_trap: 0x664488,
 };
 
 function makeMaterial(color) {
@@ -181,6 +182,34 @@ function createSubmissionTerminal() {
   return group;
 }
 
+function createContainmentTrap() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.containment_trap);
+
+  // Base ring (torus)
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(s * 0.7, s * 0.12, 6, 8), mat);
+  ring.position.y = s * 0.15;
+  ring.rotation.x = Math.PI / 2;
+  group.add(ring);
+
+  // Central pillar
+  const pillar = new THREE.Mesh(
+    new THREE.CylinderGeometry(s * 0.2, s * 0.3, s * 1.0, 6),
+    mat
+  );
+  pillar.position.y = s * 0.5;
+  group.add(pillar);
+
+  // Top crystal (octahedron)
+  const crystalMat = makeMaterial(0x9966cc);
+  const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(s * 0.3, 0), crystalMat);
+  crystal.position.y = s * 1.2;
+  group.add(crystal);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
@@ -190,6 +219,7 @@ const BUILDERS = {
   splitter: createSplitter,
   merger: createMerger,
   submission_terminal: createSubmissionTerminal,
+  containment_trap: createContainmentTrap,
 };
 
 /**

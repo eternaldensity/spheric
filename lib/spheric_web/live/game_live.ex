@@ -3,7 +3,7 @@ defmodule SphericWeb.GameLive do
 
   alias Spheric.Geometry.RhombicTriacontahedron, as: RT
   alias Spheric.Geometry.Coordinate
-  alias Spheric.Game.{WorldServer, WorldStore, Buildings, Persistence, Research}
+  alias Spheric.Game.{WorldServer, WorldStore, Buildings, Persistence, Research, Creatures}
   alias SphericWeb.Presence
 
   require Logger
@@ -89,6 +89,8 @@ defmodule SphericWeb.GameLive do
       |> assign(:show_research, false)
       |> assign(:research_summary, research_summary)
       |> assign(:clearance_level, clearance)
+      |> assign(:show_creatures, false)
+      |> assign(:creature_roster, Creatures.get_player_roster(player_id))
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
 
     # Tell the client to restore camera and persist any newly-generated identity
@@ -222,6 +224,58 @@ defmodule SphericWeb.GameLive do
       </div>
     </div>
 
+    <div
+      :if={@show_creatures}
+      style="position: fixed; top: 50px; left: 16px; background: rgba(10,10,15,0.92); color: #ddd; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 260px; max-width: 320px; max-height: 60vh; overflow-y: auto; border: 1px solid #333;"
+    >
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #444; padding-bottom: 8px;">
+        <span style="font-size: 14px; color: #b8f;">CREATURE ROSTER</span>
+        <span style="font-size: 11px; color: #888;">
+          {length(@creature_roster)} captured
+        </span>
+      </div>
+      <div :if={@creature_roster == []} style="color: #666; font-size: 11px;">
+        No creatures captured yet. Build a Containment Trap near wild creatures.
+      </div>
+      <div
+        :for={creature <- @creature_roster}
+        style="margin-bottom: 8px; padding: 8px; border: 1px solid #444; border-radius: 4px; background: rgba(255,255,255,0.03);"
+      >
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: #b8f; font-size: 12px;">
+            {Creatures.display_name(creature.type)}
+          </span>
+          <span style="font-size: 10px; color: #888;">
+            {creature_boost_label(creature.type)}
+          </span>
+        </div>
+        <div :if={creature.assigned_to} style="color: #888; font-size: 10px; margin-top: 2px;">
+          Assigned to: {format_building_key(creature.assigned_to)}
+          <button
+            phx-click="unassign_creature"
+            phx-value-creature_id={creature.id}
+            style="margin-left: 6px; padding: 2px 6px; border: 1px solid #a44; border-radius: 3px; background: rgba(170,68,68,0.2); color: #f88; cursor: pointer; font-family: monospace; font-size: 10px;"
+          >
+            Recall
+          </button>
+        </div>
+        <div :if={creature.assigned_to == nil} style="color: #666; font-size: 10px; margin-top: 2px;">
+          Unassigned — select a building tile to assign
+        </div>
+        <button
+          :if={(creature.assigned_to == nil and @tile_info) && @tile_info.building}
+          phx-click="assign_creature"
+          phx-value-creature_id={creature.id}
+          phx-value-face={@tile_info.face}
+          phx-value-row={@tile_info.row}
+          phx-value-col={@tile_info.col}
+          style="margin-top: 4px; padding: 3px 8px; border: 1px solid #4a4; border-radius: 3px; background: rgba(68,170,68,0.15); color: #8f8; cursor: pointer; font-family: monospace; font-size: 10px;"
+        >
+          Assign to selected building
+        </button>
+      </div>
+    </div>
+
     <div style="position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; padding: 12px; background: rgba(0,0,0,0.75); pointer-events: auto;">
       <button
         phx-click="toggle_research"
@@ -234,11 +288,27 @@ defmodule SphericWeb.GameLive do
           cursor: pointer;
           font-family: monospace;
           font-size: 13px;
-          margin-right: 8px;
         "}
         title="Case Files (F key)"
       >
         Files
+      </button>
+      <button
+        phx-click="toggle_creatures"
+        style={"
+          padding: 8px 12px;
+          border: 2px solid #{if @show_creatures, do: "#b8f", else: "#666"};
+          border-radius: 6px;
+          background: #{if @show_creatures, do: "rgba(187,136,255,0.2)", else: "rgba(255,255,255,0.1)"};
+          color: #{if @show_creatures, do: "#b8f", else: "#999"};
+          cursor: pointer;
+          font-family: monospace;
+          font-size: 13px;
+          margin-right: 8px;
+        "}
+        title="Creature Roster (C key)"
+      >
+        Creatures
       </button>
       <button
         :for={type <- @building_types}
@@ -483,8 +553,62 @@ defmodule SphericWeb.GameLive do
   end
 
   @impl true
+  def handle_event("toggle_creatures", _params, socket) do
+    roster = Creatures.get_player_roster(socket.assigns.player_id)
+
+    socket =
+      socket
+      |> assign(:show_creatures, !socket.assigns.show_creatures)
+      |> assign(:creature_roster, roster)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event(
+        "assign_creature",
+        %{"creature_id" => creature_id, "face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    building_key = {to_int(face), to_int(row), to_int(col)}
+
+    case Creatures.assign_creature(socket.assigns.player_id, creature_id, building_key) do
+      :ok ->
+        roster = Creatures.get_player_roster(socket.assigns.player_id)
+        {:noreply, assign(socket, :creature_roster, roster)}
+
+      {:error, _reason} ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("unassign_creature", %{"creature_id" => creature_id}, socket) do
+    case Creatures.unassign_creature(socket.assigns.player_id, creature_id) do
+      :ok ->
+        roster = Creatures.get_player_roster(socket.assigns.player_id)
+        {:noreply, assign(socket, :creature_roster, roster)}
+
+      {:error, _reason} ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
   def handle_event("keydown", %{"key" => "f"}, socket) do
     {:noreply, assign(socket, :show_research, !socket.assigns.show_research)}
+  end
+
+  @impl true
+  def handle_event("keydown", %{"key" => "c"}, socket) do
+    roster = Creatures.get_player_roster(socket.assigns.player_id)
+
+    socket =
+      socket
+      |> assign(:show_creatures, !socket.assigns.show_creatures)
+      |> assign(:creature_roster, roster)
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -620,6 +744,64 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_info({:research_progress, _item}, socket) do
     refresh_research(socket)
+  end
+
+  # --- Creature Handlers ---
+
+  @impl true
+  def handle_info({:creature_spawned, id, creature}, socket) do
+    socket =
+      push_event(socket, "creature_spawned", %{
+        id: id,
+        creature: %{
+          type: Atom.to_string(creature.type),
+          face: creature.face,
+          row: creature.row,
+          col: creature.col
+        }
+      })
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:creature_moved, id, creature}, socket) do
+    socket =
+      push_event(socket, "creature_moved", %{
+        id: id,
+        creature: %{
+          type: Atom.to_string(creature.type),
+          face: creature.face,
+          row: creature.row,
+          col: creature.col
+        }
+      })
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:creature_captured, creature_id, _creature, _trap_key}, socket) do
+    socket = push_event(socket, "creature_captured", %{id: creature_id})
+
+    # Refresh roster for the current player
+    roster = Creatures.get_player_roster(socket.assigns.player_id)
+    {:noreply, assign(socket, :creature_roster, roster)}
+  end
+
+  @impl true
+  def handle_info({:creature_sync, face_id, creatures}, socket) do
+    if MapSet.member?(socket.assigns.visible_faces, face_id) do
+      serialized =
+        Enum.map(creatures, fn c ->
+          %{id: c.id, type: Atom.to_string(c.type), face: c.face, row: c.row, col: c.col}
+        end)
+
+      socket = push_event(socket, "creature_sync", %{face: face_id, creatures: serialized})
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
   end
 
   # --- Terrain Streaming ---
@@ -804,7 +986,33 @@ defmodule SphericWeb.GameLive do
     end
   end
 
+  defp building_status_text(%{type: :containment_trap, state: state}) do
+    cond do
+      state[:capturing] != nil ->
+        "Capturing... #{state.capture_progress}/15"
+
+      true ->
+        "Scanning for creatures"
+    end
+  end
+
   defp building_status_text(_building), do: nil
+
+  defp creature_boost_label(type) do
+    case Creatures.boost_info(type) do
+      nil -> ""
+      %{type: :speed, amount: amt} -> "Speed +#{round(amt * 100)}%"
+      %{type: :efficiency, amount: amt} -> "Efficiency +#{round(amt * 100)}%"
+      %{type: :output, amount: amt} -> "Output +#{round(amt * 100)}%"
+      %{type: :area, amount: amt} -> "Area +#{round(amt * 100)}%"
+      %{type: :defense, amount: _amt} -> "Defense"
+      %{type: :all, amount: amt} -> "All +#{round(amt * 100)}%"
+      _ -> ""
+    end
+  end
+
+  defp format_building_key({face, row, col}), do: "F#{face} R#{row} C#{col}"
+  defp format_building_key(_), do: "—"
 
   defp restore_player(params) do
     player_id =
