@@ -132,6 +132,7 @@ defmodule Spheric.Game.WorldStore do
       {{:tile, key}, _}, {t, b, r} -> {[key | t], b, r}
       {{:building, key}, _}, {t, b, r} -> {t, [key | b], r}
       {{:building_removed, key}, _}, {t, b, r} -> {t, b, [key | r]}
+      _other, acc -> acc
     end)
   end
 
