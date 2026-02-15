@@ -268,6 +268,28 @@ defmodule SphericWeb.GuideLive do
   @impl true
   def render(assigns) do
     ~H"""
+    <style>
+      .guide-prose .alert {
+        border: 1px solid;
+        color: inherit;
+      }
+      .guide-prose .alert-info {
+        background: oklch(from var(--color-info) l c h / 0.12);
+        border-color: oklch(from var(--color-info) l c h / 0.3);
+      }
+      .guide-prose .alert-success {
+        background: oklch(from var(--color-success) l c h / 0.12);
+        border-color: oklch(from var(--color-success) l c h / 0.3);
+      }
+      .guide-prose .alert-warning {
+        background: oklch(from var(--color-warning) l c h / 0.12);
+        border-color: oklch(from var(--color-warning) l c h / 0.3);
+      }
+      .guide-prose .alert-error {
+        background: oklch(from var(--color-error) l c h / 0.12);
+        border-color: oklch(from var(--color-error) l c h / 0.3);
+      }
+    </style>
     <div style="margin: 0; overflow: auto; background: var(--b1, #1d232a);" class="min-h-screen">
       <div class="flex min-h-screen bg-base-100">
         <%!-- Sidebar --%>
@@ -318,7 +340,7 @@ defmodule SphericWeb.GuideLive do
         <%!-- Main content --%>
         <main class="flex-1 overflow-y-auto">
           <div class="max-w-4xl mx-auto p-8">
-            <article class="prose prose-sm sm:prose-base max-w-none">
+            <article class="prose prose-sm sm:prose-base max-w-none guide-prose">
               {raw(@content_html)}
             </article>
           </div>
