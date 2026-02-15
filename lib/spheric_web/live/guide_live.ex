@@ -289,6 +289,22 @@ defmodule SphericWeb.GuideLive do
         background: oklch(from var(--color-error) l c h / 0.12);
         border-color: oklch(from var(--color-error) l c h / 0.3);
       }
+      .guide-prose table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      .guide-prose th,
+      .guide-prose td {
+        border: 1px solid var(--color-base-300);
+        padding: 0.5rem 0.75rem;
+      }
+      .guide-prose th {
+        background: var(--color-base-200);
+        font-weight: 600;
+      }
+      .guide-prose tr:nth-child(even) {
+        background: oklch(from var(--color-base-200) l c h / 0.4);
+      }
     </style>
     <div style="margin: 0; overflow: auto; background: var(--b1, #1d232a);" class="min-h-screen">
       <div class="flex min-h-screen bg-base-100">
