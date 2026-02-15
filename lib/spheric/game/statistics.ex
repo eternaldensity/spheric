@@ -62,27 +62,16 @@ defmodule Spheric.Game.Statistics do
   def building_stats(building_key) do
     ensure_init()
 
-    all = :ets.tab2list(@table)
-
     produced =
-      all
-      |> Enum.filter(fn {{type, key, _item}, _count} ->
-        type == :produced and key == building_key
-      end)
+      :ets.match_object(@table, {{:produced, building_key, :_}, :_})
       |> Map.new(fn {{:produced, _key, item}, count} -> {item, count} end)
 
     consumed =
-      all
-      |> Enum.filter(fn {{type, key, _item}, _count} ->
-        type == :consumed and key == building_key
-      end)
+      :ets.match_object(@table, {{:consumed, building_key, :_}, :_})
       |> Map.new(fn {{:consumed, _key, item}, count} -> {item, count} end)
 
     throughput =
-      all
-      |> Enum.filter(fn {{type, key, _item}, _count} ->
-        type == :throughput and key == building_key
-      end)
+      :ets.match_object(@table, {{:throughput, building_key, :_}, :_})
       |> Map.new(fn {{:throughput, _key, item}, count} -> {item, count} end)
 
     %{produced: produced, consumed: consumed, throughput: throughput}
@@ -96,43 +85,19 @@ defmodule Spheric.Game.Statistics do
     ensure_init()
     alias Spheric.Game.WorldStore
 
-    all_stats = :ets.tab2list(@table)
-
-    # Find all buildings owned by the player
+    # Find all buildings owned by the player and query stats per-building
     for face_id <- 0..29,
         {key, building} <- WorldStore.get_face_buildings(face_id),
         building.owner_id == player_id do
-      produced =
-        all_stats
-        |> Enum.filter(fn {{type, k, _}, _} -> type == :produced and k == key end)
-        |> Enum.map(fn {{_, _, item}, count} -> {item, count} end)
-        |> Map.new()
-
-      consumed =
-        all_stats
-        |> Enum.filter(fn {{type, k, _}, _} -> type == :consumed and k == key end)
-        |> Enum.map(fn {{_, _, item}, count} -> {item, count} end)
-        |> Map.new()
-
-      throughput =
-        all_stats
-        |> Enum.filter(fn {{type, k, _}, _} -> type == :throughput and k == key end)
-        |> Enum.map(fn {{_, _, item}, count} -> {item, count} end)
-        |> Map.new()
+      stats = building_stats(key)
 
       total =
-        (produced |> Map.values() |> Enum.sum()) +
-          (consumed |> Map.values() |> Enum.sum()) +
-          (throughput |> Map.values() |> Enum.sum())
+        (stats.produced |> Map.values() |> Enum.sum()) +
+          (stats.consumed |> Map.values() |> Enum.sum()) +
+          (stats.throughput |> Map.values() |> Enum.sum())
 
       if total > 0 do
-        %{
-          key: key,
-          type: building.type,
-          produced: produced,
-          consumed: consumed,
-          throughput: throughput
-        }
+        Map.merge(stats, %{key: key, type: building.type})
       end
     end
     |> Enum.reject(&is_nil/1)

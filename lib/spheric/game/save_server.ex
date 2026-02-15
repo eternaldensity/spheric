@@ -85,5 +85,9 @@ defmodule Spheric.Game.SaveServer do
 
       Persistence.save_dirty(world_id, dirty_tiles, dirty_buildings, removed_buildings)
     end
+  rescue
+    e ->
+      Logger.error("SaveServer: save failed: #{Exception.message(e)}")
+      :error
   end
 end

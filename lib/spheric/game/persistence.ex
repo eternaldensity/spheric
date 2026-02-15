@@ -109,16 +109,24 @@ defmodule Spheric.Game.Persistence do
   def save_dirty(world_id, dirty_tiles, dirty_buildings, removed_buildings) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    save_tile_resources(world_id, dirty_tiles, now)
-    save_buildings(world_id, dirty_buildings, now)
-    delete_buildings(world_id, removed_buildings)
-    save_creatures(world_id, now)
-    save_corruption(world_id, now)
-    Territory.save_territories(world_id, now)
-    Trading.save_trades(world_id, now)
-    save_phase8_state(world_id)
+    save_step("tile_resources", fn -> save_tile_resources(world_id, dirty_tiles, now) end)
+    save_step("buildings", fn -> save_buildings(world_id, dirty_buildings, now) end)
+    save_step("delete_buildings", fn -> delete_buildings(world_id, removed_buildings) end)
+    save_step("creatures", fn -> save_creatures(world_id, now) end)
+    save_step("corruption", fn -> save_corruption(world_id, now) end)
+    save_step("territories", fn -> Territory.save_territories(world_id, now) end)
+    save_step("trades", fn -> Trading.save_trades(world_id, now) end)
+    save_step("phase8_state", fn -> save_phase8_state(world_id) end)
 
     :ok
+  end
+
+  defp save_step(label, fun) do
+    fun.()
+  rescue
+    e ->
+      Logger.error("SaveServer: failed to save #{label}: #{Exception.message(e)}")
+      :error
   end
 
   @doc """
@@ -409,13 +417,6 @@ defmodule Spheric.Game.Persistence do
   end
 
   defp save_creatures(world_id, now) do
-    # Delete all existing creature records for this world and rewrite
-    Creature
-    |> where([c], c.world_id == ^world_id)
-    |> Repo.delete_all()
-
-    entries = []
-
     # Save wild creatures
     wild_entries =
       Creatures.all_wild_creatures()
@@ -472,15 +473,22 @@ defmodule Spheric.Game.Persistence do
           end)
       end
 
-    all_entries = entries ++ wild_entries ++ captured_entries
+    all_entries = wild_entries ++ captured_entries
 
-    if all_entries != [] do
-      all_entries
-      |> Enum.chunk_every(500)
-      |> Enum.each(fn chunk ->
-        Repo.insert_all(Creature, chunk)
-      end)
-    end
+    # Use a transaction so delete+rewrite is atomic — no data loss on failure
+    Repo.transaction(fn ->
+      Creature
+      |> where([c], c.world_id == ^world_id)
+      |> Repo.delete_all()
+
+      if all_entries != [] do
+        all_entries
+        |> Enum.chunk_every(500)
+        |> Enum.each(fn chunk ->
+          Repo.insert_all(Creature, chunk)
+        end)
+      end
+    end)
   end
 
   defp load_corruption(world_id) do
@@ -516,11 +524,6 @@ defmodule Spheric.Game.Persistence do
   end
 
   defp save_corruption(world_id, now) do
-    # Delete and rewrite all corruption
-    Corruption
-    |> where([c], c.world_id == ^world_id)
-    |> Repo.delete_all()
-
     corruption_entries =
       Hiss.all_corrupted()
       |> Enum.map(fn {{face_id, row, col}, data} ->
@@ -536,19 +539,6 @@ defmodule Spheric.Game.Persistence do
           updated_at: now
         }
       end)
-
-    if corruption_entries != [] do
-      corruption_entries
-      |> Enum.chunk_every(500)
-      |> Enum.each(fn chunk ->
-        Repo.insert_all(Corruption, chunk)
-      end)
-    end
-
-    # Delete and rewrite all Hiss entities
-    HissEntity
-    |> where([h], h.world_id == ^world_id)
-    |> Repo.delete_all()
 
     hiss_entries =
       Hiss.all_hiss_entities()
@@ -566,13 +556,32 @@ defmodule Spheric.Game.Persistence do
         }
       end)
 
-    if hiss_entries != [] do
-      hiss_entries
-      |> Enum.chunk_every(500)
-      |> Enum.each(fn chunk ->
-        Repo.insert_all(HissEntity, chunk)
-      end)
-    end
+    # Use a transaction so delete+rewrite is atomic — no data loss on failure
+    Repo.transaction(fn ->
+      Corruption
+      |> where([c], c.world_id == ^world_id)
+      |> Repo.delete_all()
+
+      if corruption_entries != [] do
+        corruption_entries
+        |> Enum.chunk_every(500)
+        |> Enum.each(fn chunk ->
+          Repo.insert_all(Corruption, chunk)
+        end)
+      end
+
+      HissEntity
+      |> where([h], h.world_id == ^world_id)
+      |> Repo.delete_all()
+
+      if hiss_entries != [] do
+        hiss_entries
+        |> Enum.chunk_every(500)
+        |> Enum.each(fn chunk ->
+          Repo.insert_all(HissEntity, chunk)
+        end)
+      end
+    end)
   end
 
   # Phase 8: Save world events, board contact, and shift cycle state to a file

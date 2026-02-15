@@ -26,22 +26,112 @@ const COLORS = {
   astral_projection_chamber: 0x8866cc,
 };
 
+// Shared material cache — reuse materials across all buildings of the same color
+const _materialCache = new Map();
 function makeMaterial(color) {
-  return new THREE.MeshLambertMaterial({ color });
+  if (_materialCache.has(color)) return _materialCache.get(color);
+  const mat = new THREE.MeshLambertMaterial({ color });
+  mat._shared = true;
+  _materialCache.set(color, mat);
+  return mat;
 }
+
+// Shared geometry cache — reuse geometries across all buildings of the same type
+const s = BUILDING_SCALE;
+const _SHARED_GEOMETRIES_RAW = {
+  // Miner
+  miner_base: new THREE.CylinderGeometry(s * 0.8, s * 0.9, s * 0.8, 8),
+  miner_cone: new THREE.ConeGeometry(s * 0.5, s * 0.7, 8),
+  // Conveyor family
+  conveyor_belt: new THREE.BoxGeometry(s * 1.4, s * 0.25, s * 0.8),
+  conveyor_arrow: new THREE.ConeGeometry(s * 0.25, s * 0.35, 4),
+  conveyor_mk2_belt: new THREE.BoxGeometry(s * 1.4, s * 0.3, s * 0.9),
+  conveyor_mk2_rail: new THREE.BoxGeometry(s * 1.4, s * 0.15, s * 0.08),
+  conveyor_mk2_arrow1: new THREE.ConeGeometry(s * 0.2, s * 0.3, 4),
+  conveyor_mk2_arrow2: new THREE.ConeGeometry(s * 0.15, s * 0.2, 4),
+  conveyor_mk3_belt: new THREE.BoxGeometry(s * 1.4, s * 0.35, s * 1.0),
+  conveyor_mk3_cover: new THREE.BoxGeometry(s * 1.2, s * 0.1, s * 0.8),
+  conveyor_mk3_arrow: new THREE.ConeGeometry(s * 0.15, s * 0.2, 4),
+  // Smelter
+  smelter_body: new THREE.BoxGeometry(s * 1.2, s * 0.9, s * 1.0),
+  smelter_chimney: new THREE.CylinderGeometry(s * 0.15, s * 0.2, s * 0.7, 6),
+  // Assembler
+  assembler_body: new THREE.BoxGeometry(s * 1.5, s * 0.7, s * 1.5),
+  assembler_top: new THREE.BoxGeometry(s * 1.0, s * 0.2, s * 1.0),
+  // Splitter / Merger / Balancer
+  logistics_base: new THREE.BoxGeometry(s * 1.2, s * 0.4, s * 1.2),
+  splitter_chute: new THREE.BoxGeometry(s * 0.6, s * 0.3, s * 0.3),
+  merger_output: new THREE.BoxGeometry(s * 0.6, s * 0.3, s * 0.4),
+  balancer_beam: new THREE.BoxGeometry(s * 1.0, s * 0.08, s * 0.08),
+  balancer_pan: new THREE.CylinderGeometry(s * 0.2, s * 0.2, s * 0.06, 6),
+  // Refinery
+  refinery_tank: new THREE.CylinderGeometry(s * 0.6, s * 0.6, s * 1.0, 8),
+  refinery_tank2: new THREE.CylinderGeometry(s * 0.35, s * 0.35, s * 0.7, 8),
+  refinery_pipe: new THREE.CylinderGeometry(s * 0.08, s * 0.08, s * 0.6, 6),
+  // Storage container
+  storage_body: new THREE.BoxGeometry(s * 1.4, s * 1.0, s * 1.2),
+  storage_lid: new THREE.BoxGeometry(s * 1.5, s * 0.15, s * 1.3),
+  storage_handle: new THREE.BoxGeometry(s * 0.4, s * 0.08, s * 0.08),
+  // Submission terminal
+  terminal_base: new THREE.BoxGeometry(s * 1.0, s * 0.5, s * 1.0),
+  terminal_panel: new THREE.BoxGeometry(s * 0.8, s * 0.7, s * 0.15),
+  terminal_screen: new THREE.BoxGeometry(s * 0.6, s * 0.45, s * 0.05),
+  // Underground conduit
+  conduit_ring: new THREE.TorusGeometry(s * 0.6, s * 0.12, 6, 8),
+  conduit_glow: new THREE.SphereGeometry(s * 0.35, 8, 8),
+  conduit_arrow: new THREE.ConeGeometry(s * 0.2, s * 0.3, 4),
+  // Containment trap
+  trap_ring: new THREE.TorusGeometry(s * 0.7, s * 0.12, 6, 8),
+  trap_pillar: new THREE.CylinderGeometry(s * 0.2, s * 0.3, s * 1.0, 6),
+  trap_crystal: new THREE.OctahedronGeometry(s * 0.3, 0),
+  // Purification beacon
+  purify_base: new THREE.CylinderGeometry(s * 0.9, s * 1.0, s * 0.3, 6),
+  purify_pillar: new THREE.CylinderGeometry(s * 0.15, s * 0.25, s * 1.4, 6),
+  purify_emitter: new THREE.SphereGeometry(s * 0.35, 8, 8),
+  purify_ring: new THREE.TorusGeometry(s * 0.7, s * 0.06, 6, 12),
+  // Defense turret
+  turret_base: new THREE.BoxGeometry(s * 1.2, s * 0.4, s * 1.2),
+  turret_dome: new THREE.SphereGeometry(s * 0.5, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+  turret_barrel: new THREE.CylinderGeometry(s * 0.1, s * 0.1, s * 0.8, 6),
+  turret_muzzle: new THREE.SphereGeometry(s * 0.12, 6, 6),
+  // Claim beacon
+  beacon_base: new THREE.CylinderGeometry(s * 1.0, s * 1.1, s * 0.25, 6),
+  beacon_pillar: new THREE.CylinderGeometry(s * 0.2, s * 0.3, s * 1.2, 6),
+  beacon_flag: new THREE.OctahedronGeometry(s * 0.35, 0),
+  beacon_ring: new THREE.TorusGeometry(s * 0.8, s * 0.05, 6, 12),
+  // Trade terminal
+  trade_base: new THREE.BoxGeometry(s * 1.2, s * 0.4, s * 1.0),
+  trade_slot: new THREE.BoxGeometry(s * 0.3, s * 0.6, s * 0.5),
+  trade_bar: new THREE.BoxGeometry(s * 0.4, s * 0.1, s * 0.15),
+  // Crossover
+  crossover_hBelt: new THREE.BoxGeometry(s * 1.6, s * 0.25, s * 0.5),
+  crossover_vBelt: new THREE.BoxGeometry(s * 0.5, s * 0.25, s * 1.6),
+  crossover_hub: new THREE.CylinderGeometry(s * 0.3, s * 0.3, s * 0.15, 8),
+  // Dimensional stabilizer
+  stabilizer_base: new THREE.CylinderGeometry(s * 1.2, s * 1.3, s * 0.4, 6),
+  stabilizer_column: new THREE.CylinderGeometry(s * 0.25, s * 0.4, s * 2.0, 8),
+  stabilizer_sphere: new THREE.SphereGeometry(s * 0.4, 12, 12),
+  // Astral projection chamber
+  astral_base: new THREE.CylinderGeometry(s * 1.0, s * 1.1, s * 0.3, 8),
+  astral_dome: new THREE.SphereGeometry(s * 0.8, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+  astral_pillar: new THREE.CylinderGeometry(s * 0.1, s * 0.15, s * 1.2, 6),
+  astral_eye: new THREE.IcosahedronGeometry(s * 0.3, 0),
+};
+// Mark all shared geometries so they won't be disposed when individual buildings are removed
+const SHARED_GEOMETRIES = Object.fromEntries(
+  Object.entries(_SHARED_GEOMETRIES_RAW).map(([k, geo]) => { geo._shared = true; return [k, geo]; })
+);
 
 function createMiner() {
   const group = new THREE.Group();
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.miner);
 
-  // Base cylinder
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.8, s * 0.9, s * 0.8, 8), mat);
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.miner_base, mat);
   base.position.y = s * 0.4;
   group.add(base);
 
-  // Cone top (drill)
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(s * 0.5, s * 0.7, 8), mat);
+  const cone = new THREE.Mesh(SHARED_GEOMETRIES.miner_cone, mat);
   cone.position.y = s * 1.15;
   group.add(cone);
 
@@ -53,14 +143,12 @@ function createConveyor() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.conveyor);
 
-  // Flat belt
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(s * 1.4, s * 0.25, s * 0.8), mat);
+  const belt = new THREE.Mesh(SHARED_GEOMETRIES.conveyor_belt, mat);
   belt.position.y = s * 0.125;
   group.add(belt);
 
-  // Arrow indicator (darker)
   const arrowMat = makeMaterial(0x555555);
-  const arrow = new THREE.Mesh(new THREE.ConeGeometry(s * 0.25, s * 0.35, 4), arrowMat);
+  const arrow = new THREE.Mesh(SHARED_GEOMETRIES.conveyor_arrow, arrowMat);
   arrow.rotation.z = -Math.PI / 2;
   arrow.position.set(s * 0.45, s * 0.35, 0);
   group.add(arrow);
@@ -73,13 +161,11 @@ function createSmelter() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.smelter);
 
-  // Main body
-  const body = new THREE.Mesh(new THREE.BoxGeometry(s * 1.2, s * 0.9, s * 1.0), mat);
+  const body = new THREE.Mesh(SHARED_GEOMETRIES.smelter_body, mat);
   body.position.y = s * 0.45;
   group.add(body);
 
-  // Chimney
-  const chimney = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.15, s * 0.2, s * 0.7, 6), mat);
+  const chimney = new THREE.Mesh(SHARED_GEOMETRIES.smelter_chimney, mat);
   chimney.position.set(s * 0.3, s * 1.25, s * 0.2);
   group.add(chimney);
 
@@ -91,13 +177,11 @@ function createAssembler() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.assembler);
 
-  // Wide body
-  const body = new THREE.Mesh(new THREE.BoxGeometry(s * 1.5, s * 0.7, s * 1.5), mat);
+  const body = new THREE.Mesh(SHARED_GEOMETRIES.assembler_body, mat);
   body.position.y = s * 0.35;
   group.add(body);
 
-  // Top platform
-  const top = new THREE.Mesh(new THREE.BoxGeometry(s * 1.0, s * 0.2, s * 1.0), mat);
+  const top = new THREE.Mesh(SHARED_GEOMETRIES.assembler_top, mat);
   top.position.y = s * 0.8;
   group.add(top);
 
@@ -109,18 +193,15 @@ function createSplitter() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.splitter);
 
-  // Base
-  const base = new THREE.Mesh(new THREE.BoxGeometry(s * 1.2, s * 0.4, s * 1.2), mat);
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.logistics_base, mat);
   base.position.y = s * 0.2;
   group.add(base);
 
-  // Left output chute (toward +X = output direction, offset along Z)
-  const left = new THREE.Mesh(new THREE.BoxGeometry(s * 0.6, s * 0.3, s * 0.3), mat);
+  const left = new THREE.Mesh(SHARED_GEOMETRIES.splitter_chute, mat);
   left.position.set(s * 0.5, s * 0.55, -s * 0.35);
   group.add(left);
 
-  // Right output chute (toward +X = output direction, offset along Z)
-  const right = new THREE.Mesh(new THREE.BoxGeometry(s * 0.6, s * 0.3, s * 0.3), mat);
+  const right = new THREE.Mesh(SHARED_GEOMETRIES.splitter_chute, mat);
   right.position.set(s * 0.5, s * 0.55, s * 0.35);
   group.add(right);
 
@@ -132,13 +213,11 @@ function createMerger() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.merger);
 
-  // Base
-  const base = new THREE.Mesh(new THREE.BoxGeometry(s * 1.2, s * 0.4, s * 1.2), mat);
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.logistics_base, mat);
   base.position.y = s * 0.2;
   group.add(base);
 
-  // Single output chute (toward +X = output direction)
-  const output = new THREE.Mesh(new THREE.BoxGeometry(s * 0.6, s * 0.3, s * 0.4), mat);
+  const output = new THREE.Mesh(SHARED_GEOMETRIES.merger_output, mat);
   output.position.set(s * 0.5, s * 0.55, 0);
   group.add(output);
 
@@ -150,19 +229,16 @@ function createRefinery() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.refinery);
 
-  // Main tank (cylinder)
-  const tank = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.6, s * 0.6, s * 1.0, 8), mat);
+  const tank = new THREE.Mesh(SHARED_GEOMETRIES.refinery_tank, mat);
   tank.position.y = s * 0.5;
   group.add(tank);
 
-  // Secondary tank (smaller, offset)
-  const tank2 = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.35, s * 0.35, s * 0.7, 8), mat);
+  const tank2 = new THREE.Mesh(SHARED_GEOMETRIES.refinery_tank2, mat);
   tank2.position.set(-s * 0.5, s * 0.35, s * 0.3);
   group.add(tank2);
 
-  // Pipe connecting tanks
   const pipeMat = makeMaterial(0x555555);
-  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.08, s * 0.08, s * 0.6, 6), pipeMat);
+  const pipe = new THREE.Mesh(SHARED_GEOMETRIES.refinery_pipe, pipeMat);
   pipe.rotation.z = Math.PI / 2;
   pipe.position.set(-s * 0.2, s * 0.8, s * 0.15);
   group.add(pipe);
@@ -175,19 +251,16 @@ function createSubmissionTerminal() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.submission_terminal);
 
-  // Pedestal base
-  const base = new THREE.Mesh(new THREE.BoxGeometry(s * 1.0, s * 0.5, s * 1.0), mat);
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.terminal_base, mat);
   base.position.y = s * 0.25;
   group.add(base);
 
-  // Upright panel (the terminal screen)
-  const panel = new THREE.Mesh(new THREE.BoxGeometry(s * 0.8, s * 0.7, s * 0.15), mat);
+  const panel = new THREE.Mesh(SHARED_GEOMETRIES.terminal_panel, mat);
   panel.position.set(0, s * 0.85, -s * 0.3);
   group.add(panel);
 
-  // Screen surface (darker inset)
   const screenMat = makeMaterial(0x334422);
-  const screen = new THREE.Mesh(new THREE.BoxGeometry(s * 0.6, s * 0.45, s * 0.05), screenMat);
+  const screen = new THREE.Mesh(SHARED_GEOMETRIES.terminal_screen, screenMat);
   screen.position.set(0, s * 0.9, -s * 0.2);
   group.add(screen);
 
@@ -199,23 +272,17 @@ function createContainmentTrap() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.containment_trap);
 
-  // Base ring (torus)
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(s * 0.7, s * 0.12, 6, 8), mat);
+  const ring = new THREE.Mesh(SHARED_GEOMETRIES.trap_ring, mat);
   ring.position.y = s * 0.15;
   ring.rotation.x = Math.PI / 2;
   group.add(ring);
 
-  // Central pillar
-  const pillar = new THREE.Mesh(
-    new THREE.CylinderGeometry(s * 0.2, s * 0.3, s * 1.0, 6),
-    mat
-  );
+  const pillar = new THREE.Mesh(SHARED_GEOMETRIES.trap_pillar, mat);
   pillar.position.y = s * 0.5;
   group.add(pillar);
 
-  // Top crystal (octahedron)
   const crystalMat = makeMaterial(0x9966cc);
-  const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(s * 0.3, 0), crystalMat);
+  const crystal = new THREE.Mesh(SHARED_GEOMETRIES.trap_crystal, crystalMat);
   crystal.position.y = s * 1.2;
   group.add(crystal);
 
@@ -227,25 +294,21 @@ function createPurificationBeacon() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.purification_beacon);
 
-  // Hexagonal base platform
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.9, s * 1.0, s * 0.3, 6), mat);
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.purify_base, mat);
   base.position.y = s * 0.15;
   group.add(base);
 
-  // Central pillar (tall, thin)
-  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.15, s * 0.25, s * 1.4, 6), mat);
+  const pillar = new THREE.Mesh(SHARED_GEOMETRIES.purify_pillar, mat);
   pillar.position.y = s * 0.9;
   group.add(pillar);
 
-  // Top emitter (glowing sphere)
-  const emitterMat = new THREE.MeshLambertMaterial({ color: 0x88ddff, emissive: 0x44aadd, emissiveIntensity: 0.5 });
-  const emitter = new THREE.Mesh(new THREE.SphereGeometry(s * 0.35, 8, 8), emitterMat);
+  const emitterMat = makeMaterial(0x88ddff);
+  const emitter = new THREE.Mesh(SHARED_GEOMETRIES.purify_emitter, emitterMat);
   emitter.position.y = s * 1.8;
   group.add(emitter);
 
-  // Shield ring (floating torus)
   const ringMat = new THREE.MeshLambertMaterial({ color: 0x66ccee, transparent: true, opacity: 0.6 });
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(s * 0.7, s * 0.06, 6, 12), ringMat);
+  const ring = new THREE.Mesh(SHARED_GEOMETRIES.purify_ring, ringMat);
   ring.position.y = s * 1.3;
   ring.rotation.x = Math.PI / 2;
   group.add(ring);
@@ -258,26 +321,22 @@ function createDefenseTurret() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.defense_turret);
 
-  // Base platform
-  const base = new THREE.Mesh(new THREE.BoxGeometry(s * 1.2, s * 0.4, s * 1.2), mat);
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.turret_base, mat);
   base.position.y = s * 0.2;
   group.add(base);
 
-  // Turret body (rotatable dome)
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(s * 0.5, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat);
+  const dome = new THREE.Mesh(SHARED_GEOMETRIES.turret_dome, mat);
   dome.position.y = s * 0.4;
   group.add(dome);
 
-  // Barrel (pointing forward in +X direction)
   const barrelMat = makeMaterial(0x444444);
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.1, s * 0.1, s * 0.8, 6), barrelMat);
+  const barrel = new THREE.Mesh(SHARED_GEOMETRIES.turret_barrel, barrelMat);
   barrel.rotation.z = -Math.PI / 2;
   barrel.position.set(s * 0.6, s * 0.65, 0);
   group.add(barrel);
 
-  // Muzzle flash indicator (small red sphere at barrel tip)
-  const muzzleMat = new THREE.MeshLambertMaterial({ color: 0xff2222, emissive: 0xff0000, emissiveIntensity: 0.3 });
-  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(s * 0.12, 6, 6), muzzleMat);
+  const muzzleMat = makeMaterial(0xff2222);
+  const muzzle = new THREE.Mesh(SHARED_GEOMETRIES.turret_muzzle, muzzleMat);
   muzzle.position.set(s * 1.0, s * 0.65, 0);
   group.add(muzzle);
 
@@ -289,26 +348,22 @@ function createClaimBeacon() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.claim_beacon);
 
-  // Wide hexagonal base (territory foundation)
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(s * 1.0, s * 1.1, s * 0.25, 6), mat);
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.beacon_base, mat);
   base.position.y = s * 0.125;
   group.add(base);
 
-  // Central pillar
-  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.2, s * 0.3, s * 1.2, 6), mat);
+  const pillar = new THREE.Mesh(SHARED_GEOMETRIES.beacon_pillar, mat);
   pillar.position.y = s * 0.85;
   group.add(pillar);
 
-  // Top flag/banner (diamond shape)
-  const flagMat = new THREE.MeshLambertMaterial({ color: 0x55dd77, emissive: 0x228844, emissiveIntensity: 0.3 });
-  const flag = new THREE.Mesh(new THREE.OctahedronGeometry(s * 0.35, 0), flagMat);
+  const flagMat = makeMaterial(0x55dd77);
+  const flag = new THREE.Mesh(SHARED_GEOMETRIES.beacon_flag, flagMat);
   flag.position.y = s * 1.7;
   flag.rotation.y = Math.PI / 4;
   group.add(flag);
 
-  // Territory ring (floating, indicates claimed area)
   const ringMat = new THREE.MeshLambertMaterial({ color: 0x44cc66, transparent: true, opacity: 0.4 });
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(s * 0.8, s * 0.05, 6, 12), ringMat);
+  const ring = new THREE.Mesh(SHARED_GEOMETRIES.beacon_ring, ringMat);
   ring.position.y = s * 1.2;
   ring.rotation.x = Math.PI / 2;
   group.add(ring);
@@ -321,25 +376,21 @@ function createTradeTerminal() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.trade_terminal);
 
-  // Base platform
-  const base = new THREE.Mesh(new THREE.BoxGeometry(s * 1.2, s * 0.4, s * 1.0), mat);
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.trade_base, mat);
   base.position.y = s * 0.2;
   group.add(base);
 
-  // Left exchange slot
   const slotMat = makeMaterial(0xbb8822);
-  const slotL = new THREE.Mesh(new THREE.BoxGeometry(s * 0.3, s * 0.6, s * 0.5), slotMat);
+  const slotL = new THREE.Mesh(SHARED_GEOMETRIES.trade_slot, slotMat);
   slotL.position.set(-s * 0.35, s * 0.7, 0);
   group.add(slotL);
 
-  // Right exchange slot
-  const slotR = new THREE.Mesh(new THREE.BoxGeometry(s * 0.3, s * 0.6, s * 0.5), slotMat);
+  const slotR = new THREE.Mesh(SHARED_GEOMETRIES.trade_slot, slotMat);
   slotR.position.set(s * 0.35, s * 0.7, 0);
   group.add(slotR);
 
-  // Exchange arrows indicator (gold bar between slots)
-  const arrowMat = new THREE.MeshLambertMaterial({ color: 0xffcc44, emissive: 0xddaa22, emissiveIntensity: 0.2 });
-  const bar = new THREE.Mesh(new THREE.BoxGeometry(s * 0.4, s * 0.1, s * 0.15), arrowMat);
+  const arrowMat = makeMaterial(0xffcc44);
+  const bar = new THREE.Mesh(SHARED_GEOMETRIES.trade_bar, arrowMat);
   bar.position.set(0, s * 0.7, 0);
   group.add(bar);
 
@@ -351,27 +402,24 @@ function createConveyorMk2() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.conveyor_mk2);
 
-  // Wider belt with side rails
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(s * 1.4, s * 0.3, s * 0.9), mat);
+  const belt = new THREE.Mesh(SHARED_GEOMETRIES.conveyor_mk2_belt, mat);
   belt.position.y = s * 0.15;
   group.add(belt);
 
-  // Side rails
   const railMat = makeMaterial(0x8888aa);
-  const railL = new THREE.Mesh(new THREE.BoxGeometry(s * 1.4, s * 0.15, s * 0.08), railMat);
+  const railL = new THREE.Mesh(SHARED_GEOMETRIES.conveyor_mk2_rail, railMat);
   railL.position.set(0, s * 0.35, -s * 0.45);
   group.add(railL);
-  const railR = new THREE.Mesh(new THREE.BoxGeometry(s * 1.4, s * 0.15, s * 0.08), railMat);
+  const railR = new THREE.Mesh(SHARED_GEOMETRIES.conveyor_mk2_rail, railMat);
   railR.position.set(0, s * 0.35, s * 0.45);
   group.add(railR);
 
-  // Double arrow
   const arrowMat = makeMaterial(0x6666aa);
-  const arrow1 = new THREE.Mesh(new THREE.ConeGeometry(s * 0.2, s * 0.3, 4), arrowMat);
+  const arrow1 = new THREE.Mesh(SHARED_GEOMETRIES.conveyor_mk2_arrow1, arrowMat);
   arrow1.rotation.z = -Math.PI / 2;
   arrow1.position.set(s * 0.3, s * 0.4, 0);
   group.add(arrow1);
-  const arrow2 = new THREE.Mesh(new THREE.ConeGeometry(s * 0.15, s * 0.2, 4), arrowMat);
+  const arrow2 = new THREE.Mesh(SHARED_GEOMETRIES.conveyor_mk2_arrow2, arrowMat);
   arrow2.rotation.z = -Math.PI / 2;
   arrow2.position.set(s * 0.0, s * 0.4, 0);
   group.add(arrow2);
@@ -384,21 +432,18 @@ function createConveyorMk3() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.conveyor_mk3);
 
-  // Enclosed belt
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(s * 1.4, s * 0.35, s * 1.0), mat);
+  const belt = new THREE.Mesh(SHARED_GEOMETRIES.conveyor_mk3_belt, mat);
   belt.position.y = s * 0.175;
   group.add(belt);
 
-  // Top cover (partially transparent)
   const coverMat = new THREE.MeshLambertMaterial({ color: 0xbbbbdd, transparent: true, opacity: 0.6 });
-  const cover = new THREE.Mesh(new THREE.BoxGeometry(s * 1.2, s * 0.1, s * 0.8), coverMat);
+  const cover = new THREE.Mesh(SHARED_GEOMETRIES.conveyor_mk3_cover, coverMat);
   cover.position.y = s * 0.4;
   group.add(cover);
 
-  // Triple arrow
   const arrowMat = makeMaterial(0x8888cc);
   for (let i = 0; i < 3; i++) {
-    const arrow = new THREE.Mesh(new THREE.ConeGeometry(s * 0.15, s * 0.2, 4), arrowMat);
+    const arrow = new THREE.Mesh(SHARED_GEOMETRIES.conveyor_mk3_arrow, arrowMat);
     arrow.rotation.z = -Math.PI / 2;
     arrow.position.set(s * (0.35 - i * 0.25), s * 0.5, 0);
     group.add(arrow);
@@ -412,24 +457,20 @@ function createBalancer() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.balancer);
 
-  // Base with diamond pattern (smart routing)
-  const base = new THREE.Mesh(new THREE.BoxGeometry(s * 1.2, s * 0.4, s * 1.2), mat);
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.logistics_base, mat);
   base.position.y = s * 0.2;
   group.add(base);
 
-  // Scale symbol (balanced outputs)
   const scaleMat = makeMaterial(0x33aa77);
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(s * 1.0, s * 0.08, s * 0.08), scaleMat);
+  const beam = new THREE.Mesh(SHARED_GEOMETRIES.balancer_beam, scaleMat);
   beam.position.set(0, s * 0.65, 0);
   group.add(beam);
 
-  // Left pan
-  const panL = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.2, s * 0.2, s * 0.06, 6), scaleMat);
+  const panL = new THREE.Mesh(SHARED_GEOMETRIES.balancer_pan, scaleMat);
   panL.position.set(-s * 0.4, s * 0.55, 0);
   group.add(panL);
 
-  // Right pan
-  const panR = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.2, s * 0.2, s * 0.06, 6), scaleMat);
+  const panR = new THREE.Mesh(SHARED_GEOMETRIES.balancer_pan, scaleMat);
   panR.position.set(s * 0.4, s * 0.55, 0);
   group.add(panR);
 
@@ -441,20 +482,17 @@ function createStorageContainer() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.storage_container);
 
-  // Large box body (crate)
-  const body = new THREE.Mesh(new THREE.BoxGeometry(s * 1.4, s * 1.0, s * 1.2), mat);
+  const body = new THREE.Mesh(SHARED_GEOMETRIES.storage_body, mat);
   body.position.y = s * 0.5;
   group.add(body);
 
-  // Lid (slightly lighter)
   const lidMat = makeMaterial(0xaa8855);
-  const lid = new THREE.Mesh(new THREE.BoxGeometry(s * 1.5, s * 0.15, s * 1.3), lidMat);
+  const lid = new THREE.Mesh(SHARED_GEOMETRIES.storage_lid, lidMat);
   lid.position.y = s * 1.075;
   group.add(lid);
 
-  // Handle
   const handleMat = makeMaterial(0x555555);
-  const handle = new THREE.Mesh(new THREE.BoxGeometry(s * 0.4, s * 0.08, s * 0.08), handleMat);
+  const handle = new THREE.Mesh(SHARED_GEOMETRIES.storage_handle, handleMat);
   handle.position.set(0, s * 1.2, 0);
   group.add(handle);
 
@@ -466,21 +504,18 @@ function createUndergroundConduit() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.underground_conduit);
 
-  // Ring portal (entry/exit)
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(s * 0.6, s * 0.12, 6, 8), mat);
+  const ring = new THREE.Mesh(SHARED_GEOMETRIES.conduit_ring, mat);
   ring.position.y = s * 0.3;
   ring.rotation.x = Math.PI / 2;
   group.add(ring);
 
-  // Center glow (portal)
-  const glowMat = new THREE.MeshLambertMaterial({ color: 0x9977dd, emissive: 0x6644aa, emissiveIntensity: 0.4 });
-  const glow = new THREE.Mesh(new THREE.SphereGeometry(s * 0.35, 8, 8), glowMat);
+  const glowMat = makeMaterial(0x9977dd);
+  const glow = new THREE.Mesh(SHARED_GEOMETRIES.conduit_glow, glowMat);
   glow.position.y = s * 0.3;
   group.add(glow);
 
-  // Direction arrow
   const arrowMat = makeMaterial(0x4433aa);
-  const arrow = new THREE.Mesh(new THREE.ConeGeometry(s * 0.2, s * 0.3, 4), arrowMat);
+  const arrow = new THREE.Mesh(SHARED_GEOMETRIES.conduit_arrow, arrowMat);
   arrow.rotation.z = -Math.PI / 2;
   arrow.position.set(s * 0.4, s * 0.6, 0);
   group.add(arrow);
@@ -493,19 +528,16 @@ function createCrossover() {
   const s = BUILDING_SCALE;
   const mat = makeMaterial(COLORS.crossover);
 
-  // Horizontal belt
-  const hBelt = new THREE.Mesh(new THREE.BoxGeometry(s * 1.6, s * 0.25, s * 0.5), mat);
+  const hBelt = new THREE.Mesh(SHARED_GEOMETRIES.crossover_hBelt, mat);
   hBelt.position.y = s * 0.125;
   group.add(hBelt);
 
-  // Vertical belt (perpendicular)
-  const vBelt = new THREE.Mesh(new THREE.BoxGeometry(s * 0.5, s * 0.25, s * 1.6), mat);
+  const vBelt = new THREE.Mesh(SHARED_GEOMETRIES.crossover_vBelt, mat);
   vBelt.position.y = s * 0.125;
   group.add(vBelt);
 
-  // Center raised hub
   const hubMat = makeMaterial(0x559955);
-  const hub = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.3, s * 0.3, s * 0.15, 8), hubMat);
+  const hub = new THREE.Mesh(SHARED_GEOMETRIES.crossover_hub, hubMat);
   hub.position.y = s * 0.325;
   group.add(hub);
 
@@ -516,30 +548,31 @@ function createDimensionalStabilizer() {
   const group = new THREE.Group();
   const s = BUILDING_SCALE;
 
-  // Large hexagonal base (massive footprint for radius 15)
   const baseMat = makeMaterial(0x224466);
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(s * 1.2, s * 1.3, s * 0.4, 6), baseMat);
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.stabilizer_base, baseMat);
   base.position.y = s * 0.2;
   group.add(base);
 
-  // Central column (tall, imposing)
   const colMat = makeMaterial(0x3366aa);
-  const column = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.25, s * 0.4, s * 2.0, 8), colMat);
+  const column = new THREE.Mesh(SHARED_GEOMETRIES.stabilizer_column, colMat);
   column.position.y = s * 1.2;
   group.add(column);
 
-  // Floating ring array (3 stacked rings)
   const ringMat = new THREE.MeshLambertMaterial({ color: 0x66aaff, emissive: 0x2244aa, emissiveIntensity: 0.4, transparent: true, opacity: 0.7 });
+  const ringGeos = [
+    new THREE.TorusGeometry(s * 0.6, s * 0.05, 6, 12),
+    new THREE.TorusGeometry(s * 0.75, s * 0.05, 6, 12),
+    new THREE.TorusGeometry(s * 0.9, s * 0.05, 6, 12),
+  ];
   for (let i = 0; i < 3; i++) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(s * (0.6 + i * 0.15), s * 0.05, 6, 12), ringMat);
+    const ring = new THREE.Mesh(ringGeos[i], ringMat);
     ring.position.y = s * (1.0 + i * 0.5);
     ring.rotation.x = Math.PI / 2;
     group.add(ring);
   }
 
-  // Top sphere (dimensional anchor)
-  const sphereMat = new THREE.MeshLambertMaterial({ color: 0xaaddff, emissive: 0x4488cc, emissiveIntensity: 0.6 });
-  const sphere = new THREE.Mesh(new THREE.SphereGeometry(s * 0.4, 12, 12), sphereMat);
+  const sphereMat = makeMaterial(0xaaddff);
+  const sphere = new THREE.Mesh(SHARED_GEOMETRIES.stabilizer_sphere, sphereMat);
   sphere.position.y = s * 2.5;
   group.add(sphere);
 
@@ -550,27 +583,23 @@ function createAstralProjectionChamber() {
   const group = new THREE.Group();
   const s = BUILDING_SCALE;
 
-  // Base platform (dark, mysterious)
   const baseMat = makeMaterial(0x332255);
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(s * 1.0, s * 1.1, s * 0.3, 8), baseMat);
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.astral_base, baseMat);
   base.position.y = s * 0.15;
   group.add(base);
 
-  // Chamber walls (transparent dome)
   const domeMat = new THREE.MeshLambertMaterial({ color: 0x8866cc, transparent: true, opacity: 0.35 });
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(s * 0.8, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), domeMat);
+  const dome = new THREE.Mesh(SHARED_GEOMETRIES.astral_dome, domeMat);
   dome.position.y = s * 0.3;
   group.add(dome);
 
-  // Central projection pillar
-  const pillarMat = new THREE.MeshLambertMaterial({ color: 0xaa88ff, emissive: 0x6644cc, emissiveIntensity: 0.5 });
-  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.1, s * 0.15, s * 1.2, 6), pillarMat);
+  const pillarMat = makeMaterial(0xaa88ff);
+  const pillar = new THREE.Mesh(SHARED_GEOMETRIES.astral_pillar, pillarMat);
   pillar.position.y = s * 0.9;
   group.add(pillar);
 
-  // Top eye (icosahedron — seeing all)
-  const eyeMat = new THREE.MeshLambertMaterial({ color: 0xcc99ff, emissive: 0x8844ff, emissiveIntensity: 0.6 });
-  const eye = new THREE.Mesh(new THREE.IcosahedronGeometry(s * 0.3, 0), eyeMat);
+  const eyeMat = makeMaterial(0xcc99ff);
+  const eye = new THREE.Mesh(SHARED_GEOMETRIES.astral_eye, eyeMat);
   eye.position.y = s * 1.7;
   group.add(eye);
 

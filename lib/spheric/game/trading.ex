@@ -320,7 +320,6 @@ defmodule Spheric.Game.Trading do
     Trade
     |> where([t], t.world_id == ^trade.world_id and t.offerer_id == ^trade.offerer_id)
     |> where([t], t.offered_items == ^trade.offered_items)
-    |> limit(1)
     |> Repo.update_all(
       set: [
         status: trade.status,

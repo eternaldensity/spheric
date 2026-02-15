@@ -17,6 +17,7 @@ defmodule Spheric.Game.Creatures do
 
   @creatures_table :spheric_creatures
   @player_creatures_table :spheric_player_creatures
+  @assignments_table :spheric_creature_assignments
 
   # --- Creature Type Definitions ---
 
@@ -143,6 +144,11 @@ defmodule Spheric.Game.Creatures do
 
     unless :ets.whereis(@player_creatures_table) != :undefined do
       :ets.new(@player_creatures_table, [:named_table, :set, :public, read_concurrency: true])
+    end
+
+    # Reverse index: building_key -> creature (for O(1) lookup in tick loop)
+    unless :ets.whereis(@assignments_table) != :undefined do
+      :ets.new(@assignments_table, [:named_table, :set, :public, read_concurrency: true])
     end
 
     :ok
@@ -438,6 +444,9 @@ defmodule Spheric.Game.Creatures do
               end)
 
             :ets.insert(@player_creatures_table, {player_id, updated_roster})
+            # Update reverse index
+            assigned = Enum.find(updated_roster, fn c -> c.id == creature_id end)
+            if assigned, do: :ets.insert(@assignments_table, {building_key, assigned})
             :ok
         end
     end
@@ -453,7 +462,10 @@ defmodule Spheric.Game.Creatures do
       nil ->
         {:error, :creature_not_found}
 
-      _creature ->
+      creature ->
+        # Remove from reverse index
+        if creature.assigned_to, do: :ets.delete(@assignments_table, creature.assigned_to)
+
         updated_roster =
           Enum.map(roster, fn c ->
             if c.id == creature_id do
@@ -475,16 +487,15 @@ defmodule Spheric.Game.Creatures do
 
   @doc "Get the creature assigned to a building, if any."
   def get_assigned_creature(building_key) do
-    case :ets.whereis(@player_creatures_table) do
+    case :ets.whereis(@assignments_table) do
       :undefined ->
         nil
 
       _ ->
-        all =
-          :ets.tab2list(@player_creatures_table)
-          |> Enum.flat_map(fn {_player_id, roster} -> roster end)
-
-        Enum.find(all, fn c -> c.assigned_to == building_key end)
+        case :ets.lookup(@assignments_table, building_key) do
+          [{^building_key, creature}] -> creature
+          [] -> nil
+        end
     end
   end
 
@@ -597,7 +608,18 @@ defmodule Spheric.Game.Creatures do
 
   @doc "Put a player's roster directly (used for loading from DB)."
   def put_player_roster(player_id, roster) do
+    # Clear old assignments for this player from reverse index
+    old_roster = get_player_roster(player_id)
+    for c <- old_roster, c.assigned_to != nil do
+      :ets.delete(@assignments_table, c.assigned_to)
+    end
+
     :ets.insert(@player_creatures_table, {player_id, roster})
+
+    # Rebuild reverse index entries for assigned creatures
+    for c <- roster, c.assigned_to != nil do
+      :ets.insert(@assignments_table, {c.assigned_to, c})
+    end
   end
 
   @doc """
@@ -653,6 +675,10 @@ defmodule Spheric.Game.Creatures do
 
     if :ets.whereis(@player_creatures_table) != :undefined do
       :ets.delete_all_objects(@player_creatures_table)
+    end
+
+    if :ets.whereis(@assignments_table) != :undefined do
+      :ets.delete_all_objects(@assignments_table)
     end
   end
 

@@ -233,7 +233,8 @@ const GameRenderer = {
     const posAttr = this._dustMotes.geometry.getAttribute("position");
     const pos = posAttr.array;
     const vel = this._moteVelocities;
-    const v = new THREE.Vector3();
+    if (!this._dustMotesTemp) this._dustMotesTemp = new THREE.Vector3();
+    const v = this._dustMotesTemp;
 
     for (let i = 0; i < pos.length / 3; i++) {
       const ix = i * 3;
@@ -417,6 +418,20 @@ const GameRenderer = {
 
     // Regenerate tile texture for the affected cell
     this.regenerateCellTexture(face, cellRow, cellCol);
+  },
+
+  disposeMeshGroup(group) {
+    group.traverse((child) => {
+      if (child.isMesh) {
+        // Only dispose geometries/materials that are NOT shared via the building factory cache
+        if (child.geometry && !child.geometry._shared) child.geometry.dispose();
+        if (child.material && !child.material._shared) child.material.dispose();
+      }
+      if (child.isLine) {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+      }
+    });
   },
 
   removeBuildingFromScene(face, row, col) {
@@ -1026,6 +1041,7 @@ const GameRenderer = {
   clearPreviewArrow() {
     if (this.previewArrow) {
       this.scene.remove(this.previewArrow);
+      this.disposeMeshGroup(this.previewArrow);
       this.previewArrow = null;
     }
   },
@@ -1221,6 +1237,7 @@ const GameRenderer = {
   clearLinePreview() {
     for (const group of this.linePreviewMeshes) {
       this.scene.remove(group);
+      this.disposeMeshGroup(group);
     }
     this.linePreviewMeshes = [];
 
@@ -1921,8 +1938,8 @@ const GameRenderer = {
       let mesh = this.hissEntityMeshes.get(entity.id);
       if (!mesh) {
         mesh = new THREE.Mesh(
-          this._hissGeometry.clone(),
-          this._hissMaterial.clone()
+          this._hissGeometry,
+          this._hissMaterial
         );
         this.scene.add(mesh);
         this.hissEntityMeshes.set(entity.id, mesh);
@@ -1945,8 +1962,7 @@ const GameRenderer = {
     for (const [id, mesh] of this.hissEntityMeshes) {
       if (!activeIds.has(id)) {
         this.scene.remove(mesh);
-        mesh.geometry.dispose();
-        mesh.material.dispose();
+        // geometry/material are shared across all Hiss entities — don't dispose
         this.hissEntityMeshes.delete(id);
       }
     }
@@ -1973,11 +1989,13 @@ const GameRenderer = {
 
     for (const [, mesh] of this.hissEntityMeshes) {
       this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      mesh.material.dispose();
+      // geometry/material are shared — don't dispose per-mesh
     }
     this.hissEntityMeshes.clear();
     this.hissEntityData = [];
+    // Dispose the shared Hiss geometry/material once
+    if (this._hissGeometry) { this._hissGeometry.dispose(); this._hissGeometry = null; }
+    if (this._hissMaterial) { this._hissMaterial.dispose(); this._hissMaterial = null; }
   },
 
   onResize() {
@@ -2002,6 +2020,13 @@ const GameRenderer = {
     this.clearLinePreview();
     this.clearBlueprintPreview();
     this.clearDemolishPreview();
+    // Dispose all building meshes
+    for (const key of Object.keys(this.buildingMeshes)) {
+      const mesh = this.buildingMeshes[key];
+      this.scene.remove(mesh);
+      this.disposeMeshGroup(mesh);
+    }
+    this.buildingMeshes = {};
     this.disposePlayerMarkers();
     this.disposeAlteredItems();
     this.disposeCorruption();
