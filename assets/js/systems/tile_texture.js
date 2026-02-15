@@ -135,8 +135,8 @@ export class TileTextureGenerator {
         ctx.fillStyle = terrainColor;
         ctx.fillRect(x, y, pxPerTile, pxPerTile);
 
-        // Building icon (only drawn when buildings data is provided)
-        if (buildings) {
+        // Building icon — skip at low LOD where tiles are too small
+        if (buildings && N > 4) {
           const buildingKey = `${faceId}:${faceRow}:${faceCol}`;
           const building = buildings.get ? buildings.get(buildingKey) : buildings[buildingKey];
           if (building) {
@@ -151,10 +151,15 @@ export class TileTextureGenerator {
       }
     }
 
-    // Create or update texture
-    if (this.textures.has(cellKey)) {
-      this.textures.get(cellKey).dispose();
+    // Reuse existing texture if canvas is the same object (same LOD level);
+    // just flag it for GPU re-upload instead of allocating a new one.
+    const existing = this.textures.get(cellKey);
+    if (existing && existing.image === canvas) {
+      existing.needsUpdate = true;
+      return existing;
     }
+
+    if (existing) existing.dispose();
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearMipmapLinearFilter;

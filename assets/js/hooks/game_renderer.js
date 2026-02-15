@@ -56,6 +56,7 @@ const GameRenderer = {
     // Building state
     this.buildingMeshes = {}; // keyed by "face:row:col"
     this.buildingData = new Map(); // keyed by "face:row:col" -> {type, orientation}
+    this.buildingsByCell = new Map(); // "face:cellRow:cellCol" -> Set of building keys
     this.placementType = null;       // current building type being placed
     this.placementOrientation = 0;   // current placement orientation (0-3)
     this.previewArrow = null;        // arrow mesh showing output direction on hover
@@ -400,12 +401,21 @@ const GameRenderer = {
     const m = new THREE.Matrix4().makeBasis(tangentX, normal, tangentZ);
     mesh.quaternion.setFromRotationMatrix(m);
 
-    mesh.visible = this.buildingRenderMode === "3d";
     this.scene.add(mesh);
     this.buildingMeshes[key] = mesh;
 
-    // Regenerate tile texture for the affected cell
+    // Index by cell for LOD-aware visibility
     const { cellRow, cellCol } = this.chunkManager.toCellCoords(row, col);
+    const cellKey = `${face}:${cellRow}:${cellCol}`;
+    if (!this.buildingsByCell.has(cellKey)) {
+      this.buildingsByCell.set(cellKey, new Set());
+    }
+    this.buildingsByCell.get(cellKey).add(key);
+
+    // Apply visibility based on current cell LOD and camera distance
+    this.updateBuildingVisibility(face, cellRow, cellCol);
+
+    // Regenerate tile texture for the affected cell
     this.regenerateCellTexture(face, cellRow, cellCol);
   },
 
@@ -418,8 +428,16 @@ const GameRenderer = {
     }
     this.buildingData.delete(key);
 
-    // Regenerate tile texture for the affected cell
+    // Remove from cell index
     const { cellRow, cellCol } = this.chunkManager.toCellCoords(row, col);
+    const cellKey = `${face}:${cellRow}:${cellCol}`;
+    const cellSet = this.buildingsByCell.get(cellKey);
+    if (cellSet) {
+      cellSet.delete(key);
+      if (cellSet.size === 0) this.buildingsByCell.delete(cellKey);
+    }
+
+    // Regenerate tile texture for the affected cell
     this.regenerateCellTexture(face, cellRow, cellCol);
   },
 
@@ -450,6 +468,8 @@ const GameRenderer = {
   setupEventHandlers() {
     this.handleEvent("terrain_face", ({ face, terrain }) => {
       this.chunkManager.terrainData[face] = terrain;
+      // Evict stale cached meshes at other LOD levels for this face
+      this.chunkManager.clearFaceCache(face);
       // Rebuild any visible cells on this face now that terrain is available
       for (let cr = 0; cr < 4; cr++) {
         for (let cc = 0; cc < 4; cc++) {
@@ -1455,17 +1475,11 @@ const GameRenderer = {
   toggleBuildingRenderMode() {
     if (this.buildingRenderMode === "3d") {
       this.buildingRenderMode = "icons";
-      // Hide all 3D meshes
-      for (const key of Object.keys(this.buildingMeshes)) {
-        this.buildingMeshes[key].visible = false;
-      }
     } else {
       this.buildingRenderMode = "3d";
-      // Show all 3D meshes
-      for (const key of Object.keys(this.buildingMeshes)) {
-        this.buildingMeshes[key].visible = true;
-      }
     }
+    // Refresh 3D mesh visibility through the LOD-aware system
+    this.updateAllBuildingVisibility();
     // Regenerate textures so icons appear/disappear
     for (let faceId = 0; faceId < 30; faceId++) {
       for (let cr = 0; cr < 4; cr++) {
@@ -1476,6 +1490,46 @@ const GameRenderer = {
           }
         }
       }
+    }
+  },
+
+  /**
+   * Update 3D building mesh visibility for a single cell based on LOD,
+   * camera distance, and render mode.
+   */
+  updateBuildingVisibility(faceId, cellRow, cellCol) {
+    const cellKey = `${faceId}:${cellRow}:${cellCol}`;
+    const buildingKeys = this.buildingsByCell.get(cellKey);
+    if (!buildingKeys) return;
+
+    const N = this.chunkManager.getCellLOD(faceId, cellRow, cellCol);
+    const camDist = this.camera.position.length();
+
+    // 3D meshes only when: render mode is "3d", cell is at medium+ detail,
+    // and camera is close enough for individual buildings to matter.
+    const shouldShow = (
+      this.buildingRenderMode === "3d" &&
+      N >= 8 &&
+      camDist < 3.5
+    );
+
+    for (const key of buildingKeys) {
+      const mesh = this.buildingMeshes[key];
+      if (mesh) mesh.visible = shouldShow;
+    }
+  },
+
+  /**
+   * Sweep all cells that have buildings and refresh their visibility.
+   */
+  updateAllBuildingVisibility() {
+    for (const [cellKey] of this.buildingsByCell) {
+      const parts = cellKey.split(":");
+      this.updateBuildingVisibility(
+        parseInt(parts[0]),
+        parseInt(parts[1]),
+        parseInt(parts[2])
+      );
     }
   },
 
@@ -1539,10 +1593,18 @@ const GameRenderer = {
     // Update LOD based on camera position (ChunkManager handles dirty checks)
     const changedCells = this.chunkManager.update(this.camera.position);
     if (changedCells.length > 0) {
-      // Regenerate textures only for cells that changed LOD
+      // Regenerate textures and building visibility for cells that changed LOD
       for (const { faceId, cellRow, cellCol } of changedCells) {
         this.regenerateCellTexture(faceId, cellRow, cellCol);
+        this.updateBuildingVisibility(faceId, cellRow, cellCol);
       }
+    }
+
+    // Periodically sweep building visibility to catch zoom-only changes
+    // (camera distance crossed the threshold without triggering LOD changes)
+    this._buildingVisFrame = (this._buildingVisFrame || 0) + 1;
+    if (this._buildingVisFrame % 10 === 0) {
+      this.updateAllBuildingVisibility();
     }
 
     // Update item positions with interpolation

@@ -5,24 +5,39 @@ import * as THREE from "three";
  *
  * Each face is divided into a 4×4 grid of "cells". Each cell is independently
  * managed for LOD based on camera distance to the cell center:
- * - Close:  full 16×16 subdivision within the cell
- * - Medium: 8×8
- * - Far:    4×4
- * - Hidden: unloaded (0)
+ * - Close:     full 16×16 subdivision within the cell
+ * - Medium:    8×8
+ * - Far:       4×4
+ * - Ultra-far: 2×2
+ * - Hidden:    unloaded (0)
+ *
+ * Hemisphere culling hides cells occluded by the sphere.  Thresholds scale
+ * with zoom distance so distant views are cheaper.  LOD transitions are
+ * throttled and meshes are cached to avoid frame stutters.
  *
  * Cell key: faceId * 16 + cellRow * 4 + cellCol
  */
 
-// LOD thresholds (camera distance to cell center on unit sphere)
-const LOD_CLOSE = 1.6;
-const LOD_MEDIUM = 2.5;
-const LOD_FAR = 4.0;
+// LOD base thresholds (camera distance to cell center on unit sphere).
+// Scaled at runtime by zoom distance for more aggressive culling when far out.
+const BASE_CLOSE = 1.4;
+const BASE_MEDIUM = 2.0;
+const BASE_FAR = 3.0;
+const BASE_ULTRA_FAR = 4.0;
 
-// Face-level cull threshold: if camera is farther than this from face center,
-// skip all 16 cells on that face
-const FACE_CULL_DIST = LOD_FAR + 1.5;
+// Hemisphere culling margin — small buffer past the geometric horizon so
+// cells don't pop in/out right at the planet limb.
+const HORIZON_MARGIN = 0.05;
 
 const TILES_PER_CELL = 16;
+
+// Maximum non-hide LOD transitions per frame to prevent stutter during
+// fast zooming.  Hide transitions (N→0) are always immediate since they
+// are cheap visibility toggles.
+const MAX_LOD_CHANGES_PER_FRAME = 8;
+
+// Reusable vector to avoid allocations in the hot update() loop
+const _camNorm = new THREE.Vector3();
 
 export class ChunkManager {
   /**
@@ -64,6 +79,18 @@ export class ChunkManager {
 
     // Reverse lookup: mesh -> { faceId, cellRow, cellCol }
     this.meshToCellInfo = new Map();
+
+    // Mesh cache: cellKey -> Map<N, { mesh, gridLines }>
+    // Cached meshes are kept hidden in the scene so LOD switches just
+    // toggle visibility instead of allocating/disposing GPU resources.
+    this.meshCache = new Map();
+
+    // Shared materials to avoid per-cell allocation
+    this.sharedGridMaterial = new THREE.LineBasicMaterial({
+      color: 0x000000,
+      opacity: 0.15,
+      transparent: true,
+    });
 
     // Precompute face and cell geometry
     for (let faceId = 0; faceId < faceIndices.length; faceId++) {
@@ -134,22 +161,44 @@ export class ChunkManager {
   }
 
   /**
+   * Compute the desired LOD subdivision level for a cell.
+   * Thresholds tighten as the camera zooms out so distant views are cheaper.
+   */
+  computeLODLevel(cellDist, camDist) {
+    // Zoom scale: at camDist 1.08 → 1.0, at camDist 8.0 → ~0.58
+    const scale = Math.max(0.5, 1.0 - 0.06 * Math.max(0, camDist - 1.0));
+    if (cellDist < BASE_CLOSE * scale) return 16;
+    if (cellDist < BASE_MEDIUM * scale) return 8;
+    if (cellDist < BASE_FAR * scale) return 4;
+    if (cellDist < BASE_ULTRA_FAR * scale) return 2;
+    return 0;
+  }
+
+  /**
    * Update LOD levels based on camera position.
-   * Returns array of { faceId, cellRow, cellCol } that changed LOD.
+   * Uses hemisphere culling (dot-product backface test) and zoom-aware
+   * distance thresholds.  Returns array of { faceId, cellRow, cellCol }
+   * that changed LOD.
    * @param {THREE.Vector3} cameraPos
    */
   update(cameraPos) {
     const changed = [];
+    const pending = []; // non-hide transitions to throttle
+    const camDist = cameraPos.length();
+    const camNorm = _camNorm.copy(cameraPos).normalize();
+    // Geometric horizon: surface point visible when dot(camNorm, point) >= 1/d
+    const horizonDot = 1.0 / camDist - HORIZON_MARGIN;
 
     for (let faceId = 0; faceId < this.faceIndices.length; faceId++) {
-      const faceDist = cameraPos.distanceTo(this.faceCenters[faceId]);
-
-      // Face-level pre-cull: if entire face is far away, hide all cells
-      if (faceDist > FACE_CULL_DIST) {
+      // Face-level hemisphere cull: if face center is behind the horizon,
+      // the entire face is occluded by the sphere.
+      const faceDot = this.faceCenters[faceId].dot(camNorm);
+      if (faceDot < horizonDot) {
         for (let cr = 0; cr < this.cellsPerAxis; cr++) {
           for (let cc = 0; cc < this.cellsPerAxis; cc++) {
             const key = this.cellKey(faceId, cr, cc);
             if (this.cellLOD.get(key) !== 0) {
+              // Hiding is cheap (visibility toggle), apply immediately
               this.rebuildCell(faceId, cr, cc, 0);
               this.cellLOD.set(key, 0);
               changed.push({ faceId, cellRow: cr, cellCol: cc });
@@ -159,24 +208,47 @@ export class ChunkManager {
         continue;
       }
 
-      // Per-cell LOD
+      // Per-cell LOD with per-cell backface test
       for (let cr = 0; cr < this.cellsPerAxis; cr++) {
         for (let cc = 0; cc < this.cellsPerAxis; cc++) {
           const key = this.cellKey(faceId, cr, cc);
-          const dist = cameraPos.distanceTo(this.cellCenters.get(key));
+          const cellCenter = this.cellCenters.get(key);
 
           let targetN;
-          if (dist < LOD_CLOSE) targetN = 16;
-          else if (dist < LOD_MEDIUM) targetN = 8;
-          else if (dist < LOD_FAR) targetN = 4;
-          else targetN = 0;
+          if (cellCenter.dot(camNorm) < horizonDot) {
+            targetN = 0;
+          } else {
+            const dist = cameraPos.distanceTo(cellCenter);
+            targetN = this.computeLODLevel(dist, camDist);
+          }
 
-          if (targetN !== this.cellLOD.get(key)) {
-            this.rebuildCell(faceId, cr, cc, targetN);
-            this.cellLOD.set(key, targetN);
+          const currentN = this.cellLOD.get(key);
+          if (targetN === currentN) continue;
+
+          if (targetN === 0) {
+            // Hiding is cheap, apply immediately
+            this.rebuildCell(faceId, cr, cc, 0);
+            this.cellLOD.set(key, 0);
             changed.push({ faceId, cellRow: cr, cellCol: cc });
+          } else {
+            // Queue non-hide transitions for throttling
+            const dist = cameraPos.distanceTo(cellCenter);
+            pending.push({ faceId, cr, cc, key, targetN, dist });
           }
         }
+      }
+    }
+
+    // Throttle: apply up to MAX_LOD_CHANGES visible transitions per frame,
+    // prioritising closest cells first.
+    if (pending.length > 0) {
+      pending.sort((a, b) => a.dist - b.dist);
+      const limit = Math.min(pending.length, MAX_LOD_CHANGES_PER_FRAME);
+      for (let i = 0; i < limit; i++) {
+        const { faceId, cr, cc, key, targetN } = pending[i];
+        this.rebuildCell(faceId, cr, cc, targetN);
+        this.cellLOD.set(key, targetN);
+        changed.push({ faceId, cellRow: cr, cellCol: cc });
       }
     }
 
@@ -184,27 +256,24 @@ export class ChunkManager {
   }
 
   /**
-   * Rebuild geometry for a cell at a given subdivision level.
-   * If N=0, remove the mesh (hidden).
+   * Rebuild (or show cached) geometry for a cell at a given subdivision level.
+   * If N=0, hide the mesh.  Cached meshes are kept hidden in the scene so
+   * LOD switches toggle visibility instead of allocating GPU resources.
    */
   rebuildCell(faceId, cellRow, cellCol, N) {
     const key = this.cellKey(faceId, cellRow, cellCol);
 
-    // Remove old mesh and grid lines
+    // --- Hide the currently-active mesh for this cell ---
     const oldMesh = this.cellMeshes.get(key);
     if (oldMesh) {
-      this.scene.remove(oldMesh);
-      oldMesh.geometry.dispose();
-      oldMesh.material.dispose();
+      oldMesh.visible = false;
       this.meshToCellInfo.delete(oldMesh);
       this.cellMeshes.delete(key);
     }
 
     const oldLines = this.cellGridLines.get(key);
     if (oldLines) {
-      this.scene.remove(oldLines);
-      oldLines.geometry.dispose();
-      oldLines.material.dispose();
+      oldLines.visible = false;
       this.cellGridLines.delete(key);
     }
 
@@ -216,13 +285,42 @@ export class ChunkManager {
     // Guard: terrain data must be loaded for this face
     if (!this.terrainData[faceId]) return;
 
-    const { origin, e1, e2 } = this.cellEdges.get(key);
-
     // Compute per-tile terrain colors at this LOD
     const tileColors = this.computeCellTileColors(faceId, cellRow, cellCol, N);
     this.cellBaseColors.set(key, tileColors);
 
-    // Generate (N+1)^2 vertices
+    // --- Check mesh cache ---
+    let cellCache = this.meshCache.get(key);
+    if (!cellCache) {
+      cellCache = new Map();
+      this.meshCache.set(key, cellCache);
+    }
+
+    const cached = cellCache.get(N);
+    if (cached) {
+      // Reuse cached mesh — update vertex colors and show it
+      const mesh = cached.mesh;
+      this.updateVertexColors(mesh.geometry, N, tileColors);
+
+      mesh.visible = true;
+      this.cellMeshes.set(key, mesh);
+      const colorAttr = mesh.geometry.getAttribute("color");
+      this.cellColorArrays.set(key, colorAttr);
+      this.meshToCellInfo.set(mesh, { faceId, cellRow, cellCol });
+
+      if (cached.gridLines) {
+        cached.gridLines.visible = true;
+        this.cellGridLines.set(key, cached.gridLines);
+      }
+
+      this.reapplyOverlays(faceId, cellRow, cellCol);
+      colorAttr.needsUpdate = true;
+      return;
+    }
+
+    // --- Build new geometry from scratch ---
+    const { origin, e1, e2 } = this.cellEdges.get(key);
+
     const positions = [];
     const uvs = [];
     const colors = [];
@@ -290,13 +388,69 @@ export class ChunkManager {
     this.cellColorArrays.set(key, colorAttr);
     this.meshToCellInfo.set(mesh, { faceId, cellRow, cellCol });
 
-    // Grid lines
-    const gridLines = this.buildGridLines(origin, e1, e2, N);
-    this.scene.add(gridLines);
-    this.cellGridLines.set(key, gridLines);
+    // Grid lines — only at medium detail or higher
+    let gridLines = null;
+    if (N >= 8) {
+      gridLines = this.buildGridLines(origin, e1, e2, N);
+      this.scene.add(gridLines);
+      this.cellGridLines.set(key, gridLines);
+    }
+
+    // Store in cache for future LOD revisits
+    cellCache.set(N, { mesh, gridLines });
 
     // Re-apply any active overlays for this cell
     this.reapplyOverlays(faceId, cellRow, cellCol);
+
+    // Safety: ensure vertex colors are flagged for GPU upload after overlays
+    colorAttr.needsUpdate = true;
+  }
+
+  /**
+   * Update vertex colors on a cached geometry from fresh tile colors.
+   */
+  updateVertexColors(geometry, N, tileColors) {
+    const colorAttr = geometry.getAttribute("color");
+    const arr = colorAttr.array;
+
+    for (let v = 0; v <= N; v++) {
+      for (let u = 0; u <= N; u++) {
+        const vi = v * (N + 1) + u;
+        const color = this.vertexTerrainColor(v, u, N, tileColors);
+        arr[vi * 3] = color.r;
+        arr[vi * 3 + 1] = color.g;
+        arr[vi * 3 + 2] = color.b;
+      }
+    }
+
+    colorAttr.needsUpdate = true;
+  }
+
+  /**
+   * Evict cached meshes for every cell on a face.  Called when terrain data
+   * arrives so stale-color caches at other LOD levels are discarded.
+   * The currently-active LOD mesh is kept (it will be refreshed by rebuildCell).
+   */
+  clearFaceCache(faceId) {
+    for (let cr = 0; cr < this.cellsPerAxis; cr++) {
+      for (let cc = 0; cc < this.cellsPerAxis; cc++) {
+        const key = this.cellKey(faceId, cr, cc);
+        const cellCache = this.meshCache.get(key);
+        if (!cellCache) continue;
+        const activeN = this.cellLOD.get(key) || 0;
+        for (const [n, entry] of cellCache) {
+          if (n === activeN) continue; // keep the one rebuildCell will refresh
+          this.scene.remove(entry.mesh);
+          entry.mesh.geometry.dispose();
+          entry.mesh.material.dispose();
+          if (entry.gridLines) {
+            this.scene.remove(entry.gridLines);
+            entry.gridLines.geometry.dispose();
+          }
+          cellCache.delete(n);
+        }
+      }
+    }
   }
 
   /**
@@ -406,12 +560,7 @@ export class ChunkManager {
 
     const lineGeo = new THREE.BufferGeometry();
     lineGeo.setAttribute("position", new THREE.Float32BufferAttribute(linePositions, 3));
-    const lineMat = new THREE.LineBasicMaterial({
-      color: 0x000000,
-      opacity: 0.15,
-      transparent: true,
-    });
-    return new THREE.LineSegments(lineGeo, lineMat);
+    return new THREE.LineSegments(lineGeo, this.sharedGridMaterial);
   }
 
   /**
@@ -668,21 +817,27 @@ export class ChunkManager {
   }
 
   /**
-   * Dispose all GPU resources.
+   * Dispose all GPU resources including the mesh cache.
    */
   dispose() {
-    for (const [, mesh] of this.cellMeshes) {
-      this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      mesh.material.dispose();
+    // Dispose every cached mesh (active or hidden)
+    for (const [, cellCache] of this.meshCache) {
+      for (const [, entry] of cellCache) {
+        this.scene.remove(entry.mesh);
+        entry.mesh.geometry.dispose();
+        entry.mesh.material.dispose();
+        if (entry.gridLines) {
+          this.scene.remove(entry.gridLines);
+          entry.gridLines.geometry.dispose();
+        }
+      }
     }
-    for (const [, lines] of this.cellGridLines) {
-      this.scene.remove(lines);
-      lines.geometry.dispose();
-      lines.material.dispose();
-    }
+    this.meshCache.clear();
+    this.sharedGridMaterial.dispose();
     this.cellMeshes.clear();
     this.cellGridLines.clear();
+    this.cellColorArrays.clear();
+    this.cellBaseColors.clear();
     this.meshToCellInfo.clear();
   }
 }
