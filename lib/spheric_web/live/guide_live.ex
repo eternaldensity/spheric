@@ -1,7 +1,7 @@
 defmodule SphericWeb.GuideLive do
   use SphericWeb, :live_view
 
-  @guide_root Path.expand("../../../../docs/guide", __DIR__)
+  @guide_root Path.expand("../../../docs/guide", __DIR__)
 
   # Slug → relative file path mapping for all guide pages
   @pages %{
