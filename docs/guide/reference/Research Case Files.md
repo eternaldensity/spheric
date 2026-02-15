@@ -1,0 +1,114 @@
+# Research Case Files
+
+Complete list of Bureau Case Files for all clearance levels, with requirements and unlocks.
+
+> [!warning] Contains research requirements and unlocks for all tiers, including late-game spoilers.
+
+See [[Submitting Research]] for how the research system works.
+
+---
+
+## Clearance 1 — Basic Logistics
+
+| Case File | Requirements |
+|---|---|
+| Ferric Standardization | 50 Ferric Standard |
+| Paraelectric Requisition | 30 Paraelectric Bar |
+
+**Unlocks:** Splitter, Merger, Claim Beacon, Trade Terminal, Conveyor Mk2, Storage Container, Crossover
+
+**[[Objects of Power|Object of Power]]:** Bureau Directive Alpha — +10% production speed
+
+---
+
+## Clearance 2 — Advanced Production
+
+| Case File | Requirements |
+|---|---|
+| Fabrication Protocol Alpha | 40 Conductive Filament, 40 Structural Plate |
+| Astral Ore Refinement | 30 Astral Ingot |
+
+**Unlocks:** [[The Assembler|Assembler]], [[The Refinery|Refinery]], Conveyor Mk3, Balancer, Underground Conduit
+
+**Object of Power:** Pneumatic Transit Network — teleport between Submission Terminals
+
+---
+
+## Clearance 3 — Research Clearance
+
+| Case File | Requirements |
+|---|---|
+| Paranatural Engineering | 30 Resonance Circuit, 20 Astral Frame, 20 Stabilized Polymer |
+
+**Unlocks:** [[Creatures & Containment|Containment Trap]], Purification Beacon, Defense Turret, Shadow Panel, Lamp
+
+**Object of Power:** Astral Projection — see all creature locations
+
+---
+
+## Clearance 4 — Industrial Clearance
+
+| Case File | Requirements |
+|---|---|
+| Industrial Requisition | 20 Kinetic Driver, 20 Shielded Conduit, 30 Thermal Regulator |
+| Organic Energy Mandate | 50 Entity Biofuel, 20 Refined Entity Fuel |
+
+**Unlocks:** [[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Production|Advanced Smelter]]
+
+**Object of Power:** Power Surge — +25% generator fuel duration
+
+---
+
+## Clearance 5 — Heavy Industry
+
+| Case File | Requirements |
+|---|---|
+| Heavy Industry Protocol | 15 Heavy Astral Frame, 15 Adv. Resonance Circuit |
+| Entity Research Program | 30 Anomalous Essence, 10 Polymer Membrane |
+
+**Unlocks:** [[Advanced Production|Advanced Assembler, Fabrication Plant]], Essence Extractor
+
+**Object of Power:** Logistics Mastery — all conveyors 20% faster
+
+---
+
+## Clearance 6 — High-Tech
+
+| Case File | Requirements |
+|---|---|
+| Computational Threshold | 10 Computation Matrix, 10 Armored Drive Assembly |
+| Nuclear Clearance Protocol | 15 Structural Composite, 5 Enriched Radiant |
+
+**Unlocks:** [[High-Tech Manufacturing|Particle Collider, Nuclear Refinery]]
+
+**Object of Power:** Altered Resonance — all [[Altered Items]] effects doubled
+
+---
+
+## Clearance 7 — Paranatural
+
+| Case File | Requirements |
+|---|---|
+| Paranatural Convergence | 5 Hypercomputation Core, 5 Paranatural Composite, 10 Radiant Cell |
+| Entity Containment Mastery | 3 Anomaly Containment Module, 5 Anomalous Essence |
+
+**Unlocks:** [[Endgame Buildings|Dimensional Stabilizer, Astral Projection Chamber]], [[Paranatural Synthesis|Paranatural Synthesizer]]
+
+**Object of Power:** Entity Communion — +50% creature boost stacking
+
+---
+
+## Clearance 8 — Board Access
+
+| Case File | Requirements |
+|---|---|
+| Dimensional Mastery | 3 Dimensional Core, 3 Astral Projection Lens |
+| Board Resonance Protocol | 1 Board Resonator |
+
+**Unlocks:** [[The Board Interface]]
+
+**Object of Power:** Board's Favor — corruption cannot seed within 10 tiles of buildings
+
+---
+
+**Back to:** [[Home]]
