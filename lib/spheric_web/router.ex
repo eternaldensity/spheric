@@ -19,6 +19,8 @@ defmodule SphericWeb.Router do
 
     live "/", GameLive
     live "/admin", AdminLive
+    live "/guide", GuideLive
+    live "/guide/:page", GuideLive
   end
 
   # Other scopes may use custom stacks.
