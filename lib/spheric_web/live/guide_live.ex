@@ -155,8 +155,8 @@ defmodule SphericWeb.GuideLive do
           {:ok, markdown} ->
             html =
               markdown
-              |> convert_callouts()
               |> convert_wikilinks()
+              |> convert_callouts()
               |> Earmark.as_html!(compact_output: true)
 
             title = path |> Path.basename(".md")
@@ -193,8 +193,15 @@ defmodule SphericWeb.GuideLive do
       [_, type, title] ->
         {content_lines, remaining} = collect_callout_content(rest, [])
         alert_class = callout_class(type)
-        title_str = if title != "", do: title, else: String.capitalize(type)
-        content = content_lines |> Enum.join("<br/>")
+        title_str =
+          if title != "",
+            do: inline_markdown_to_html(title),
+            else: String.capitalize(type)
+
+        content =
+          content_lines
+          |> Enum.map(&inline_markdown_to_html/1)
+          |> Enum.join("<br/>")
 
         html =
           ~s(<div class="alert #{alert_class} my-4"><div><strong>#{title_str}</strong><div>#{content}</div></div></div>)
@@ -221,6 +228,14 @@ defmodule SphericWeb.GuideLive do
 
   defp collect_callout_content([], acc), do: {Enum.reverse(acc), []}
 
+  # Convert inline markdown (links, bold, italic) to HTML for use inside raw HTML blocks
+  defp inline_markdown_to_html(text) do
+    text
+    |> then(&Regex.replace(~r/\[([^\]]+)\]\(([^)]+)\)/, &1, "<a href=\"\\2\">\\1</a>"))
+    |> then(&Regex.replace(~r/\*\*([^*]+)\*\*/, &1, "<strong>\\1</strong>"))
+    |> then(&Regex.replace(~r/\*([^*]+)\*/, &1, "<em>\\1</em>"))
+  end
+
   defp callout_class(type) do
     case String.downcase(type) do
       t when t in ~w(tip success) -> "alert-success"
@@ -234,6 +249,8 @@ defmodule SphericWeb.GuideLive do
   # Supports: [[Page]], [[Page|Display]], [[Page#Section]], [[Page#Section|Display]]
   defp convert_wikilinks(markdown) do
     Regex.replace(~r/\[\[([^\]]+)\]\]/, markdown, fn _, inner ->
+      inner = String.replace(inner, "\\\\|", "|")
+
       {target, display} =
         case String.split(inner, "|", parts: 2) do
           [target, display] -> {target, display}
