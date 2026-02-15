@@ -2,30 +2,46 @@ defmodule SphericWeb.GameLive do
   use SphericWeb, :live_view
 
   alias Spheric.Geometry.RhombicTriacontahedron, as: RT
-  alias Spheric.Geometry.Coordinate
 
   alias Spheric.Game.{
-    WorldServer,
-    WorldStore,
     Buildings,
     Persistence,
     Research,
     Creatures,
     Lore,
-    AlteredItems,
     ObjectsOfPower,
-    Hiss,
-    Territory,
-    Trading,
     RecipeBrowser,
-    Statistics,
     WorldEvents,
-    TheBoard,
     BoardContact,
     ShiftCycle
   }
 
   alias SphericWeb.Presence
+
+  alias SphericWeb.GameLive.{
+    Helpers,
+    ServerSync,
+    BuildingEvents,
+    TradingEvents,
+    PanelEvents,
+    HotbarEvents,
+    BlueprintEvents,
+    DemolishEvents,
+    CameraEvents,
+    KeyboardEvents
+  }
+
+  import Helpers,
+    only: [
+      direction_label: 1,
+      creature_boost_label: 1,
+      format_building_key: 1,
+      trade_status_color: 1,
+      world_event_label: 1,
+      catalog_buildings: 2,
+      shift_phase_color: 1,
+      shift_phase_label: 1
+    ]
 
   require Logger
 
@@ -36,7 +52,7 @@ defmodule SphericWeb.GameLive do
     geometry_data = RT.client_payload()
 
     # Build initial buildings snapshot
-    buildings_data = build_buildings_snapshot()
+    buildings_data = Helpers.build_buildings_snapshot()
 
     # Initial face set: all faces (until first camera_update narrows it)
     initial_faces = MapSet.new(0..29)
@@ -55,7 +71,7 @@ defmodule SphericWeb.GameLive do
     # or generate fresh values for new players.
     {player_id, player_name, player_color, camera} =
       if connected?(socket) do
-        restore_player(get_connect_params(socket))
+        Helpers.restore_player(get_connect_params(socket))
       else
         {"player:temp", Presence.random_name(), Presence.random_color(),
          %{x: 0.0, y: 0.0, z: 3.5, tx: 0.0, ty: 0.0, tz: 0.0}}
@@ -126,7 +142,7 @@ defmodule SphericWeb.GameLive do
       |> assign(:stats_summary, [])
       |> assign(:blueprint_mode, nil)
       |> assign(:blueprint_count, 0)
-      |> assign(:hotbar, restore_hotbar(if(connected?(socket), do: get_connect_params(socket), else: %{}), unlocked))
+      |> assign(:hotbar, Helpers.restore_hotbar(if(connected?(socket), do: get_connect_params(socket), else: %{}), unlocked))
       |> assign(:show_catalog, false)
       |> assign(:catalog_tab, :logistics)
       |> assign(:catalog_target_slot, nil)
@@ -955,1754 +971,275 @@ defmodule SphericWeb.GameLive do
     """
   end
 
-  # --- Events ---
-
-  @impl true
-  def handle_event("select_building", %{"type" => "none"}, socket) do
-    socket =
-      socket
-      |> assign(:selected_building_type, nil)
-      |> assign(:line_mode, false)
-      |> assign(:blueprint_mode, nil)
-      |> push_event("placement_mode", %{type: nil, orientation: nil})
-      |> push_event("line_mode", %{enabled: false})
-      |> push_event("blueprint_mode", %{mode: nil})
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("select_building", %{"type" => type_str}, socket) do
-    type = String.to_existing_atom(type_str)
-
-    if Buildings.valid_type?(type) do
-      orientation = socket.assigns.placement_orientation
-
-      socket =
-        socket
-        |> assign(:selected_building_type, type)
-        |> assign(:blueprint_mode, nil)
-        |> assign(:demolish_mode, false)
-        |> push_event("placement_mode", %{type: type_str, orientation: orientation})
-        |> push_event("blueprint_mode", %{mode: nil})
-        |> push_event("demolish_mode", %{enabled: false})
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("rotate_building", _params, socket) do
-    new_orientation = rem(socket.assigns.placement_orientation + 3, 4)
-
-    socket =
-      socket
-      |> assign(:placement_orientation, new_orientation)
-      |> push_event("placement_mode", %{
-        type: Atom.to_string(socket.assigns.selected_building_type),
-        orientation: new_orientation
-      })
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("toggle_line_mode", _params, socket) do
-    if socket.assigns.selected_building_type do
-      new_line_mode = !socket.assigns.line_mode
-
-      socket =
-        socket
-        |> assign(:line_mode, new_line_mode)
-        |> push_event("line_mode", %{enabled: new_line_mode})
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("place_line", %{"buildings" => buildings_list}, socket) do
-    case socket.assigns.selected_building_type do
-      nil ->
-        {:noreply, socket}
-
-      building_type ->
-        owner = %{id: socket.assigns.player_id, name: socket.assigns.player_name}
-
-        placements =
-          Enum.map(buildings_list, fn %{
-                                        "face" => face,
-                                        "row" => row,
-                                        "col" => col,
-                                        "orientation" => orientation
-                                      } ->
-            {{face, row, col}, building_type, orientation, owner}
-          end)
-
-        results = WorldServer.place_buildings(placements)
-
-        socket =
-          Enum.reduce(results, socket, fn
-            {{face, row, col}, :ok}, sock ->
-              building = WorldStore.get_building({face, row, col})
-
-              push_event(sock, "building_placed", %{
-                face: face,
-                row: row,
-                col: col,
-                type: Atom.to_string(building.type),
-                orientation: building.orientation
-              })
-
-            {{face, row, col}, {:error, reason}}, sock ->
-              push_event(sock, "place_error", %{
-                face: face,
-                row: row,
-                col: col,
-                reason: Atom.to_string(reason)
-              })
-          end)
-
-        {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("tile_click", %{"face" => face, "row" => row, "col" => col}, socket) do
-    key = {face, row, col}
-    tile = %{face: face, row: row, col: col}
-    Logger.debug("Tile clicked: face=#{face} row=#{row} col=#{col}")
-
-    case socket.assigns.selected_building_type do
-      nil ->
-        tile_info = build_tile_info(key)
-
-        socket =
-          socket
-          |> assign(:selected_tile, tile)
-          |> assign(:tile_info, tile_info)
-
-        {:noreply, socket}
-
-      building_type ->
-        orientation = socket.assigns.placement_orientation
-
-        owner = %{id: socket.assigns.player_id, name: socket.assigns.player_name}
-
-        case WorldServer.place_building(key, building_type, orientation, owner) do
-          :ok ->
-            building = WorldStore.get_building(key)
-            tile_info = build_tile_info(key)
-
-            socket =
-              socket
-              |> assign(:selected_tile, tile)
-              |> assign(:tile_info, tile_info)
-              |> push_event("building_placed", %{
-                face: face,
-                row: row,
-                col: col,
-                type: Atom.to_string(building.type),
-                orientation: building.orientation
-              })
-
-            {:noreply, socket}
-
-          {:error, reason} ->
-            socket =
-              socket
-              |> push_event("place_error", %{
-                face: face,
-                row: row,
-                col: col,
-                reason: Atom.to_string(reason)
-              })
-
-            {:noreply, socket}
-        end
-    end
-  end
-
-  @impl true
-  def handle_event("remove_building", %{"face" => face, "row" => row, "col" => col}, socket) do
-    face = to_int(face)
-    row = to_int(row)
-    col = to_int(col)
-    key = {face, row, col}
-
-    case WorldServer.remove_building(key, socket.assigns.player_id) do
-      :ok ->
-        tile_info = build_tile_info(key)
-
-        socket =
-          socket
-          |> assign(:tile_info, tile_info)
-          |> push_event("building_removed", %{face: face, row: row, col: col})
-
-        {:noreply, socket}
-
-      {:error, _reason} ->
-        {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("toggle_research", _params, socket) do
-    opening = !socket.assigns.show_research
-
-    socket =
-      socket
-      |> assign(:show_research, opening)
-      |> then(fn s -> if opening, do: assign(s, :show_creatures, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("toggle_creatures", _params, socket) do
-    opening = !socket.assigns.show_creatures
-    roster = Creatures.get_player_roster(socket.assigns.player_id)
-
-    socket =
-      socket
-      |> assign(:show_creatures, opening)
-      |> assign(:creature_roster, roster)
-      |> then(fn s -> if opening, do: assign(s, :show_research, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event(
-        "assign_creature",
-        %{"creature_id" => creature_id, "face" => face, "row" => row, "col" => col},
-        socket
-      ) do
-    building_key = {to_int(face), to_int(row), to_int(col)}
-
-    case Creatures.assign_creature(socket.assigns.player_id, creature_id, building_key) do
-      :ok ->
-        roster = Creatures.get_player_roster(socket.assigns.player_id)
-        {:noreply, assign(socket, :creature_roster, roster)}
-
-      {:error, _reason} ->
-        {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("unassign_creature", %{"creature_id" => creature_id}, socket) do
-    case Creatures.unassign_creature(socket.assigns.player_id, creature_id) do
-      :ok ->
-        roster = Creatures.get_player_roster(socket.assigns.player_id)
-        {:noreply, assign(socket, :creature_roster, roster)}
-
-      {:error, _reason} ->
-        {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("toggle_trading", _params, socket) do
-    opening = !socket.assigns.show_trading
-    world_id = socket.assigns.world_id
-    player_id = socket.assigns.player_id
-
-    socket =
-      if opening and world_id do
-        open_trades = Trading.open_trades(world_id)
-        my_trades = Trading.player_trades(world_id, player_id)
-
-        socket
-        |> assign(:show_trading, true)
-        |> assign(:open_trades, open_trades)
-        |> assign(:my_trades, my_trades)
-        |> assign(:show_research, false)
-        |> assign(:show_creatures, false)
-      else
-        assign(socket, :show_trading, false)
-      end
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("create_trade", %{"offered" => offered, "requested" => requested}, socket) do
-    world_id = socket.assigns.world_id
-    player_id = socket.assigns.player_id
-
-    if world_id do
-      case Trading.create_trade(world_id, player_id, offered, requested) do
-        {:ok, _trade} ->
-          open_trades = Trading.open_trades(world_id)
-          my_trades = Trading.player_trades(world_id, player_id)
-
-          socket =
-            socket
-            |> assign(:open_trades, open_trades)
-            |> assign(:my_trades, my_trades)
-
-          {:noreply, socket}
-
-        {:error, _reason} ->
-          {:noreply, socket}
-      end
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("accept_trade", %{"trade_id" => trade_id_str}, socket) do
-    trade_id = String.to_integer(trade_id_str)
-    player_id = socket.assigns.player_id
-    world_id = socket.assigns.world_id
-
-    case Trading.accept_trade(trade_id, player_id) do
-      {:ok, _trade} ->
-        open_trades = Trading.open_trades(world_id)
-        my_trades = Trading.player_trades(world_id, player_id)
-
-        socket =
-          socket
-          |> assign(:open_trades, open_trades)
-          |> assign(:my_trades, my_trades)
-
-        {:noreply, socket}
-
-      {:error, _reason} ->
-        {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("cancel_trade", %{"trade_id" => trade_id_str}, socket) do
-    trade_id = String.to_integer(trade_id_str)
-    player_id = socket.assigns.player_id
-    world_id = socket.assigns.world_id
-
-    case Trading.cancel_trade(trade_id, player_id) do
-      {:ok, _trade} ->
-        open_trades = Trading.open_trades(world_id)
-        my_trades = Trading.player_trades(world_id, player_id)
-
-        socket =
-          socket
-          |> assign(:open_trades, open_trades)
-          |> assign(:my_trades, my_trades)
-
-        {:noreply, socket}
-
-      {:error, _reason} ->
-        {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event(
-        "link_trade",
-        %{"trade_id" => trade_id_str, "face" => face, "row" => row, "col" => col},
-        socket
-      ) do
-    trade_id = String.to_integer(trade_id_str)
-    key = {to_int(face), to_int(row), to_int(col)}
-    building = WorldStore.get_building(key)
-
-    if building && building.type == :trade_terminal &&
-         building.owner_id == socket.assigns.player_id do
-      new_state = %{building.state | trade_id: trade_id}
-      WorldStore.put_building(key, %{building | state: new_state})
-      tile_info = build_tile_info(key)
-      {:noreply, assign(socket, :tile_info, tile_info)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("keydown", %{"key" => "f"}, socket) do
-    opening = !socket.assigns.show_research
-
-    socket =
-      socket
-      |> assign(:show_research, opening)
-      |> then(fn s -> if opening, do: assign(s, :show_creatures, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("keydown", %{"key" => "c"}, socket) do
-    opening = !socket.assigns.show_creatures
-    roster = Creatures.get_player_roster(socket.assigns.player_id)
-
-    socket =
-      socket
-      |> assign(:show_creatures, opening)
-      |> assign(:creature_roster, roster)
-      |> then(fn s -> if opening, do: assign(s, :show_research, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("keydown", %{"key" => "t"}, socket) do
-    handle_event("toggle_trading", %{}, socket)
-  end
-
-  @impl true
-  def handle_event("keydown", %{"key" => "r"}, socket) do
-    if socket.assigns.selected_building_type do
-      new_orientation = rem(socket.assigns.placement_orientation + 3, 4)
-
-      socket =
-        socket
-        |> assign(:placement_orientation, new_orientation)
-        |> push_event("placement_mode", %{
-          type: Atom.to_string(socket.assigns.selected_building_type),
-          orientation: new_orientation
-        })
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("keydown", %{"key" => "l"}, socket) do
-    if socket.assigns.selected_building_type do
-      new_line_mode = !socket.assigns.line_mode
-
-      socket =
-        socket
-        |> assign(:line_mode, new_line_mode)
-        |> push_event("line_mode", %{enabled: new_line_mode})
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("keydown", %{"key" => "b"}, socket) do
-    handle_event("toggle_recipes", %{}, socket)
-  end
-
-  @impl true
-  def handle_event("keydown", %{"key" => "p"}, socket) do
-    handle_event("toggle_stats", %{}, socket)
-  end
-
-  @impl true
-  def handle_event("keydown", %{"key" => "g"}, socket) do
-    handle_event("toggle_board_contact", %{}, socket)
-  end
-
-  @impl true
-  def handle_event("keydown", %{"key" => "x"}, socket) do
-    handle_event("toggle_demolish_mode", %{}, socket)
-  end
-
-  @impl true
-  def handle_event("keydown", %{"key" => "q"}, socket) do
-    if socket.assigns.show_catalog do
-      handle_event("close_catalog", %{}, socket)
-    else
-      handle_event("open_catalog", %{}, socket)
-    end
-  end
-
-  @impl true
-  def handle_event("keydown", %{"key" => "Escape"}, socket) do
-    cond do
-      socket.assigns.show_catalog ->
-        handle_event("close_catalog", %{}, socket)
-
-      socket.assigns.selected_building_type ->
-        handle_event("select_building", %{"type" => "none"}, socket)
-
-      socket.assigns.demolish_mode ->
-        handle_event("toggle_demolish_mode", %{}, socket)
-
-      true ->
-        {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("keydown", %{"key" => key}, socket)
-      when key in ["1", "2", "3", "4", "5"] do
-    slot_idx = String.to_integer(key) - 1
-
-    if socket.assigns.show_catalog do
-      # Catalog is open — set target slot so next building click assigns to it
-      {:noreply, assign(socket, :catalog_target_slot, slot_idx)}
-    else
-      type = Enum.at(socket.assigns.hotbar, slot_idx)
-
-      if type do
-        handle_event("hotbar_select", %{"slot" => Integer.to_string(slot_idx)}, socket)
-      else
-        handle_event("open_catalog", %{"slot" => Integer.to_string(slot_idx)}, socket)
-      end
-    end
-  end
-
-  @impl true
-  def handle_event("keydown", _params, socket) do
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("toggle_recipes", _params, socket) do
-    opening = !socket.assigns.show_recipes
-
-    socket =
-      socket
-      |> assign(:show_recipes, opening)
-      |> then(fn s -> if opening, do: assign(s, :show_research, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_creatures, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
-      |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("recipe_search", %{"query" => query}, socket) do
-    recipes =
-      if query == "" do
-        RecipeBrowser.all_recipes()
-      else
-        RecipeBrowser.search(query)
-      end
-
-    socket =
-      socket
-      |> assign(:recipe_search, query)
-      |> assign(:recipes, recipes)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("toggle_stats", _params, socket) do
-    opening = !socket.assigns.show_stats
-
-    socket =
-      if opening do
-        summary = Statistics.player_summary(socket.assigns.player_id)
-
-        socket
-        |> assign(:show_stats, true)
-        |> assign(:stats_summary, summary)
-        |> assign(:show_research, false)
-        |> assign(:show_creatures, false)
-        |> assign(:show_trading, false)
-        |> assign(:show_recipes, false)
-        |> assign(:show_board_contact, false)
-      else
-        assign(socket, :show_stats, false)
-      end
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("toggle_board_contact", _params, socket) do
-    opening = !socket.assigns.show_board_contact
-
-    socket =
-      if opening do
-        summary = BoardContact.progress_summary()
-
-        socket
-        |> assign(:show_board_contact, true)
-        |> assign(:board_contact, summary)
-        |> assign(:show_research, false)
-        |> assign(:show_creatures, false)
-        |> assign(:show_trading, false)
-        |> assign(:show_recipes, false)
-        |> assign(:show_stats, false)
-      else
-        assign(socket, :show_board_contact, false)
-      end
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("dismiss_board_message", _params, socket) do
-    {:noreply, assign(socket, :board_message, nil)}
-  end
-
-  @impl true
-  def handle_event("activate_board_contact", _params, socket) do
-    if socket.assigns.clearance_level >= 3 do
-      BoardContact.activate()
-      summary = BoardContact.progress_summary()
-
-      # Check for Board milestone
-      messages = TheBoard.check_milestones(socket.assigns.player_id, %{board_contact_begin: true})
-
-      socket =
-        socket
-        |> assign(:board_contact, summary)
-        |> then(fn s ->
-          case messages do
-            [{_milestone, msg} | _] -> assign(s, :board_message, msg)
-            _ -> s
-          end
-        end)
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  # --- Hotbar & Catalog events ---
-
-  @impl true
-  def handle_event("open_catalog", params, socket) do
-    target_slot =
-      case params["slot"] do
-        nil -> nil
-        s when is_binary(s) -> String.to_integer(s)
-        s when is_integer(s) -> s
-      end
-
-    socket =
-      socket
-      |> assign(:show_catalog, true)
-      |> assign(:catalog_target_slot, target_slot)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("close_catalog", _params, socket) do
-    socket =
-      socket
-      |> assign(:show_catalog, false)
-      |> assign(:catalog_target_slot, nil)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("catalog_tab", %{"tab" => tab_str}, socket) do
-    tab = String.to_existing_atom(tab_str)
-
-    if tab in Buildings.categories() do
-      {:noreply, assign(socket, :catalog_tab, tab)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("catalog_select", %{"type" => type_str}, socket) do
-    type = String.to_existing_atom(type_str)
-
-    if Buildings.valid_type?(type) do
-      case socket.assigns.catalog_target_slot do
-        nil ->
-          # No target slot — select for placement and close catalog
-          socket =
-            socket
-            |> assign(:selected_building_type, type)
-            |> assign(:blueprint_mode, nil)
-            |> assign(:show_catalog, false)
-            |> assign(:catalog_target_slot, nil)
-            |> push_event("placement_mode", %{
-              type: type_str,
-              orientation: socket.assigns.placement_orientation
-            })
-            |> push_event("blueprint_mode", %{mode: nil})
-
-          {:noreply, socket}
-
-        slot_idx when is_integer(slot_idx) and slot_idx >= 0 and slot_idx < 5 ->
-          # Assign to hotbar slot
-          hotbar = List.replace_at(socket.assigns.hotbar, slot_idx, type)
-
-          socket =
-            socket
-            |> assign(:hotbar, hotbar)
-            |> assign(:show_catalog, false)
-            |> assign(:catalog_target_slot, nil)
-            |> push_event("save_hotbar", %{hotbar: Enum.map(hotbar, fn t -> if t, do: Atom.to_string(t), else: nil end)})
-
-          {:noreply, socket}
-
-        _ ->
-          {:noreply, assign(socket, :show_catalog, false)}
-      end
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("hotbar_select", %{"slot" => slot_str}, socket) do
-    slot_idx = String.to_integer(slot_str)
-    type = Enum.at(socket.assigns.hotbar, slot_idx)
-
-    if type && Buildings.valid_type?(type) do
-      socket =
-        socket
-        |> assign(:selected_building_type, type)
-        |> assign(:blueprint_mode, nil)
-        |> push_event("placement_mode", %{
-          type: Atom.to_string(type),
-          orientation: socket.assigns.placement_orientation
-        })
-        |> push_event("blueprint_mode", %{mode: nil})
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("hotbar_clear", %{"slot" => slot_str}, socket) do
-    slot_idx = String.to_integer(slot_str)
-    hotbar = List.replace_at(socket.assigns.hotbar, slot_idx, nil)
-
-    socket =
-      socket
-      |> assign(:hotbar, hotbar)
-      |> push_event("save_hotbar", %{hotbar: Enum.map(hotbar, fn t -> if t, do: Atom.to_string(t), else: nil end)})
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("noop", _params, socket) do
-    {:noreply, socket}
-  end
-
-  # --- Blueprint events ---
-
-  @impl true
-  def handle_event("blueprint_capture", _params, socket) do
-    socket =
-      socket
-      |> assign(:blueprint_mode, :capture)
-      |> assign(:selected_building_type, nil)
-      |> assign(:demolish_mode, false)
-      |> push_event("blueprint_mode", %{mode: "capture"})
-      |> push_event("demolish_mode", %{enabled: false})
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("blueprint_stamp", _params, socket) do
-    socket =
-      socket
-      |> assign(:blueprint_mode, :stamp)
-      |> assign(:selected_building_type, nil)
-      |> assign(:demolish_mode, false)
-      |> push_event("blueprint_mode", %{mode: "stamp"})
-      |> push_event("demolish_mode", %{enabled: false})
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("blueprint_captured", %{"name" => _name, "count" => _count}, socket) do
-    socket =
-      socket
-      |> assign(:blueprint_mode, :stamp)
-      |> assign(:blueprint_count, socket.assigns.blueprint_count + 1)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("blueprint_cancelled", _params, socket) do
-    {:noreply, assign(socket, :blueprint_mode, nil)}
-  end
-
-  @impl true
-  def handle_event("place_blueprint", %{"buildings" => buildings_list}, socket) do
-    owner = %{id: socket.assigns.player_id, name: socket.assigns.player_name}
-
-    placements =
-      Enum.map(buildings_list, fn %{
-                                    "face" => face,
-                                    "row" => row,
-                                    "col" => col,
-                                    "orientation" => orientation,
-                                    "type" => type_str
-                                  } ->
-        {{face, row, col}, String.to_existing_atom(type_str), orientation, owner}
-      end)
-
-    results = WorldServer.place_buildings(placements)
-
-    socket =
-      Enum.reduce(results, socket, fn
-        {{face, row, col}, :ok}, sock ->
-          building = WorldStore.get_building({face, row, col})
-
-          push_event(sock, "building_placed", %{
-            face: face,
-            row: row,
-            col: col,
-            type: Atom.to_string(building.type),
-            orientation: building.orientation
-          })
-
-        {{_face, _row, _col}, {:error, _reason}}, sock ->
-          sock
-      end)
-
-    {:noreply, socket}
-  end
-
-  # --- Demolish mode events ---
-
-  @impl true
-  def handle_event("toggle_demolish_mode", _params, socket) do
-    new_mode = !socket.assigns.demolish_mode
-
-    socket =
-      socket
-      |> assign(:demolish_mode, new_mode)
-      |> assign(:selected_building_type, nil)
-      |> assign(:line_mode, false)
-      |> assign(:blueprint_mode, nil)
-      |> push_event("demolish_mode", %{enabled: new_mode})
-      |> push_event("placement_mode", %{type: nil, orientation: nil})
-      |> push_event("line_mode", %{enabled: false})
-      |> push_event("blueprint_mode", %{mode: nil})
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("remove_area", %{"tiles" => tiles_list}, socket) do
-    keys =
-      Enum.map(tiles_list, fn %{"face" => face, "row" => row, "col" => col} ->
-        {to_int(face), to_int(row), to_int(col)}
-      end)
-
-    results = WorldServer.remove_buildings(keys, socket.assigns.player_id)
-
-    socket =
-      Enum.reduce(results, socket, fn
-        {{face, row, col}, :ok}, sock ->
-          push_event(sock, "building_removed", %{face: face, row: row, col: col})
-
-        {{face, row, col}, {:error, _reason}}, sock ->
-          push_event(sock, "remove_error", %{face: face, row: row, col: col})
-      end)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event(
-        "link_conduit",
-        %{
-          "face" => face,
-          "row" => row,
-          "col" => col,
-          "target_face" => tf,
-          "target_row" => tr,
-          "target_col" => tc
-        },
-        socket
-      ) do
-    key_a = {to_int(face), to_int(row), to_int(col)}
-    key_b = {to_int(tf), to_int(tr), to_int(tc)}
-
-    building_a = WorldStore.get_building(key_a)
-    building_b = WorldStore.get_building(key_b)
-
-    if building_a && building_b &&
-         building_a.type == :underground_conduit &&
-         building_b.type == :underground_conduit &&
-         building_a.owner_id == socket.assigns.player_id &&
-         building_b.owner_id == socket.assigns.player_id do
-      new_state_a = %{building_a.state | linked_to: key_b}
-      new_state_b = %{building_b.state | linked_to: key_a}
-      WorldStore.put_building(key_a, %{building_a | state: new_state_a})
-      WorldStore.put_building(key_b, %{building_b | state: new_state_b})
-
-      tile_info = build_tile_info(key_a)
-      {:noreply, assign(socket, :tile_info, tile_info)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("camera_update", %{"x" => x, "y" => y, "z" => z}, socket) do
-    camera_pos = {x, y, z}
-    visible = Coordinate.visible_faces(camera_pos) |> MapSet.new()
-
-    # Dynamic face subscriptions: subscribe to new, unsubscribe from old
-    old_faces = socket.assigns.subscribed_faces
-    new_faces = visible
-    to_subscribe = MapSet.difference(new_faces, old_faces)
-    to_unsubscribe = MapSet.difference(old_faces, new_faces)
-
-    for face_id <- MapSet.to_list(to_subscribe) do
-      Phoenix.PubSub.subscribe(Spheric.PubSub, "world:face:#{face_id}")
-    end
-
-    for face_id <- MapSet.to_list(to_unsubscribe) do
-      Phoenix.PubSub.unsubscribe(Spheric.PubSub, "world:face:#{face_id}")
-    end
-
-    # Update presence with new camera position
-    Presence.update(self(), @presence_topic, socket.assigns.player_id, fn meta ->
-      Map.put(meta, :camera, %{x: x, y: y, z: z})
-    end)
-
-    # Recompute local lighting for the new camera direction
-    local = ShiftCycle.lighting_for_camera(camera_pos)
-
-    socket =
-      socket
-      |> assign(:camera_pos, camera_pos)
-      |> assign(:visible_faces, visible)
-      |> assign(:subscribed_faces, new_faces)
-      |> assign(:shift_phase, local.phase)
-      |> push_event("local_lighting", %{
-        phase: Atom.to_string(local.phase),
-        ambient: local.ambient,
-        intensity: local.intensity,
-        bg: local.bg
-      })
-
-    {:noreply, socket}
-  end
-
-  # --- PubSub Handlers ---
-
-  @impl true
-  def handle_info({:building_placed, {face, row, col}, building}, socket) do
-    socket =
-      push_event(socket, "building_placed", %{
-        face: face,
-        row: row,
-        col: col,
-        type: Atom.to_string(building.type),
-        orientation: building.orientation
-      })
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:building_removed, {face, row, col}}, socket) do
-    socket = push_event(socket, "building_removed", %{face: face, row: row, col: col})
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:tick_update, tick, face_id, items}, socket) do
-    if MapSet.member?(socket.assigns.visible_faces, face_id) do
-      serialized_items =
-        Enum.map(items, fn item ->
-          %{
-            row: item.row,
-            col: item.col,
-            item: Atom.to_string(item.item),
-            from_face: item.from_face,
-            from_row: item.from_row,
-            from_col: item.from_col
-          }
-        end)
-
-      socket =
-        push_event(socket, "tick_items", %{
-          tick: tick,
-          face: face_id,
-          items: serialized_items
-        })
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  # --- Research Handlers ---
-
-  @impl true
-  def handle_info({:case_file_completed, _case_file_id}, socket) do
-    refresh_research(socket)
-  end
-
-  @impl true
-  def handle_info({:research_progress, _item}, socket) do
-    refresh_research(socket)
-  end
-
-  @impl true
-  def handle_info({:object_of_power_granted, _object}, socket) do
-    objects = ObjectsOfPower.player_objects(socket.assigns.player_id)
-    {:noreply, assign(socket, :objects_of_power, objects)}
-  end
-
-  # --- Creature Handlers ---
-
-  @impl true
-  def handle_info({:creature_spawned, id, creature}, socket) do
-    socket =
-      push_event(socket, "creature_spawned", %{
-        id: id,
-        creature: %{
-          type: Atom.to_string(creature.type),
-          face: creature.face,
-          row: creature.row,
-          col: creature.col
-        }
-      })
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:creature_moved, id, creature}, socket) do
-    socket =
-      push_event(socket, "creature_moved", %{
-        id: id,
-        creature: %{
-          type: Atom.to_string(creature.type),
-          face: creature.face,
-          row: creature.row,
-          col: creature.col
-        }
-      })
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:creature_captured, creature_id, _creature, _trap_key}, socket) do
-    socket = push_event(socket, "creature_captured", %{id: creature_id})
-
-    # Refresh roster for the current player
-    roster = Creatures.get_player_roster(socket.assigns.player_id)
-    {:noreply, assign(socket, :creature_roster, roster)}
-  end
-
-  @impl true
-  def handle_info({:creature_sync, face_id, creatures}, socket) do
-    if MapSet.member?(socket.assigns.visible_faces, face_id) do
-      serialized =
-        Enum.map(creatures, fn c ->
-          %{id: c.id, type: Atom.to_string(c.type), face: c.face, row: c.row, col: c.col}
-        end)
-
-      socket = push_event(socket, "creature_sync", %{face: face_id, creatures: serialized})
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  # --- Hiss Corruption Handlers ---
-
-  @impl true
-  def handle_info({:corruption_update, face_id, tiles}, socket) do
-    if MapSet.member?(socket.assigns.visible_faces, face_id) do
-      socket = push_event(socket, "corruption_update", %{face: face_id, tiles: tiles})
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_info({:corruption_cleared, face_id, tiles}, socket) do
-    if MapSet.member?(socket.assigns.visible_faces, face_id) do
-      socket = push_event(socket, "corruption_cleared", %{face: face_id, tiles: tiles})
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_info({:corruption_sync, face_id, tiles}, socket) do
-    if MapSet.member?(socket.assigns.visible_faces, face_id) do
-      socket = push_event(socket, "corruption_sync", %{face: face_id, tiles: tiles})
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_info({:hiss_spawned, id, entity}, socket) do
-    socket =
-      push_event(socket, "hiss_spawned", %{
-        id: id,
-        entity: %{face: entity.face, row: entity.row, col: entity.col, health: entity.health}
-      })
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:hiss_moved, id, entity}, socket) do
-    socket =
-      push_event(socket, "hiss_moved", %{
-        id: id,
-        entity: %{face: entity.face, row: entity.row, col: entity.col, health: entity.health}
-      })
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:hiss_killed, id, _killer}, socket) do
-    socket = push_event(socket, "hiss_killed", %{id: id})
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:hiss_sync, face_id, entities}, socket) do
-    if MapSet.member?(socket.assigns.visible_faces, face_id) do
-      socket = push_event(socket, "hiss_sync", %{face: face_id, entities: entities})
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_info({:building_damage, {face, row, col}, action}, socket) do
-    socket =
-      push_event(socket, "building_damaged", %{
-        face: face,
-        row: row,
-        col: col,
-        action: Atom.to_string(action)
-      })
-
-    # If the building was destroyed, update tile info if selected
-    socket =
-      if action == :destroyed and socket.assigns.selected_tile do
-        sel = socket.assigns.selected_tile
-
-        if sel.face == face and sel.row == row and sel.col == col do
-          assign(socket, :tile_info, build_tile_info({face, row, col}))
-        else
-          socket
-        end
-      else
-        socket
-      end
-
-    {:noreply, socket}
-  end
-
-  # --- Territory Handlers ---
-
-  @impl true
-  def handle_info({:territory_update, face_id, territories}, socket) do
-    if MapSet.member?(socket.assigns.visible_faces, face_id) do
-      socket =
-        push_event(socket, "territory_update", %{face: face_id, territories: territories})
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  # --- Phase 8: World Events, Shift Cycle, Creature Evolution ---
-
-  @impl true
-  def handle_info({:world_event_started, event_type, event_info}, socket) do
-    # Check for Board milestone
-    messages =
-      TheBoard.check_milestones(socket.assigns.player_id, %{first_world_event: true})
-
-    socket =
-      socket
-      |> assign(:active_event, event_type)
-      |> push_event("world_event_started", %{
-        event: Atom.to_string(event_type),
-        name: event_info.name,
-        color: event_info.color
-      })
-      |> then(fn s ->
-        case messages do
-          [{_milestone, msg} | _] -> assign(s, :board_message, msg)
-          _ -> s
-        end
-      end)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:world_event_ended, event_type}, socket) do
-    socket =
-      socket
-      |> assign(:active_event, nil)
-      |> push_event("world_event_ended", %{event: Atom.to_string(event_type)})
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:shift_cycle_changed, _phase, _lighting, _modifiers, sun_dir}, socket) do
-    {sx, sy, sz} = sun_dir
-    local = ShiftCycle.lighting_for_camera(socket.assigns.camera_pos)
-
-    socket =
-      socket
-      |> assign(:shift_phase, local.phase)
-      |> push_event("shift_cycle_changed", %{
-        phase: Atom.to_string(local.phase),
-        ambient: local.ambient,
-        directional: local.directional,
-        intensity: local.intensity,
-        bg: local.bg,
-        sun_x: sx,
-        sun_y: sy,
-        sun_z: sz
-      })
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:sun_moved, sun_dir}, socket) do
-    {sx, sy, sz} = sun_dir
-    local = ShiftCycle.lighting_for_camera(socket.assigns.camera_pos)
-
-    socket =
-      socket
-      |> assign(:shift_phase, local.phase)
-      |> push_event("sun_moved", %{
-        sun_x: sx,
-        sun_y: sy,
-        sun_z: sz,
-        phase: Atom.to_string(local.phase),
-        ambient: local.ambient,
-        intensity: local.intensity,
-        bg: local.bg
-      })
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_info({:creature_evolved, player_id, _creature_id, _creature}, socket) do
-    if player_id == socket.assigns.player_id do
-      # Check for Board milestone
-      messages =
-        TheBoard.check_milestones(socket.assigns.player_id, %{creature_evolved: true})
-
-      roster = Creatures.get_player_roster(socket.assigns.player_id)
-
-      socket =
-        socket
-        |> assign(:creature_roster, roster)
-        |> then(fn s ->
-          case messages do
-            [{_milestone, msg} | _] -> assign(s, :board_message, msg)
-            _ -> s
-          end
-        end)
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  # --- Terrain Streaming ---
-
-  @impl true
-  def handle_info(:send_terrain, socket) do
-    subdivisions = Application.get_env(:spheric, :subdivisions, 64)
-
-    socket =
-      Enum.reduce(0..29, socket, fn face_id, sock ->
-        terrain = build_face_terrain(face_id, subdivisions)
-
-        altered =
-          AlteredItems.get_face_items(face_id)
-          |> Enum.map(fn {{_f, row, col}, type_id} ->
-            info = AlteredItems.get_type(type_id)
-            %{row: row, col: col, type: Atom.to_string(type_id), color: info.color}
-          end)
-
-        corruption = Hiss.corrupted_on_face(face_id)
-
-        hiss_entities =
-          Hiss.hiss_entities_on_face(face_id)
-          |> Enum.map(fn {id, e} ->
-            %{id: id, face: e.face, row: e.row, col: e.col, health: e.health}
-          end)
-
-        territories = Territory.territories_on_face(face_id)
-
-        sock
-        |> push_event("terrain_face", %{face: face_id, terrain: terrain})
-        |> push_event("altered_items", %{face: face_id, items: altered})
-        |> push_event("corruption_sync", %{face: face_id, tiles: corruption})
-        |> push_event("hiss_sync", %{face: face_id, entities: hiss_entities})
-        |> push_event("territory_sync", %{face: face_id, territories: territories})
-      end)
-
-    {:noreply, socket}
-  end
-
-  # --- Presence Handlers ---
-
-  @impl true
-  def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff"}, socket) do
-    players =
-      Presence.list(@presence_topic)
-      |> Enum.reject(fn {id, _} -> id == socket.assigns.player_id end)
-      |> Enum.map(fn {_id, %{metas: [meta | _]}} ->
-        %{
-          name: meta.name,
-          color: meta.color,
-          x: meta.camera.x,
-          y: meta.camera.y,
-          z: meta.camera.z
-        }
-      end)
-
-    socket = push_event(socket, "players_update", %{players: players})
-    {:noreply, socket}
-  end
-
-  # --- Admin Handlers ---
-
-  @impl true
-  def handle_info(:world_reset, socket) do
-    socket = push_event(socket, "world_reset", %{})
-    {:noreply, socket}
-  end
-
-  # --- Helpers ---
-
-  defp build_face_terrain(face_id, subdivisions) do
-    for row <- 0..(subdivisions - 1) do
-      for col <- 0..(subdivisions - 1) do
-        tile = WorldStore.get_tile({face_id, row, col})
-
-        resource_type =
-          case tile.resource do
-            nil -> nil
-            {type, _amount} -> Atom.to_string(type)
-          end
-
-        %{t: Atom.to_string(tile.terrain), r: resource_type}
-      end
-    end
-  end
-
-  defp refresh_research(socket) do
-    world_id = socket.assigns.world_id
-    player_id = socket.assigns.player_id
-
-    if world_id do
-      research_summary = Research.progress_summary(world_id, player_id)
-      clearance = Research.clearance_level(player_id)
-      unlocked = Research.unlocked_buildings(player_id)
-
-      socket =
-        socket
-        |> assign(:research_summary, research_summary)
-        |> assign(:clearance_level, clearance)
-        |> assign(:building_types, unlocked)
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  defp direction_label(0), do: "W"
-  defp direction_label(1), do: "S"
-  defp direction_label(2), do: "E"
-  defp direction_label(3), do: "N"
-
-  defp build_tile_info({face, row, col} = key) do
-    tile = WorldStore.get_tile(key)
-    building = WorldStore.get_building(key)
-
-    {resource_type, resource_amount} =
-      case tile do
-        %{resource: {type, amount}} -> {Atom.to_string(type), amount}
-        _ -> {nil, nil}
-      end
-
-    altered_item = AlteredItems.get(key)
-    corruption = Hiss.corruption_at(key)
-    territory = Territory.territory_at(key)
-
-    territory_info =
-      if territory do
-        owner_name = Persistence.get_player_name(territory.owner_id)
-        %{owner_id: territory.owner_id, owner_name: owner_name || "Unknown"}
-      else
-        nil
-      end
-
-    base = %{
-      face: face,
-      row: row,
-      col: col,
-      terrain: Atom.to_string(tile.terrain),
-      resource: tile.resource,
-      resource_type: resource_type,
-      resource_amount: resource_amount,
-      building: building,
-      altered_item: altered_item,
-      corruption: corruption,
-      territory: territory_info
-    }
-
-    if building do
-      owner_name = Persistence.get_player_name(building[:owner_id])
-
-      Map.merge(base, %{
-        building_name: Lore.display_name(building.type),
-        building_orientation: building.orientation,
-        building_status: building_status_text(building),
-        building_owner_id: building[:owner_id],
-        building_owner_name: owner_name
-      })
-    else
-      Map.merge(base, %{
-        building_name: nil,
-        building_orientation: nil,
-        building_status: nil,
-        building_owner_id: nil,
-        building_owner_name: nil
-      })
-    end
-  end
-
-  defp building_status_text(%{type: :miner, state: state}) do
-    cond do
-      state[:output_buffer] != nil -> "Output: #{Lore.display_name(state.output_buffer)}"
-      state[:progress] > 0 -> "Extracting... #{state.progress}/#{state.rate}"
-      true -> "Idle"
-    end
-  end
-
-  defp building_status_text(%{type: :smelter, state: state}) do
-    cond do
-      state[:output_buffer] != nil -> "Output: #{Lore.display_name(state.output_buffer)}"
-      state[:input_buffer] != nil -> "Processing... #{state.progress}/#{state.rate}"
-      true -> "Idle"
-    end
-  end
-
-  defp building_status_text(%{type: :conveyor, state: state}) do
-    if state[:item], do: "Carrying: #{Lore.display_name(state.item)}", else: "Empty"
-  end
-
-  defp building_status_text(%{type: :conveyor_mk2, state: state}) do
-    count = if(state[:item], do: 1, else: 0) + if state[:buffer], do: 1, else: 0
-    if count > 0, do: "Carrying: #{count}/2 items", else: "Empty"
-  end
-
-  defp building_status_text(%{type: :conveyor_mk3, state: state}) do
-    count =
-      if(state[:item], do: 1, else: 0) + if(state[:buffer1], do: 1, else: 0) +
-        if state[:buffer2], do: 1, else: 0
-
-    if count > 0, do: "Carrying: #{count}/3 items", else: "Empty"
-  end
-
-  defp building_status_text(%{type: :assembler, state: state}) do
-    cond do
-      state[:output_buffer] != nil ->
-        "Output: #{Lore.display_name(state.output_buffer)}"
-
-      state[:input_a] != nil and state[:input_b] != nil ->
-        "Fabricating... #{state.progress}/#{state.rate}"
-
-      state[:input_a] != nil ->
-        "Input A: #{Lore.display_name(state.input_a)} (awaiting B)"
-
-      state[:input_b] != nil ->
-        "Input B: #{Lore.display_name(state.input_b)} (awaiting A)"
-
-      true ->
-        "Idle"
-    end
-  end
-
-  defp building_status_text(%{type: :refinery, state: state}) do
-    cond do
-      state[:output_buffer] != nil -> "Output: #{Lore.display_name(state.output_buffer)}"
-      state[:input_buffer] != nil -> "Distilling... #{state.progress}/#{state.rate}"
-      true -> "Idle"
-    end
-  end
-
-  defp building_status_text(%{type: :submission_terminal, state: state}) do
-    cond do
-      state[:input_buffer] != nil ->
-        "Receiving: #{Lore.display_name(state.input_buffer)}"
-
-      state[:last_submitted] != nil ->
-        "Last: #{Lore.display_name(state.last_submitted)} (#{state.total_submitted} total)"
-
-      true ->
-        "Awaiting submissions"
-    end
-  end
-
-  defp building_status_text(%{type: :containment_trap, state: state}) do
-    cond do
-      state[:capturing] != nil ->
-        "Containing... #{state.capture_progress}/15"
-
-      true ->
-        "Scanning for entities"
-    end
-  end
-
-  defp building_status_text(%{type: :purification_beacon, state: state}) do
-    "Active — Radius #{state[:radius] || 5}"
-  end
-
-  defp building_status_text(%{type: :defense_turret, state: state}) do
-    cond do
-      state[:output_buffer] != nil ->
-        "Output: #{Lore.display_name(state.output_buffer)} (#{state[:kills] || 0} kills)"
-
-      (state[:kills] || 0) > 0 ->
-        "Scanning — #{state.kills} kills"
-
-      true ->
-        "Scanning for hostiles"
-    end
-  end
-
-  defp building_status_text(%{type: :claim_beacon, state: state}) do
-    "Active — Radius #{state[:radius] || 8}"
-  end
-
-  defp building_status_text(%{type: :storage_container, state: state}) do
-    if state[:item_type] do
-      "#{Lore.display_name(state.item_type)}: #{state.count}/#{state.capacity}"
-    else
-      "Empty — 0/#{state[:capacity] || 100}"
-    end
-  end
-
-  defp building_status_text(%{type: :underground_conduit, state: state}) do
-    cond do
-      state[:item] != nil -> "Carrying: #{Lore.display_name(state.item)}"
-      state[:linked_to] != nil -> "Linked to #{format_building_key(state.linked_to)}"
-      true -> "Unlinked — select another conduit to pair"
-    end
-  end
-
-  defp building_status_text(%{type: :crossover, state: state}) do
-    h = if state[:horizontal], do: Lore.display_name(state.horizontal), else: nil
-    v = if state[:vertical], do: Lore.display_name(state.vertical), else: nil
-
-    case {h, v} do
-      {nil, nil} -> "Empty"
-      {h, nil} -> "H: #{h}"
-      {nil, v} -> "V: #{v}"
-      {h, v} -> "H: #{h} | V: #{v}"
-    end
-  end
-
-  defp building_status_text(%{type: :balancer, state: state}) do
-    cond do
-      state[:item] != nil -> "Routing: #{Lore.display_name(state.item)}"
-      true -> "Idle — balancing output"
-    end
-  end
-
-  defp building_status_text(%{type: :trade_terminal, state: state}) do
-    cond do
-      state[:output_buffer] != nil ->
-        "Output: #{Lore.display_name(state.output_buffer)}"
-
-      state[:trade_id] != nil ->
-        "Linked — #{state.total_sent} sent, #{state.total_received} received"
-
-      true ->
-        "No requisition linked"
-    end
-  end
-
-  defp building_status_text(%{type: :dimensional_stabilizer, state: state}) do
-    "Active — Immunity Radius #{state[:radius] || 15}"
-  end
-
-  defp building_status_text(%{type: :astral_projection_chamber, state: _state}) do
-    "Ready — Click to project"
-  end
-
-  defp building_status_text(_building), do: nil
-
-  defp creature_boost_label(type) do
-    case Creatures.boost_info(type) do
-      nil -> ""
-      %{type: :speed, amount: amt} -> "Speed +#{round(amt * 100)}%"
-      %{type: :efficiency, amount: amt} -> "Efficiency +#{round(amt * 100)}%"
-      %{type: :output, amount: amt} -> "Output +#{round(amt * 100)}%"
-      %{type: :area, amount: amt} -> "Area +#{round(amt * 100)}%"
-      %{type: :defense, amount: _amt} -> "Defense"
-      %{type: :all, amount: amt} -> "All +#{round(amt * 100)}%"
-      _ -> ""
-    end
-  end
-
-  defp world_event_label(:hiss_surge), do: "ALERT: Hiss Surge Active"
-  defp world_event_label(:meteor_shower), do: "EVENT: Meteor Shower"
-  defp world_event_label(:resonance_cascade), do: "EVENT: Resonance Cascade"
-  defp world_event_label(:entity_migration), do: "EVENT: Entity Migration"
-  defp world_event_label(_), do: "EVENT: Unknown"
-
-  defp shift_phase_label(:dawn), do: "Dawn Shift"
-  defp shift_phase_label(:zenith), do: "Zenith Shift"
-  defp shift_phase_label(:dusk), do: "Dusk Shift"
-  defp shift_phase_label(:nadir), do: "Nadir Shift"
-  defp shift_phase_label(_), do: "Unknown Shift"
-
-  defp shift_phase_color(:dawn), do: "var(--fbc-highlight)"
-  defp shift_phase_color(:zenith), do: "var(--fbc-info)"
-  defp shift_phase_color(:dusk), do: "var(--fbc-accent)"
-  defp shift_phase_color(:nadir), do: "#6688AA"
-  defp shift_phase_color(_), do: "var(--fbc-text-dim)"
-
-  defp trade_status_color("open"), do: "var(--fbc-info)"
-  defp trade_status_color("accepted"), do: "var(--fbc-highlight)"
-  defp trade_status_color("completed"), do: "var(--fbc-success)"
-  defp trade_status_color("cancelled"), do: "var(--fbc-accent)"
-  defp trade_status_color(_), do: "var(--fbc-text-dim)"
-
-  defp format_building_key({face, row, col}), do: "F#{face} R#{row} C#{col}"
-  defp format_building_key(_), do: "—"
-
-  defp catalog_buildings(category, unlocked_types) do
-    Buildings.buildings_by_category()
-    |> Enum.find(fn {cat, _} -> cat == category end)
-    |> case do
-      {_, types} -> Enum.filter(types, &(&1 in unlocked_types))
-      nil -> []
-    end
-  end
-
-  defp restore_hotbar(params, unlocked_buildings) do
-    case params["hotbar"] do
-      raw when is_binary(raw) and raw != "" ->
-        case Jason.decode(raw) do
-          {:ok, list} when is_list(list) ->
-            list
-            |> Enum.take(5)
-            |> Enum.map(fn
-              nil -> nil
-              "" -> nil
-              s when is_binary(s) ->
-                atom = String.to_existing_atom(s)
-                if atom in unlocked_buildings, do: atom, else: nil
-            end)
-            |> then(fn slots -> slots ++ List.duplicate(nil, 5 - length(slots)) end)
-
-          _ ->
-            Buildings.default_hotbar()
-        end
-
-      _ ->
-        Buildings.default_hotbar()
-    end
-  rescue
-    _ -> Buildings.default_hotbar()
-  end
-
-  defp restore_player(params) do
-    player_id =
-      case params["player_id"] do
-        id when is_binary(id) and id != "" -> id
-        _ -> "player:#{Base.encode16(:crypto.strong_rand_bytes(8))}"
-      end
-
-    player_name =
-      case params["player_name"] do
-        name when is_binary(name) and name != "" -> name
-        _ -> Presence.random_name()
-      end
-
-    player_color =
-      case params["player_color"] do
-        color when is_binary(color) and color != "" -> color
-        _ -> Presence.random_color()
-      end
-
-    camera = %{
-      x: to_float(params["camera_x"], 0.0),
-      y: to_float(params["camera_y"], 0.0),
-      z: to_float(params["camera_z"], 3.5),
-      tx: to_float(params["camera_tx"], 0.0),
-      ty: to_float(params["camera_ty"], 0.0),
-      tz: to_float(params["camera_tz"], 0.0)
-    }
-
-    {player_id, player_name, player_color, camera}
-  end
-
-  defp to_float(val, _default) when is_float(val), do: val
-  defp to_float(val, _default) when is_integer(val), do: val * 1.0
-  defp to_float(nil, default), do: default
-  defp to_float(_, default), do: default
-
-  defp to_int(v) when is_integer(v), do: v
-  defp to_int(v) when is_binary(v), do: String.to_integer(v)
-
-  defp build_buildings_snapshot do
-    for face_id <- 0..29,
-        {{f, r, c}, building} <- WorldStore.get_face_buildings(face_id) do
-      %{
-        face: f,
-        row: r,
-        col: c,
-        type: Atom.to_string(building.type),
-        orientation: building.orientation
-      }
-    end
-  end
+  # === Event Handlers (delegated to submodules) ===
+
+  # Building events
+  @impl true
+  def handle_event("select_building", params, socket),
+    do: BuildingEvents.handle_event("select_building", params, socket)
+
+  @impl true
+  def handle_event("rotate_building", params, socket),
+    do: BuildingEvents.handle_event("rotate_building", params, socket)
+
+  @impl true
+  def handle_event("toggle_line_mode", params, socket),
+    do: BuildingEvents.handle_event("toggle_line_mode", params, socket)
+
+  @impl true
+  def handle_event("place_line", params, socket),
+    do: BuildingEvents.handle_event("place_line", params, socket)
+
+  @impl true
+  def handle_event("tile_click", params, socket),
+    do: BuildingEvents.handle_event("tile_click", params, socket)
+
+  @impl true
+  def handle_event("remove_building", params, socket),
+    do: BuildingEvents.handle_event("remove_building", params, socket)
+
+  @impl true
+  def handle_event("link_conduit", params, socket),
+    do: BuildingEvents.handle_event("link_conduit", params, socket)
+
+  # Panel events
+  @impl true
+  def handle_event("toggle_research", params, socket),
+    do: PanelEvents.handle_event("toggle_research", params, socket)
+
+  @impl true
+  def handle_event("toggle_creatures", params, socket),
+    do: PanelEvents.handle_event("toggle_creatures", params, socket)
+
+  @impl true
+  def handle_event("assign_creature", params, socket),
+    do: PanelEvents.handle_event("assign_creature", params, socket)
+
+  @impl true
+  def handle_event("unassign_creature", params, socket),
+    do: PanelEvents.handle_event("unassign_creature", params, socket)
+
+  @impl true
+  def handle_event("toggle_recipes", params, socket),
+    do: PanelEvents.handle_event("toggle_recipes", params, socket)
+
+  @impl true
+  def handle_event("recipe_search", params, socket),
+    do: PanelEvents.handle_event("recipe_search", params, socket)
+
+  @impl true
+  def handle_event("toggle_stats", params, socket),
+    do: PanelEvents.handle_event("toggle_stats", params, socket)
+
+  @impl true
+  def handle_event("toggle_board_contact", params, socket),
+    do: PanelEvents.handle_event("toggle_board_contact", params, socket)
+
+  @impl true
+  def handle_event("dismiss_board_message", params, socket),
+    do: PanelEvents.handle_event("dismiss_board_message", params, socket)
+
+  @impl true
+  def handle_event("activate_board_contact", params, socket),
+    do: PanelEvents.handle_event("activate_board_contact", params, socket)
+
+  # Trading events
+  @impl true
+  def handle_event("toggle_trading", params, socket),
+    do: TradingEvents.handle_event("toggle_trading", params, socket)
+
+  @impl true
+  def handle_event("create_trade", params, socket),
+    do: TradingEvents.handle_event("create_trade", params, socket)
+
+  @impl true
+  def handle_event("accept_trade", params, socket),
+    do: TradingEvents.handle_event("accept_trade", params, socket)
+
+  @impl true
+  def handle_event("cancel_trade", params, socket),
+    do: TradingEvents.handle_event("cancel_trade", params, socket)
+
+  @impl true
+  def handle_event("link_trade", params, socket),
+    do: TradingEvents.handle_event("link_trade", params, socket)
+
+  # Hotbar & catalog events
+  @impl true
+  def handle_event("open_catalog", params, socket),
+    do: HotbarEvents.handle_event("open_catalog", params, socket)
+
+  @impl true
+  def handle_event("close_catalog", params, socket),
+    do: HotbarEvents.handle_event("close_catalog", params, socket)
+
+  @impl true
+  def handle_event("catalog_tab", params, socket),
+    do: HotbarEvents.handle_event("catalog_tab", params, socket)
+
+  @impl true
+  def handle_event("catalog_select", params, socket),
+    do: HotbarEvents.handle_event("catalog_select", params, socket)
+
+  @impl true
+  def handle_event("hotbar_select", params, socket),
+    do: HotbarEvents.handle_event("hotbar_select", params, socket)
+
+  @impl true
+  def handle_event("hotbar_clear", params, socket),
+    do: HotbarEvents.handle_event("hotbar_clear", params, socket)
+
+  @impl true
+  def handle_event("noop", params, socket),
+    do: HotbarEvents.handle_event("noop", params, socket)
+
+  # Blueprint events
+  @impl true
+  def handle_event("blueprint_capture", params, socket),
+    do: BlueprintEvents.handle_event("blueprint_capture", params, socket)
+
+  @impl true
+  def handle_event("blueprint_stamp", params, socket),
+    do: BlueprintEvents.handle_event("blueprint_stamp", params, socket)
+
+  @impl true
+  def handle_event("blueprint_captured", params, socket),
+    do: BlueprintEvents.handle_event("blueprint_captured", params, socket)
+
+  @impl true
+  def handle_event("blueprint_cancelled", params, socket),
+    do: BlueprintEvents.handle_event("blueprint_cancelled", params, socket)
+
+  @impl true
+  def handle_event("place_blueprint", params, socket),
+    do: BlueprintEvents.handle_event("place_blueprint", params, socket)
+
+  # Demolish events
+  @impl true
+  def handle_event("toggle_demolish_mode", params, socket),
+    do: DemolishEvents.handle_event("toggle_demolish_mode", params, socket)
+
+  @impl true
+  def handle_event("remove_area", params, socket),
+    do: DemolishEvents.handle_event("remove_area", params, socket)
+
+  # Camera events
+  @impl true
+  def handle_event("camera_update", params, socket),
+    do: CameraEvents.handle_event("camera_update", params, socket)
+
+  # Keyboard events
+  @impl true
+  def handle_event("keydown", params, socket),
+    do: KeyboardEvents.handle_event("keydown", params, socket)
+
+  # === PubSub Info Handlers (delegated to ServerSync) ===
+
+  @impl true
+  def handle_info({:building_placed, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:building_removed, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:tick_update, _, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:case_file_completed, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:research_progress, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:object_of_power_granted, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:creature_spawned, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:creature_moved, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:creature_captured, _, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:creature_sync, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:corruption_update, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:corruption_cleared, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:corruption_sync, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:hiss_spawned, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:hiss_moved, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:hiss_killed, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:hiss_sync, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:building_damage, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:territory_update, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:world_event_started, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:world_event_ended, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:shift_cycle_changed, _, _, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:sun_moved, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:creature_evolved, _, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info(:send_terrain, socket),
+    do: ServerSync.handle_info(:send_terrain, socket)
+
+  @impl true
+  def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff"} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info(:world_reset, socket),
+    do: ServerSync.handle_info(:world_reset, socket)
 end
