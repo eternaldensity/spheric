@@ -135,6 +135,7 @@ defmodule SphericWeb.GameLive do
       |> assign(:shift_phase, ShiftCycle.current_phase())
       |> assign(:show_board_contact, false)
       |> assign(:board_contact, BoardContact.progress_summary())
+      |> assign(:demolish_mode, false)
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
 
     # Tell the client to restore camera and persist any newly-generated identity
@@ -857,6 +858,13 @@ defmodule SphericWeb.GameLive do
       >
         Stp
       </button>
+      <button
+        phx-click="toggle_demolish_mode"
+        style={"padding: 6px 10px; border: 1px solid #{if @demolish_mode, do: "var(--fbc-accent)", else: "var(--fbc-border)"}; background: #{if @demolish_mode, do: "rgba(204,51,51,0.18)", else: "rgba(255,255,255,0.04)"}; color: #{if @demolish_mode, do: "var(--fbc-accent)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;"}
+        title="Demolish area (X)"
+      >
+        Dem
+      </button>
 
       <%!-- Separator --%>
       <div style="width: 1px; height: 28px; background: var(--fbc-border); margin: 0 6px;"></div>
@@ -974,8 +982,10 @@ defmodule SphericWeb.GameLive do
         socket
         |> assign(:selected_building_type, type)
         |> assign(:blueprint_mode, nil)
+        |> assign(:demolish_mode, false)
         |> push_event("placement_mode", %{type: type_str, orientation: orientation})
         |> push_event("blueprint_mode", %{mode: nil})
+        |> push_event("demolish_mode", %{enabled: false})
 
       {:noreply, socket}
     else
@@ -1411,6 +1421,11 @@ defmodule SphericWeb.GameLive do
   end
 
   @impl true
+  def handle_event("keydown", %{"key" => "x"}, socket) do
+    handle_event("toggle_demolish_mode", %{}, socket)
+  end
+
+  @impl true
   def handle_event("keydown", %{"key" => "q"}, socket) do
     if socket.assigns.show_catalog do
       handle_event("close_catalog", %{}, socket)
@@ -1427,6 +1442,9 @@ defmodule SphericWeb.GameLive do
 
       socket.assigns.selected_building_type ->
         handle_event("select_building", %{"type" => "none"}, socket)
+
+      socket.assigns.demolish_mode ->
+        handle_event("toggle_demolish_mode", %{}, socket)
 
       true ->
         {:noreply, socket}
@@ -1697,7 +1715,9 @@ defmodule SphericWeb.GameLive do
       socket
       |> assign(:blueprint_mode, :capture)
       |> assign(:selected_building_type, nil)
+      |> assign(:demolish_mode, false)
       |> push_event("blueprint_mode", %{mode: "capture"})
+      |> push_event("demolish_mode", %{enabled: false})
 
     {:noreply, socket}
   end
@@ -1708,7 +1728,9 @@ defmodule SphericWeb.GameLive do
       socket
       |> assign(:blueprint_mode, :stamp)
       |> assign(:selected_building_type, nil)
+      |> assign(:demolish_mode, false)
       |> push_event("blueprint_mode", %{mode: "stamp"})
+      |> push_event("demolish_mode", %{enabled: false})
 
     {:noreply, socket}
   end
@@ -1760,6 +1782,47 @@ defmodule SphericWeb.GameLive do
 
         {{_face, _row, _col}, {:error, _reason}}, sock ->
           sock
+      end)
+
+    {:noreply, socket}
+  end
+
+  # --- Demolish mode events ---
+
+  @impl true
+  def handle_event("toggle_demolish_mode", _params, socket) do
+    new_mode = !socket.assigns.demolish_mode
+
+    socket =
+      socket
+      |> assign(:demolish_mode, new_mode)
+      |> assign(:selected_building_type, nil)
+      |> assign(:line_mode, false)
+      |> assign(:blueprint_mode, nil)
+      |> push_event("demolish_mode", %{enabled: new_mode})
+      |> push_event("placement_mode", %{type: nil, orientation: nil})
+      |> push_event("line_mode", %{enabled: false})
+      |> push_event("blueprint_mode", %{mode: nil})
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("remove_area", %{"tiles" => tiles_list}, socket) do
+    keys =
+      Enum.map(tiles_list, fn %{"face" => face, "row" => row, "col" => col} ->
+        {to_int(face), to_int(row), to_int(col)}
+      end)
+
+    results = WorldServer.remove_buildings(keys, socket.assigns.player_id)
+
+    socket =
+      Enum.reduce(results, socket, fn
+        {{face, row, col}, :ok}, sock ->
+          push_event(sock, "building_removed", %{face: face, row: row, col: col})
+
+        {{face, row, col}, {:error, _reason}}, sock ->
+          push_event(sock, "remove_error", %{face: face, row: row, col: col})
       end)
 
     {:noreply, socket}

@@ -61,6 +61,11 @@ defmodule Spheric.Game.WorldServer do
     GenServer.call(__MODULE__, {:remove_building, key, player_id})
   end
 
+  @doc "Remove multiple buildings. Returns list of {key, :ok | {:error, reason}}."
+  def remove_buildings(keys, player_id \\ nil) when is_list(keys) do
+    GenServer.call(__MODULE__, {:remove_buildings, keys, player_id})
+  end
+
   @doc """
   Read tile state directly from ETS (no GenServer call).
   Returns tile data map or nil.
@@ -343,6 +348,41 @@ defmodule Spheric.Game.WorldServer do
 
         {:reply, :ok, state}
     end
+  end
+
+  @impl true
+  def handle_call({:remove_buildings, keys, player_id}, _from, state) do
+    results =
+      Enum.map(keys, fn key ->
+        {face_id, _row, _col} = key
+        building = WorldStore.get_building(key)
+
+        cond do
+          building == nil ->
+            {key, {:error, :no_building}}
+
+          building.owner_id != nil and player_id != nil and building.owner_id != player_id ->
+            {key, {:error, :not_owner}}
+
+          true ->
+            if building.type == :claim_beacon do
+              Territory.release(key)
+              broadcast_territory_update(key)
+            end
+
+            WorldStore.remove_building(key)
+
+            Phoenix.PubSub.broadcast(
+              Spheric.PubSub,
+              "world:face:#{face_id}",
+              {:building_removed, key}
+            )
+
+            {key, :ok}
+        end
+      end)
+
+    {:reply, results, state}
   end
 
   @impl true

@@ -80,6 +80,11 @@ const GameRenderer = {
     this.blueprintPreviewMeshes = [];   // THREE.Mesh[] for stamp preview
     this.savedBlueprints = this.loadBlueprints(); // [{name, pattern}, ...]
 
+    // Demolish mode state
+    this.demolishMode = false;           // toggled by X key or Dem button
+    this.demolishStart = null;           // {face, row, col} or null — first click in demolish mode
+    this.demolishPreviewTiles = [];      // [{face, row, col, hasBuilding}, ...] for clearing overlays
+
     // Spin rotation state (Ctrl+drag to spin around a point on the sphere)
     this._spinning = false;
     this._spinAxis = new THREE.Vector3();
@@ -476,8 +481,9 @@ const GameRenderer = {
     });
 
     this.handleEvent("placement_mode", ({ type, orientation }) => {
-      // Clear line-drawing state on any mode change
+      // Clear line-drawing and demolish state on any mode change
       this.cancelLineDraw();
+      this.cancelDemolishDraw();
       this.placementType = type;
       this.placementOrientation = orientation ?? 0;
       this.clearPreviewArrow();
@@ -490,6 +496,18 @@ const GameRenderer = {
     this.handleEvent("line_mode", ({ enabled }) => {
       this.cancelLineDraw();
       this.lineMode = enabled;
+    });
+
+    this.handleEvent("demolish_mode", ({ enabled }) => {
+      this.cancelDemolishDraw();
+      this.demolishMode = enabled;
+    });
+
+    this.handleEvent("remove_error", ({ face, row, col }) => {
+      this.setTileOverlay(face, row, col, "error");
+      setTimeout(() => {
+        this.setTileOverlay(face, row, col, null);
+      }, 300);
     });
 
     this.handleEvent("restore_player", ({ player_id, player_name, player_color, camera }) => {
@@ -659,6 +677,7 @@ const GameRenderer = {
     // Blueprint tool events from LiveView
     this.handleEvent("blueprint_mode", ({ mode }) => {
       this.cancelLineDraw();
+      this.cancelDemolishDraw();
       this.clearPreviewArrow();
       this.clearBlueprintPreview();
       this.blueprintCaptureStart = null;
@@ -759,6 +778,10 @@ const GameRenderer = {
           this.cancelLineDraw();
           return;
         }
+        if (this.demolishStart) {
+          this.cancelDemolishDraw();
+          return;
+        }
       }
       if (event.key === "t" || event.key === "T") {
         this.toggleBuildingRenderMode();
@@ -784,6 +807,46 @@ const GameRenderer = {
     if (this._suppressClick) return;
     const tile = this.hitToTile(event);
     if (!tile) return;
+
+    // Demolish mode: two-click rectangle workflow
+    if (this.demolishMode) {
+      if (!this.demolishStart) {
+        // First click: set rectangle start corner
+        this.demolishStart = tile;
+        this.setTileOverlay(tile.face, tile.row, tile.col, "selected");
+        return;
+      } else {
+        // Second click: compute rectangle and send batch removal
+        if (this.demolishStart.face !== tile.face) {
+          // Cross-face not supported, reset
+          this.cancelDemolishDraw();
+          return;
+        }
+
+        const start = this.demolishStart;
+        const minRow = Math.min(start.row, tile.row);
+        const maxRow = Math.max(start.row, tile.row);
+        const minCol = Math.min(start.col, tile.col);
+        const maxCol = Math.max(start.col, tile.col);
+
+        const toRemove = [];
+        for (let r = minRow; r <= maxRow; r++) {
+          for (let c = minCol; c <= maxCol; c++) {
+            const key = `${start.face}:${r}:${c}`;
+            if (this.buildingData.has(key)) {
+              toRemove.push({ face: start.face, row: r, col: c });
+            }
+          }
+        }
+
+        if (toRemove.length > 0) {
+          this.pushEvent("remove_area", { tiles: toRemove });
+        }
+
+        this.cancelDemolishDraw();
+        return;
+      }
+    }
 
     // Blueprint mode: capture or stamp
     if (this.blueprintMode) {
@@ -868,6 +931,12 @@ const GameRenderer = {
     this.hoveredTile = tile;
 
     if (tile) {
+      // Demolish area preview
+      if (this.demolishMode && this.demolishStart) {
+        this.showDemolishPreview(tile);
+        return;
+      }
+
       // Blueprint stamp preview
       if (this.blueprintMode === "stamp" && this.blueprintPattern) {
         this.showBlueprintPreview(tile);
@@ -1152,6 +1221,54 @@ const GameRenderer = {
         this.setTileOverlay(this.lineStart.face, this.lineStart.row, this.lineStart.col, null);
       }
       this.lineStart = null;
+    }
+  },
+
+  // --- Demolish area tool ---
+
+  showDemolishPreview(endTile) {
+    this.clearDemolishPreview();
+
+    if (!this.demolishStart || this.demolishStart.face !== endTile.face) return;
+
+    const start = this.demolishStart;
+    const minRow = Math.min(start.row, endTile.row);
+    const maxRow = Math.max(start.row, endTile.row);
+    const minCol = Math.min(start.col, endTile.col);
+    const maxCol = Math.max(start.col, endTile.col);
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const key = `${start.face}:${r}:${c}`;
+        const hasBuilding = this.buildingData.has(key);
+        this.demolishPreviewTiles.push({ face: start.face, row: r, col: c, hasBuilding });
+        this.setTileOverlay(start.face, r, c, hasBuilding ? "demolish" : "hover");
+      }
+    }
+  },
+
+  clearDemolishPreview() {
+    for (const tile of this.demolishPreviewTiles) {
+      const overlay = this.getTileOverlay(tile.face, tile.row, tile.col);
+      if (overlay === "demolish" || overlay === "hover") {
+        this.setTileOverlay(tile.face, tile.row, tile.col, null);
+      }
+    }
+    this.demolishPreviewTiles = [];
+  },
+
+  cancelDemolishDraw() {
+    this.clearDemolishPreview();
+    if (this.demolishStart) {
+      const overlay = this.getTileOverlay(
+        this.demolishStart.face, this.demolishStart.row, this.demolishStart.col
+      );
+      if (overlay === "selected") {
+        this.setTileOverlay(
+          this.demolishStart.face, this.demolishStart.row, this.demolishStart.col, null
+        );
+      }
+      this.demolishStart = null;
     }
   },
 
@@ -1822,6 +1939,7 @@ const GameRenderer = {
     this.clearPreviewArrow();
     this.clearLinePreview();
     this.clearBlueprintPreview();
+    this.clearDemolishPreview();
     this.disposePlayerMarkers();
     this.disposeAlteredItems();
     this.disposeCorruption();

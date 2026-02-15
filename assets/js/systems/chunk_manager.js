@@ -647,8 +647,10 @@ export class ChunkManager {
   static HIGHLIGHT_TINT = new THREE.Color(0xffdd44);
   static HOVER_TINT = new THREE.Color(0xaaddff);
   static ERROR_TINT = new THREE.Color(0xff2222);
+  static DEMOLISH_TINT = new THREE.Color(0xff4444);
   static HIGHLIGHT_BLEND = 0.55;
   static HOVER_BLEND = 0.35;
+  static DEMOLISH_BLEND = 0.5;
 
   applyOverlay(baseColor, overlay) {
     if (!overlay) return baseColor;
@@ -659,6 +661,8 @@ export class ChunkManager {
       result.lerp(ChunkManager.HOVER_TINT, ChunkManager.HOVER_BLEND);
     } else if (overlay === "error") {
       result.lerp(ChunkManager.ERROR_TINT, 0.6);
+    } else if (overlay === "demolish") {
+      result.lerp(ChunkManager.DEMOLISH_TINT, ChunkManager.DEMOLISH_BLEND);
     }
     return result;
   }
