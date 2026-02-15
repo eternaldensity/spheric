@@ -10,6 +10,6 @@ defmodule Spheric.Game.Schema.Corruption do
     field :seeded_at, :integer, default: 0
     field :building_damage_ticks, :integer, default: 0
 
-    timestamps()
+    timestamps(type: :utc_datetime)
   end
 end

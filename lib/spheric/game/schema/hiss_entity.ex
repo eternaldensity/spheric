@@ -10,6 +10,6 @@ defmodule Spheric.Game.Schema.HissEntity do
     field :health, :integer, default: 100
     field :spawned_at, :integer, default: 0
 
-    timestamps()
+    timestamps(type: :utc_datetime)
   end
 end
