@@ -325,10 +325,10 @@ defmodule SphericWeb.GuideLive do
         background: oklch(from var(--color-base-200) l c h / 0.4);
       }
     </style>
-    <div style="margin: 0; overflow: auto; background: var(--b1, #1d232a);" class="min-h-screen">
-      <div class="flex min-h-screen bg-base-100">
+    <div style="margin: 0; background: var(--b1, #1d232a);" class="h-screen overflow-hidden">
+      <div class="flex h-screen bg-base-100">
         <%!-- Sidebar --%>
-        <aside class="w-72 shrink-0 bg-base-200 border-r border-base-300 overflow-y-auto sticky top-0 h-screen">
+        <aside class="w-72 shrink-0 bg-base-200 border-r border-base-300 overflow-y-auto h-screen">
           <div class="p-4 border-b border-base-300">
             <a href="/guide" class="text-xl font-bold flex items-center gap-2">
               <.icon name="hero-book-open" class="size-6" />
@@ -373,7 +373,7 @@ defmodule SphericWeb.GuideLive do
         </aside>
 
         <%!-- Main content --%>
-        <main class="flex-1 overflow-y-auto">
+        <main class="flex-1 overflow-y-auto h-screen">
           <div class="max-w-4xl mx-auto p-8">
             <article class="prose prose-sm sm:prose-base max-w-none guide-prose">
               {raw(@content_html)}
