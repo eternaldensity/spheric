@@ -255,17 +255,210 @@ location / {
 
 ## Troubleshooting
 
-**"Database does not exist"** — Run `mix ecto.create` to create it, or `mix ecto.reset` for a full reset.
+### Database Not Running
 
-**"mix: command not found"** — Elixir is not installed or not on your PATH. Install from [elixir-lang.org](https://elixir-lang.org/install.html).
+The most common startup failure is PostgreSQL not being available. The server will crash immediately with a `connection refused` error.
 
-**Assets not compiling** — Run `mix assets.setup` to install the esbuild and tailwind binaries, then `mix assets.build`.
+**Symptoms:**
 
-**Port already in use** — Another process is using port 4000. Either stop it or set `PORT=4001 mix phx.server`.
+- `(DBConnection.ConnectionError) tcp connect (localhost:5432): connection refused - :econnrefused`
+- `** (EXIT) an exception was raised: ** (DBConnection.ConnectionError) could not checkout the connection`
+- The server starts and immediately exits
 
-**Players can't connect from other machines** — Check that the endpoint is bound to `{0, 0, 0, 0}` instead of `{127, 0, 0, 1}`, and that your firewall allows traffic on the configured port.
+**How to fix:**
 
-**WebSocket disconnections behind proxy** — Increase your proxy's WebSocket idle timeout and verify the `Upgrade`/`Connection` headers are forwarded.
+1. **Check if PostgreSQL is running:**
+
+   On Linux/macOS:
+   ```
+   pg_isready
+   ```
+
+   On Windows:
+   ```
+   pg_isready -h localhost -p 5432
+   ```
+
+   If it reports "no response", PostgreSQL is not running.
+
+2. **Start PostgreSQL:**
+
+   On Linux (systemd):
+   ```
+   sudo systemctl start postgresql
+   ```
+
+   On macOS (Homebrew):
+   ```
+   brew services start postgresql@14
+   ```
+
+   On Windows (services):
+   ```
+   net start postgresql-x64-14
+   ```
+
+   Or open **Services** (Win+R → `services.msc`), find the PostgreSQL service, and click **Start**.
+
+3. **Verify the connection:**
+   ```
+   psql -U postgres -h localhost -c "SELECT 1;"
+   ```
+
+   If this returns `1`, PostgreSQL is running and accepting connections. Start the server again with `mix phx.server`.
+
+> [!tip] Auto-Start
+> To avoid this issue in the future, configure PostgreSQL to start automatically with your operating system. On Linux: `sudo systemctl enable postgresql`. On macOS: `brew services start postgresql@14` (persists across reboots). On Windows: set the PostgreSQL service startup type to **Automatic** in Services.
+
+### Database Exists But Is Corrupt or Out of Date
+
+If the database exists but the server crashes with migration or schema errors:
+
+**Symptoms:**
+
+- `(Postgrex.Error) ERROR 42P01 (undefined_table)` — a table is missing
+- `(Postgrex.Error) ERROR 42703 (undefined_column)` — a column is missing
+- `(Ecto.MigrationError)` — migrations are out of sync
+
+**How to fix:**
+
+1. **Run pending migrations:**
+   ```
+   mix ecto.migrate
+   ```
+
+2. **If migrations fail**, the schema may be too far out of sync. Reset the database:
+   ```
+   mix ecto.reset
+   ```
+
+> [!danger] Data Loss
+> `mix ecto.reset` drops and recreates the database. All world state, player data, and buildings are lost. Only use this when you're willing to start fresh.
+
+### Connection Pool Exhaustion
+
+Under heavy load or with many concurrent players, the database connection pool can become saturated.
+
+**Symptoms:**
+
+- `(DBConnection.ConnectionError) connection not available and request was dropped from queue after 5000ms`
+- The server stays running but individual requests fail or time out
+
+**How to fix:**
+
+1. **Increase the pool size** in your configuration. In `config/dev.exs`:
+   ```elixir
+   config :spheric, Spheric.Repo,
+     pool_size: 20
+   ```
+
+   In production, set the `POOL_SIZE` environment variable:
+   ```
+   POOL_SIZE=20
+   ```
+
+2. **Check for slow queries.** Attach to the running server with `iex -S mix phx.server` or `bin/spheric remote` and inspect the Ecto query logs. Long-running queries hold connections and starve others.
+
+3. **Verify external database limits.** Managed database providers (Render, Fly, AWS RDS) impose their own connection limits. Ensure `POOL_SIZE` does not exceed the plan's allowed connections.
+
+### Server Crashes on Startup
+
+If the server exits immediately after starting, check the error output carefully. The most common causes:
+
+**Missing environment variables (production):**
+
+```
+** (RuntimeError) environment variable DATABASE_URL is missing.
+```
+
+or
+
+```
+** (RuntimeError) environment variable SECRET_KEY_BASE is missing.
+```
+
+Set all required environment variables listed in the Configuration section above before starting.
+
+**Dependencies not fetched:**
+
+```
+** (UndefinedFunctionError) function SomeModule.some_function/1 is undefined (module SomeModule is not available)
+```
+
+Run `mix deps.get` to fetch dependencies, then `mix compile`.
+
+**Assets not built:**
+
+The game page loads but shows no sphere, no UI, or a blank screen. JavaScript or CSS assets are missing.
+
+```
+mix assets.setup
+mix assets.build
+```
+
+### Players Disconnecting or Experiencing Lag
+
+**Symptoms:**
+
+- Players report the game freezing, then reconnecting
+- LiveView shows "attempting to reconnect" banners
+- Intermittent disconnections under load
+
+**How to fix:**
+
+1. **Check server resources.** High CPU or memory usage causes the BEAM VM to slow down, delaying WebSocket heartbeats. Monitor with `htop`, Task Manager, or your hosting provider's dashboard.
+
+2. **Review tick processing time.** If the game's tick loop takes too long, it can block LiveView updates. Check the server logs for warnings about slow ticks.
+
+3. **Proxy timeouts.** If behind a reverse proxy, ensure the WebSocket idle timeout is generous (at least 60 seconds). Nginx example:
+   ```
+   proxy_read_timeout 86400;
+   proxy_send_timeout 86400;
+   ```
+
+4. **Network quality.** LiveView requires a stable connection. Players on unstable WiFi or mobile networks will experience more disconnections than those on wired connections.
+
+### Compilation Errors After Updating
+
+After pulling new code from the repository:
+
+```
+mix deps.get
+mix ecto.migrate
+mix assets.build
+mix compile
+```
+
+If compilation still fails:
+
+```
+mix deps.clean --all
+mix deps.get
+mix compile
+```
+
+As a last resort, clear all build artifacts:
+
+```
+rm -rf _build deps
+mix setup
+```
+
+### Quick Reference
+
+| Problem | Command |
+|---|---|
+| PostgreSQL not running | `pg_isready` then start the service |
+| Database missing | `mix ecto.create` |
+| Migrations pending | `mix ecto.migrate` |
+| Schema out of sync | `mix ecto.reset` |
+| Dependencies missing | `mix deps.get` |
+| Assets missing | `mix assets.setup && mix assets.build` |
+| Port in use | `PORT=4001 mix phx.server` |
+| Can't connect from LAN | Bind to `{0, 0, 0, 0}` in `config/dev.exs` |
+| WebSocket drops behind proxy | Forward `Upgrade`/`Connection` headers, increase timeouts |
+| Pool exhausted | Increase `POOL_SIZE` or optimize slow queries |
+| Build artifacts stale | `rm -rf _build deps && mix setup` |
 
 ---
 
