@@ -206,7 +206,7 @@ defmodule SphericWeb.GuideLive do
           |> Enum.join("<br/>")
 
         html =
-          ~s(<div class="alert #{alert_class} my-4"><div><strong>#{title_str}</strong><div>#{content}</div></div></div>)
+          "<div class=\"alert #{alert_class} my-4\">\n<div>\n<strong>#{title_str}</strong>\n<div>#{content}</div>\n</div>\n</div>"
 
         process_callout_lines(remaining, [html | acc])
 
