@@ -22,6 +22,93 @@ Before you begin, ensure the following are installed on your machine:
 > [!tip] Version Check
 > Run `elixir --version` and `psql --version` to confirm your installed versions. On Windows, the Erlang installer bundles OTP automatically.
 
+### Installing on Windows with Scoop
+
+[Scoop](https://scoop.sh) is a command-line package manager for Windows that installs tools into your user directory — no admin privileges required, no system-wide side effects. It is the recommended way to set up a Spheric development environment on Windows.
+
+**1. Install Scoop** (if you don't have it already):
+
+Open PowerShell and run:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+```
+
+Close and reopen your terminal after installation so the `scoop` command is available.
+
+**2. Install all dependencies:**
+
+```
+scoop install git
+scoop install erlang
+scoop install elixir
+scoop install nodejs
+scoop install postgresql
+```
+
+> [!info] Bucket Extras
+> If a package isn't found, you may need to add the extras bucket first: `scoop bucket add extras`. The core dependencies above are all in the default `main` bucket.
+
+**3. Initialize the PostgreSQL database:**
+
+Scoop installs PostgreSQL but does not initialize a data directory or start a service automatically. After installing, run:
+
+```
+initdb -D "%USERPROFILE%\scoop\apps\postgresql\current\data" -U postgres
+```
+
+This creates the data directory with a `postgres` superuser (no password). You only need to do this once.
+
+**4. Start PostgreSQL:**
+
+```
+pg_ctl -D "%USERPROFILE%\scoop\apps\postgresql\current\data" -l "%USERPROFILE%\scoop\apps\postgresql\current\data\logfile" start
+```
+
+Verify it's running:
+
+```
+pg_isready
+```
+
+> [!warning] Scoop PostgreSQL Has No Windows Service
+> Unlike the standard installer, Scoop's PostgreSQL does not register as a Windows service. You must start it manually with `pg_ctl` each time you reboot (or after shutting it down). If you want it to auto-start, you can create a scheduled task or add the `pg_ctl start` command to a startup script.
+
+**5. Verify everything:**
+
+```
+git --version
+elixir --version
+node --version
+psql --version
+pg_isready
+```
+
+All five should return version information or "accepting connections". You're now ready for the Initial Setup steps below.
+
+### Installing on macOS
+
+Use [Homebrew](https://brew.sh):
+
+```
+brew install elixir postgresql@14 node git
+brew services start postgresql@14
+```
+
+### Installing on Linux
+
+Use your distribution's package manager. For example, on Ubuntu/Debian:
+
+```
+sudo apt update
+sudo apt install elixir erlang postgresql postgresql-contrib nodejs npm git
+sudo systemctl enable --now postgresql
+```
+
+> [!tip] asdf Version Manager
+> For fine-grained version control across projects, consider using [asdf](https://asdf-vm.com) to manage Elixir, Erlang, and Node.js versions. Install the `erlang`, `elixir`, and `nodejs` plugins, then run `asdf install` in the project root.
+
 ---
 
 ## Initial Setup
@@ -293,12 +380,18 @@ The most common startup failure is PostgreSQL not being available. The server wi
    brew services start postgresql@14
    ```
 
-   On Windows (services):
+   On Windows (standard installer — runs as a service):
    ```
    net start postgresql-x64-14
    ```
 
-   Or open **Services** (Win+R → `services.msc`), find the PostgreSQL service, and click **Start**.
+   On Windows (Scoop, Chocolatey, or manual install — no service):
+   ```
+   pg_ctl -D "%USERPROFILE%\scoop\apps\postgresql\current\data" start
+   ```
+   Replace the `-D` path with your actual data directory.
+
+   Or if PostgreSQL is registered as a Windows service, open **Services** (Win+R → `services.msc`), find the PostgreSQL service, and click **Start**.
 
 3. **Verify the connection:**
    ```
@@ -310,35 +403,41 @@ The most common startup failure is PostgreSQL not being available. The server wi
 > [!tip] Auto-Start
 > To avoid this issue in the future, configure PostgreSQL to start automatically with your operating system. On Linux: `sudo systemctl enable postgresql`. On macOS: `brew services start postgresql@14` (persists across reboots). On Windows: set the PostgreSQL service startup type to **Automatic** in Services.
 
-### PostgreSQL Won't Start on Windows (Error 1067)
+### PostgreSQL Won't Start on Windows
 
-If you try to start the PostgreSQL service from Windows Services and it fails with **"Error 1067: The process terminated unexpectedly"**, PostgreSQL is crashing during startup — usually due to corrupt data, a bad config, or leftover lock files.
+If PostgreSQL refuses to start — whether from Windows Services (Error 1067), `net start`, or `pg_ctl` — it is crashing during startup. Common causes are leftover lock files, corrupt data, or port conflicts.
 
-**Step 1: Check the PostgreSQL log.**
+**Step 1: Find your data directory.**
 
-The log reveals the actual crash reason. Find it at:
+The data directory location depends on how PostgreSQL was installed:
+
+| Install Method | Typical Data Directory |
+|---|---|
+| Standard installer | `C:\Program Files\PostgreSQL\<version>\data\` |
+| Scoop | `C:\Users\<you>\scoop\apps\postgresql\current\data\` |
+| Chocolatey | `C:\tools\pgsql\data\` or `C:\Program Files\PostgreSQL\<version>\data\` |
+
+If you're unsure, run:
 
 ```
-C:\Program Files\PostgreSQL\<version>\data\log\
+pg_config --sharedir
 ```
 
-or
+The data directory is a sibling of the `share` directory this returns. You can also check the service's startup parameters in Services → PostgreSQL → Properties → "Path to executable" — the `-D` flag points to the data directory.
 
-```
-C:\Users\<you>\AppData\Roaming\PostgreSQL\<version>\data\log\
-```
+**Step 2: Check the log.**
 
-Open the most recent `.log` file and look for `FATAL` or `PANIC` lines near the bottom.
+The log reveals the actual crash reason. Look for a file called `logfile` or a `log/` subdirectory inside the data directory. Open the most recent log and look for `FATAL` or `PANIC` lines near the bottom.
 
-**Step 2: Fix based on what the log says.**
+**Step 3: Fix based on what the log says.**
 
 **Lock file left behind after a crash:**
 
-The log shows `FATAL: lock file "postmaster.pid" already exists`. A previous PostgreSQL process did not shut down cleanly.
+The log shows `FATAL: lock file "postmaster.pid" already exists`, or PostgreSQL won't start despite no error in the log. A previous process did not shut down cleanly.
 
-1. Open the `data` directory (same folder that contains `log/`)
-2. Delete the file `postmaster.pid`
-3. Try starting the service again
+1. Check that no `postgres` process is actually running: `tasklist //FI "IMAGENAME eq postgres.exe"`
+2. If nothing is running, delete `postmaster.pid` from the data directory
+3. Start PostgreSQL again
 
 **Corrupt WAL or data files:**
 

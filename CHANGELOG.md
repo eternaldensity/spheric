@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Add Scoop and PostgreSQL installation instructions to server guide (#83)
+- Add Windows PostgreSQL Error 1067 troubleshooting to server guide (#81)
 - Expand server guide troubleshooting with database and common failure recovery (#80)
 - Add server setup and operation guide page (#79)
 - Bulk demolish mode for area removal of structures (#60)
@@ -15,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Add deep production chains: Assembler activation, Refinery, 4 new resources, multi-tier recipes (#40)
 
 ### Fixed
+- Fix PostgreSQL on this machine (#82)
 - Add database error handling and transactional persistence (#73)
 - Fix Three.js memory leaks - building disposal, preview arrows, shared geometry/materials (#72)
 - Wire production statistics into tick processor (#51)
