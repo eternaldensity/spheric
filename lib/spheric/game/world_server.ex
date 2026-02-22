@@ -72,6 +72,11 @@ defmodule Spheric.Game.WorldServer do
     GenServer.call(__MODULE__, {:eject_output, key, player_id})
   end
 
+  @doc "Toggle the powered state of a building. Returns :ok or {:error, reason}."
+  def toggle_power({_face_id, _row, _col} = key, player_id \\ nil) do
+    GenServer.call(__MODULE__, {:toggle_power, key, player_id})
+  end
+
   @doc """
   Read tile state directly from ETS (no GenServer call).
   Returns tile data map or nil.
@@ -429,6 +434,28 @@ defmodule Spheric.Game.WorldServer do
 
         GroundItems.add(drop_key, item)
         {:reply, {:ok, item}, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:toggle_power, key, player_id}, _from, state) do
+    building = WorldStore.get_building(key)
+
+    cond do
+      building == nil ->
+        {:reply, {:error, :no_building}, state}
+
+      building.owner_id != nil and player_id != nil and building.owner_id != player_id ->
+        {:reply, {:error, :not_owner}, state}
+
+      building.state[:powered] == nil ->
+        {:reply, {:error, :not_toggleable}, state}
+
+      true ->
+        new_powered = not building.state.powered
+        new_state = %{building.state | powered: new_powered}
+        WorldStore.put_building(key, %{building | state: new_state})
+        {:reply, :ok, state}
     end
   end
 

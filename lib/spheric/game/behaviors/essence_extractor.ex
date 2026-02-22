@@ -12,7 +12,7 @@ defmodule Spheric.Game.Behaviors.EssenceExtractor do
   @default_rate 30
 
   def initial_state do
-    %{output_buffer: nil, progress: 0, rate: @default_rate}
+    %{output_buffer: nil, progress: 0, rate: @default_rate, powered: true}
   end
 
   def tick(key, building) do

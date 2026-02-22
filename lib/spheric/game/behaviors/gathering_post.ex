@@ -13,7 +13,7 @@ defmodule Spheric.Game.Behaviors.GatheringPost do
   @default_rate 20
 
   def initial_state do
-    %{output_buffer: nil, progress: 0, rate: @default_rate, visitor_type: nil}
+    %{output_buffer: nil, progress: 0, rate: @default_rate, visitor_type: nil, powered: true}
   end
 
   @doc "Returns the attraction radius for gathering posts."

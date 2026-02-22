@@ -130,7 +130,8 @@ defmodule Spheric.Game.Behaviors.Production do
           output_remaining: 0,
           output_type: nil,
           progress: 0,
-          rate: @default_rate
+          rate: @default_rate,
+          powered: true
         }
       end
 
@@ -253,7 +254,8 @@ defmodule Spheric.Game.Behaviors.Production do
           output_remaining: 0,
           output_type: nil,
           progress: 0,
-          rate: @default_rate
+          rate: @default_rate,
+          powered: true
         }
       end
 
@@ -421,7 +423,8 @@ defmodule Spheric.Game.Behaviors.Production do
           output_remaining: 0,
           output_type: nil,
           progress: 0,
-          rate: @default_rate
+          rate: @default_rate,
+          powered: true
         }
       end
 

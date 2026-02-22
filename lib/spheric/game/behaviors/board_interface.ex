@@ -34,7 +34,8 @@ defmodule Spheric.Game.Behaviors.BoardInterface do
       output_remaining: 0,
       output_type: nil,
       progress: 0,
-      rate: @default_rate
+      rate: @default_rate,
+      powered: true
     }
   end
 

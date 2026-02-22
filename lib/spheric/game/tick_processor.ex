@@ -52,96 +52,144 @@ defmodule Spheric.Game.TickProcessor do
     # Phase 1: Miners tick (with creature boost + power)
     miner_updates =
       Enum.map(classified.miners, fn {key, building} ->
-        updated = Behaviors.Miner.tick(key, apply_creature_boost(key, building))
-        record_production_stats(key, building, updated)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.Miner.tick(key, apply_creature_boost(key, building))
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
       end)
 
     # Phase 2: Smelters tick
     smelter_updates =
       Enum.map(classified.smelters, fn {key, building} ->
-        updated = Behaviors.Smelter.tick(key, apply_creature_boost(key, building))
-        record_production_stats(key, building, updated)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.Smelter.tick(key, apply_creature_boost(key, building))
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
       end)
 
     # Phase 2b: Refineries tick
     refinery_updates =
       Enum.map(classified.refineries, fn {key, building} ->
-        updated = Behaviors.Refinery.tick(key, apply_creature_boost(key, building))
-        record_production_stats(key, building, updated)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.Refinery.tick(key, apply_creature_boost(key, building))
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
       end)
 
     # Phase 2c: Assemblers tick
     assembler_updates =
       Enum.map(classified.assemblers, fn {key, building} ->
-        updated = Behaviors.Assembler.tick(key, apply_creature_boost(key, building))
-        record_production_stats(key, building, updated)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.Assembler.tick(key, apply_creature_boost(key, building))
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
       end)
 
     # Phase 2d: Advanced smelters tick
     adv_smelter_updates =
       Enum.map(classified.advanced_smelters, fn {key, building} ->
-        updated = Behaviors.AdvancedSmelter.tick(key, apply_creature_boost(key, building))
-        record_production_stats(key, building, updated)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.AdvancedSmelter.tick(key, apply_creature_boost(key, building))
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
       end)
 
     # Phase 2e: Advanced assemblers tick
     adv_assembler_updates =
       Enum.map(classified.advanced_assemblers, fn {key, building} ->
-        updated = Behaviors.AdvancedAssembler.tick(key, apply_creature_boost(key, building))
-        record_production_stats(key, building, updated)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.AdvancedAssembler.tick(key, apply_creature_boost(key, building))
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
       end)
 
     # Phase 2f: Fabrication plants tick
     fab_plant_updates =
       Enum.map(classified.fabrication_plants, fn {key, building} ->
-        updated = Behaviors.FabricationPlant.tick(key, apply_creature_boost(key, building))
-        record_production_stats(key, building, updated)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.FabricationPlant.tick(key, apply_creature_boost(key, building))
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
       end)
 
     # Phase 2g: Particle colliders tick
     collider_updates =
       Enum.map(classified.particle_colliders, fn {key, building} ->
-        updated = Behaviors.ParticleCollider.tick(key, apply_creature_boost(key, building))
-        record_production_stats(key, building, updated)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.ParticleCollider.tick(key, apply_creature_boost(key, building))
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
       end)
 
     # Phase 2h: Nuclear refineries tick
     nuclear_updates =
       Enum.map(classified.nuclear_refineries, fn {key, building} ->
-        updated = Behaviors.NuclearRefinery.tick(key, apply_creature_boost(key, building))
-        record_production_stats(key, building, updated)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.NuclearRefinery.tick(key, apply_creature_boost(key, building))
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
       end)
 
     # Phase 2i: Paranatural synthesizers tick
     synthesizer_updates =
       Enum.map(classified.paranatural_synthesizers, fn {key, building} ->
-        updated = Behaviors.ParanaturalSynthesizer.tick(key, apply_creature_boost(key, building))
-        record_production_stats(key, building, updated)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.ParanaturalSynthesizer.tick(key, apply_creature_boost(key, building))
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
       end)
 
     # Phase 2j: Board interfaces tick
     board_updates =
       Enum.map(classified.board_interfaces, fn {key, building} ->
-        updated = Behaviors.BoardInterface.tick(key, apply_creature_boost(key, building))
-        record_production_stats(key, building, updated)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.BoardInterface.tick(key, apply_creature_boost(key, building))
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
       end)
 
     # Phase 2k: Bio generators tick
     bio_gen_updates =
       Enum.map(classified.bio_generators, fn {key, building} ->
-        updated = Behaviors.BioGenerator.tick(key, apply_creature_boost(key, building))
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.BioGenerator.tick(key, apply_creature_boost(key, building))
+          {key, updated}
+        end
       end)
 
     # Phase 2k2: Shadow panels tick
@@ -154,15 +202,23 @@ defmodule Spheric.Game.TickProcessor do
     # Phase 2l: Gathering posts tick
     gathering_updates =
       Enum.map(classified.gathering_posts, fn {key, building} ->
-        updated = Behaviors.GatheringPost.tick(key, building)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.GatheringPost.tick(key, building)
+          {key, updated}
+        end
       end)
 
     # Phase 2m: Essence extractors tick
     essence_updates =
       Enum.map(classified.essence_extractors, fn {key, building} ->
-        updated = Behaviors.EssenceExtractor.tick(key, building)
-        {key, updated}
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = Behaviors.EssenceExtractor.tick(key, building)
+          {key, updated}
+        end
       end)
 
     # Phase 2n: Submission terminals tick (consume items, report submissions)
@@ -646,6 +702,9 @@ defmodule Spheric.Game.TickProcessor do
       nil ->
         true
 
+      %{state: %{powered: false}} ->
+        true
+
       %{type: :conveyor, state: %{item: item}} ->
         item != nil
 
@@ -727,6 +786,9 @@ defmodule Spheric.Game.TickProcessor do
       ConstructionCosts.needs_item?(constr, item)
     end)
   end
+
+  # Unpowered buildings refuse all items
+  defp try_accept(_key, %{state: %{powered: false}}, _requests, _n), do: nil
 
   defp try_accept(_key, %{type: :conveyor, state: %{item: nil}}, [winner | _], _n), do: winner
 

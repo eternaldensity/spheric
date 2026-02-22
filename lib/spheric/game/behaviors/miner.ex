@@ -14,7 +14,7 @@ defmodule Spheric.Game.Behaviors.Miner do
 
   @doc "Returns the initial state for a newly placed miner."
   def initial_state do
-    %{output_buffer: nil, progress: 0, rate: @default_rate}
+    %{output_buffer: nil, progress: 0, rate: @default_rate, powered: true}
   end
 
   @doc """

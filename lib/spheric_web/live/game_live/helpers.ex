@@ -137,6 +137,10 @@ defmodule SphericWeb.GameLive.Helpers do
     "Under construction (#{total_delivered}/#{total_required}) — needs #{Enum.join(needed, ", ")}"
   end
 
+  def building_status_text(%{state: %{powered: false}}) do
+    "OFFLINE"
+  end
+
   def building_status_text(%{type: :miner, state: state}) do
     cond do
       state[:output_buffer] != nil -> "Output: #{Lore.display_name(state.output_buffer)}"

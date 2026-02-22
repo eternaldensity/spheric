@@ -311,6 +311,17 @@ defmodule SphericWeb.GameLive do
         </div>
         <div style="display: flex; gap: 6px; margin-top: 6px;">
           <button
+            :if={@tile_info.building.state[:powered] != nil and
+              (@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id)}
+            phx-click="toggle_power"
+            phx-value-face={@tile_info.face}
+            phx-value-row={@tile_info.row}
+            phx-value-col={@tile_info.col}
+            style={"padding: 4px 10px; border: 1px solid #{if @tile_info.building.state[:powered], do: "var(--fbc-border-light)", else: "var(--fbc-accent-dim)"}; background: #{if @tile_info.building.state[:powered], do: "rgba(255,255,255,0.06)", else: "rgba(136,34,34,0.2)"}; color: #{if @tile_info.building.state[:powered], do: "var(--fbc-highlight)", else: "var(--fbc-accent)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;"}
+          >
+            {if @tile_info.building.state[:powered], do: "ON", else: "OFF"}
+          </button>
+          <button
             :if={@tile_info.building.state[:output_buffer] != nil and
               (@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id)}
             phx-click="eject_output"
@@ -1037,6 +1048,10 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_event("eject_output", params, socket),
     do: BuildingEvents.handle_event("eject_output", params, socket)
+
+  @impl true
+  def handle_event("toggle_power", params, socket),
+    do: BuildingEvents.handle_event("toggle_power", params, socket)
 
   @impl true
   def handle_event("link_conduit", params, socket),

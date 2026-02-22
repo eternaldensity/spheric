@@ -15,7 +15,8 @@ defmodule Spheric.Game.Behaviors.BioGenerator do
       fuel_type: nil,
       fuel_remaining: 0,
       power_output: 0,
-      rate: 1
+      rate: 1,
+      powered: true
     }
   end
 
