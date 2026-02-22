@@ -2,6 +2,8 @@
 
 Complete building list with Bureau names, clearance tiers, and construction costs.
 
+Construction costs are the resources you must deliver to a building's construction site before it becomes operational. [[Your Starter Kit|Starter Kit]] buildings skip construction entirely. See [[Placing Your First Buildings#Step 6 Construction|Construction]] for details.
+
 > [!warning] Contains all buildings including late-game spoilers.
 
 ---

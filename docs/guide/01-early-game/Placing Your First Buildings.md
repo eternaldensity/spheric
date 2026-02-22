@@ -44,12 +44,27 @@ The Smelter converts:
 
 ## Step 6: Construction
 
-When you place a building, it starts as a **construction site**. It needs materials delivered to it before it becomes operational.
+Your [[Your Starter Kit|Starter Kit]] buildings are placed **instantly** — no construction needed. Once your free buildings are used up, every new building starts as a **construction site** that needs materials delivered before it becomes operational.
+
+### How to recognise a construction site
+
+Construction sites appear as **translucent wireframes** — a ghostly outline of the finished building. Click one to see its progress in the tile info panel:
+
+```
+CLASSIFIED  Extractor
+Under construction (0/3) — needs 2 Ferric Standard, 1 Paraelectric Bar
+```
+
+### Delivering materials
 
 > [!note] Auto-Delivery
-> Ground items within **3 tiles** of a construction site are automatically consumed to build it. For your [[Your Starter Kit|Starter Kit]] buildings, the resources needed are minimal — just a few ingots.
+> Ground items within **3 tiles** of a construction site are automatically consumed each tick. Drop the required resources on the ground nearby and they will be pulled in.
 
-Once built, the building activates and begins working on the next tick cycle.
+Once all materials are delivered, the wireframe solidifies into the finished building and it begins working on the next tick.
+
+### Construction limits
+
+You can have at most **5 construction sites** pending at once. Finish existing sites before placing more buildings. This keeps your resource flow focused and prevents over-expanding before your factory can supply the materials.
 
 ## Your First Complete Chain
 

@@ -10,6 +10,8 @@ Every new Operator receives these buildings for free:
 | Submission Terminal | Terminal | 1 | Submit items for Bureau [[Submitting Research|research]] |
 | Gathering Post | Gathering Post | 1 | Attracts nearby [[Creatures & Containment|creatures]] |
 
+Starter Kit buildings are placed **instantly** — no construction required. Once your kit is used up, every new building must be constructed with resources (see [[Placing Your First Buildings#Step 6 Construction|Construction]]).
+
 This is enough to set up your very first production line: two mining chains (one iron, one copper) feeding into a Submission Terminal.
 
 ## What Each Building Does
