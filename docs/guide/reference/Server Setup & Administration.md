@@ -310,6 +310,79 @@ The most common startup failure is PostgreSQL not being available. The server wi
 > [!tip] Auto-Start
 > To avoid this issue in the future, configure PostgreSQL to start automatically with your operating system. On Linux: `sudo systemctl enable postgresql`. On macOS: `brew services start postgresql@14` (persists across reboots). On Windows: set the PostgreSQL service startup type to **Automatic** in Services.
 
+### PostgreSQL Won't Start on Windows (Error 1067)
+
+If you try to start the PostgreSQL service from Windows Services and it fails with **"Error 1067: The process terminated unexpectedly"**, PostgreSQL is crashing during startup — usually due to corrupt data, a bad config, or leftover lock files.
+
+**Step 1: Check the PostgreSQL log.**
+
+The log reveals the actual crash reason. Find it at:
+
+```
+C:\Program Files\PostgreSQL\<version>\data\log\
+```
+
+or
+
+```
+C:\Users\<you>\AppData\Roaming\PostgreSQL\<version>\data\log\
+```
+
+Open the most recent `.log` file and look for `FATAL` or `PANIC` lines near the bottom.
+
+**Step 2: Fix based on what the log says.**
+
+**Lock file left behind after a crash:**
+
+The log shows `FATAL: lock file "postmaster.pid" already exists`. A previous PostgreSQL process did not shut down cleanly.
+
+1. Open the `data` directory (same folder that contains `log/`)
+2. Delete the file `postmaster.pid`
+3. Try starting the service again
+
+**Corrupt WAL or data files:**
+
+The log shows `PANIC: could not locate a valid checkpoint record` or similar corruption messages.
+
+1. If you have a backup, restore from it
+2. If this is a development database with no important data, reinitialize:
+   ```
+   # In an Administrator terminal:
+   rd /s /q "C:\Program Files\PostgreSQL\<version>\data"
+   "C:\Program Files\PostgreSQL\<version>\bin\initdb.exe" -D "C:\Program Files\PostgreSQL\<version>\data" -U postgres
+   ```
+   Then start the service again. You'll need to re-run `mix ecto.setup` afterward.
+
+**Port conflict:**
+
+The log shows `FATAL: could not bind to address "127.0.0.1": port 5432 already in use`. Another process (or a second PostgreSQL installation) is already using port 5432.
+
+1. Find the conflicting process:
+   ```
+   netstat -ano | findstr :5432
+   ```
+2. Kill it or change PostgreSQL's port in `postgresql.conf` (inside the `data` directory), then restart.
+
+**Wrong data directory permissions:**
+
+The log shows `FATAL: data directory has wrong ownership` or similar permissions errors.
+
+1. Right-click the `data` folder → **Properties** → **Security**
+2. Ensure the PostgreSQL service account (usually `Network Service` or a dedicated `postgres` user) has **Full Control**
+
+> [!warning] Multiple PostgreSQL Installations
+> If you have more than one PostgreSQL version installed, their services can conflict. Check Services for duplicate entries (e.g. `postgresql-x64-14` and `postgresql-x64-16`). Stop the one you're not using, or change the port in the other's `postgresql.conf`.
+
+**Step 3: Verify recovery.**
+
+After fixing the issue, start the service and confirm:
+
+```
+pg_isready -h localhost -p 5432
+```
+
+Then start the game server with `mix phx.server`.
+
 ### Database Exists But Is Corrupt or Out of Date
 
 If the database exists but the server crashes with migration or schema errors:
@@ -449,6 +522,7 @@ mix setup
 | Problem | Command |
 |---|---|
 | PostgreSQL not running | `pg_isready` then start the service |
+| Windows Error 1067 on PG start | Check logs in `data\log\`, delete stale `postmaster.pid`, or reinitialize |
 | Database missing | `mix ecto.create` |
 | Migrations pending | `mix ecto.migrate` |
 | Schema out of sync | `mix ecto.reset` |
