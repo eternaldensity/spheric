@@ -62,6 +62,21 @@ Under construction (0/3) — needs 2 Ferric Standard, 1 Paraelectric Bar
 
 Once all materials are delivered, the wireframe solidifies into the finished building and it begins working on the next tick.
 
+### Power switch
+
+Every machine (Miners, Smelters, Assemblers, Refineries, and all advanced production buildings) has a **power switch**. Click the building to open the tile info panel — you'll see an **ON / OFF** toggle button.
+
+When you switch a machine **OFF**:
+- Production **stops** — no progress is made
+- The machine **refuses incoming items** — conveyors will back up
+- Items already inside the machine's buffers are **preserved** and will resume processing when you switch it back on
+- The tile info panel shows **OFFLINE** as the building status
+
+> [!tip] When to use the power switch
+> - **Debugging flow**: turn off a machine to see where items are backing up
+> - **Saving resources**: pause a Miner to preserve a deposit until you need it
+> - **Reconfiguring**: stop production while you rearrange conveyors downstream
+
 ### Ejecting items
 
 If a building's output is stuck — for example, a Smelter with no downstream conveyor — you can manually retrieve the item. Click the building to open the tile info panel, then press the **Eject** button. The item drops onto the ground on the building's output side (its facing direction).

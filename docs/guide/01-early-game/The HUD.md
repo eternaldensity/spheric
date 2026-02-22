@@ -37,7 +37,7 @@ Click any tile on the sphere to see:
 - **Sector coordinates** (face, row, column)
 - **Terrain / Biome** type
 - **Resource deposits** (if any)
-- **Buildings** on the tile
+- **Buildings** on the tile — with action buttons: **ON/OFF** (power switch), **Eject**, **Decommission**
 - **[[Altered Items]]** (if present)
 - **[[The Hiss & Corruption|Hiss Corruption]]** intensity
 - **Territory ownership**
