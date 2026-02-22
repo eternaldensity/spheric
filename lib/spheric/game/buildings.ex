@@ -153,7 +153,7 @@ defmodule Spheric.Game.Buildings do
   end
 
   @doc "Returns the default hotbar for new players."
-  def default_hotbar, do: [:conveyor, :miner, :smelter, nil, nil]
+  def default_hotbar, do: [:conveyor, :miner, :smelter, :gathering_post, nil]
 
   @doc """
   Check if a building type can be placed on the given tile data.

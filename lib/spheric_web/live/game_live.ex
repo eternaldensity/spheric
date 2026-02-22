@@ -239,6 +239,18 @@ defmodule SphericWeb.GameLive do
         No deposits detected
       </div>
       <div
+        :if={@tile_info[:ground_items] != nil and @tile_info.ground_items != %{}}
+        style="margin-top: 4px; border-top: 1px solid var(--fbc-border); padding-top: 4px;"
+      >
+        <div style="color: var(--fbc-highlight); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;">
+          Ground Items
+        </div>
+        <div :for={{item_type, count} <- @tile_info.ground_items} style="font-size: 11px;">
+          <span style="color: var(--fbc-info);">{Lore.display_name(item_type)}</span>
+          <span style="color: var(--fbc-text-dim);">x{count}</span>
+        </div>
+      </div>
+      <div
         :if={@tile_info[:altered_item]}
         style="margin-top: 4px; border-top: 1px solid var(--fbc-accent-dim); padding-top: 4px;"
       >

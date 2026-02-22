@@ -24,6 +24,7 @@ const COLORS = {
   crossover: 0x77aa77,
   dimensional_stabilizer: 0x3366aa,
   astral_projection_chamber: 0x8866cc,
+  gathering_post: 0x66884a,
 };
 
 // Shared material cache — reuse materials across all buildings of the same color
@@ -107,6 +108,11 @@ const _SHARED_GEOMETRIES_RAW = {
   crossover_hBelt: new THREE.BoxGeometry(s * 1.6, s * 0.25, s * 0.5),
   crossover_vBelt: new THREE.BoxGeometry(s * 0.5, s * 0.25, s * 1.6),
   crossover_hub: new THREE.CylinderGeometry(s * 0.3, s * 0.3, s * 0.15, 8),
+  // Gathering post
+  post_stake: new THREE.CylinderGeometry(s * 0.12, s * 0.15, s * 1.4, 6),
+  post_platform: new THREE.CylinderGeometry(s * 0.6, s * 0.7, s * 0.15, 6),
+  post_cap: new THREE.ConeGeometry(s * 0.2, s * 0.3, 6),
+  post_lure: new THREE.SphereGeometry(s * 0.15, 6, 6),
   // Dimensional stabilizer
   stabilizer_base: new THREE.CylinderGeometry(s * 1.2, s * 1.3, s * 0.4, 6),
   stabilizer_column: new THREE.CylinderGeometry(s * 0.25, s * 0.4, s * 2.0, 8),
@@ -606,6 +612,31 @@ function createAstralProjectionChamber() {
   return group;
 }
 
+function createGatheringPost() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.gathering_post);
+
+  const platform = new THREE.Mesh(SHARED_GEOMETRIES.post_platform, mat);
+  platform.position.y = s * 0.075;
+  group.add(platform);
+
+  const stake = new THREE.Mesh(SHARED_GEOMETRIES.post_stake, mat);
+  stake.position.y = s * 0.85;
+  group.add(stake);
+
+  const cap = new THREE.Mesh(SHARED_GEOMETRIES.post_cap, mat);
+  cap.position.y = s * 1.7;
+  group.add(cap);
+
+  const lureMat = makeMaterial(0xaadd66);
+  const lure = new THREE.Mesh(SHARED_GEOMETRIES.post_lure, lureMat);
+  lure.position.y = s * 2.0;
+  group.add(lure);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
@@ -628,6 +659,7 @@ const BUILDERS = {
   crossover: createCrossover,
   dimensional_stabilizer: createDimensionalStabilizer,
   astral_projection_chamber: createAstralProjectionChamber,
+  gathering_post: createGatheringPost,
 };
 
 /**

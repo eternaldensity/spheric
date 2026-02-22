@@ -12,7 +12,8 @@ defmodule SphericWeb.GameLive.Helpers do
     AlteredItems,
     Hiss,
     Territory,
-    Persistence
+    Persistence,
+    GroundItems
   }
 
   alias SphericWeb.Presence
@@ -69,6 +70,7 @@ defmodule SphericWeb.GameLive.Helpers do
         _ -> {nil, nil}
       end
 
+    ground_items = GroundItems.get(key)
     altered_item = AlteredItems.get(key)
     corruption = Hiss.corruption_at(key)
     territory = Territory.territory_at(key)
@@ -90,6 +92,7 @@ defmodule SphericWeb.GameLive.Helpers do
       resource_type: resource_type,
       resource_amount: resource_amount,
       building: building,
+      ground_items: ground_items,
       altered_item: altered_item,
       corruption: corruption,
       territory: territory_info
@@ -274,6 +277,14 @@ defmodule SphericWeb.GameLive.Helpers do
 
   def building_status_text(%{type: :astral_projection_chamber, state: _state}) do
     "Ready — Click to project"
+  end
+
+  def building_status_text(%{type: :gathering_post, state: state}) do
+    cond do
+      state[:output_buffer] != nil -> "Output: #{Lore.display_name(state.output_buffer)}"
+      state[:visitor_type] != nil -> "Attracting... #{state.progress}/#{state.rate}"
+      true -> "Scanning for entities"
+    end
   end
 
   def building_status_text(_building), do: nil
