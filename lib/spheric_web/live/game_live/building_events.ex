@@ -4,7 +4,7 @@ defmodule SphericWeb.GameLive.BuildingEvents do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
 
-  alias Spheric.Game.{WorldServer, WorldStore, Buildings}
+  alias Spheric.Game.{WorldServer, WorldStore, Buildings, StarterKit}
   alias SphericWeb.GameLive.Helpers
 
   require Logger
@@ -162,6 +162,7 @@ defmodule SphericWeb.GameLive.BuildingEvents do
               socket
               |> assign(:selected_tile, tile)
               |> assign(:tile_info, tile_info)
+              |> assign(:starter_kit_remaining, StarterKit.get_remaining(socket.assigns.player_id))
               |> push_event("building_placed", payload)
 
             {:noreply, socket}

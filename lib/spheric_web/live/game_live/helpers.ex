@@ -13,7 +13,8 @@ defmodule SphericWeb.GameLive.Helpers do
     Hiss,
     Territory,
     Persistence,
-    GroundItems
+    GroundItems,
+    ConstructionCosts
   }
 
   alias SphericWeb.Presence
@@ -437,5 +438,26 @@ defmodule SphericWeb.GameLive.Helpers do
         _ -> base
       end
     end
+  end
+
+  @doc "Format cost string for a building type, considering starter kit."
+  def building_cost_label(type, starter_kit_remaining) do
+    free_count = Map.get(starter_kit_remaining, type, 0)
+
+    if free_count > 0 do
+      "Free (#{free_count} left)"
+    else
+      case ConstructionCosts.cost(type) do
+        nil -> "Free"
+        cost_map -> format_cost_map(cost_map)
+      end
+    end
+  end
+
+  @doc "Format a cost map into a display string."
+  def format_cost_map(cost_map) do
+    cost_map
+    |> Enum.map(fn {item, qty} -> "#{qty} #{Lore.display_name(item)}" end)
+    |> Enum.join(", ")
   end
 end

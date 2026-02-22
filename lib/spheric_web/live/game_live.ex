@@ -13,7 +13,8 @@ defmodule SphericWeb.GameLive do
     RecipeBrowser,
     WorldEvents,
     BoardContact,
-    ShiftCycle
+    ShiftCycle,
+    StarterKit
   }
 
   alias SphericWeb.Presence
@@ -152,6 +153,7 @@ defmodule SphericWeb.GameLive do
       |> assign(:show_board_contact, false)
       |> assign(:board_contact, BoardContact.progress_summary())
       |> assign(:demolish_mode, false)
+      |> assign(:starter_kit_remaining, StarterKit.get_remaining(player_id))
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
 
     # Tell the client to restore camera and persist any newly-generated identity
@@ -788,13 +790,13 @@ defmodule SphericWeb.GameLive do
           </button>
         </div>
         <%!-- Building grid --%>
-        <div style="padding: 16px; overflow-y: auto; flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; align-content: start;">
+        <div style="padding: 16px; overflow-y: auto; flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; align-content: start;">
           <button
             :for={type <- catalog_buildings(@catalog_tab, @building_types)}
             phx-click="catalog_select"
             phx-value-type={type}
             style={"
-              padding: 12px 10px;
+              padding: 10px 10px 8px;
               border: 1px solid #{if @selected_building_type == type, do: "var(--fbc-accent)", else: "var(--fbc-border)"};
               background: #{if @selected_building_type == type, do: "rgba(204,51,51,0.12)", else: "rgba(255,255,255,0.03)"};
               color: #{if @selected_building_type == type, do: "var(--fbc-accent)", else: "var(--fbc-text)"};
@@ -806,7 +808,16 @@ defmodule SphericWeb.GameLive do
               text-align: center;
             "}
           >
-            {Lore.display_name(type)}
+            <div>{Lore.display_name(type)}</div>
+            <div style={"
+              font-size: 9px;
+              margin-top: 4px;
+              text-transform: none;
+              letter-spacing: 0;
+              color: #{if Map.get(@starter_kit_remaining, type, 0) > 0, do: "var(--fbc-highlight)", else: "var(--fbc-text-dim)"};
+            "}>
+              {Helpers.building_cost_label(type, @starter_kit_remaining)}
+            </div>
           </button>
           <div
             :if={catalog_buildings(@catalog_tab, @building_types) == []}
@@ -929,7 +940,7 @@ defmodule SphericWeb.GameLive do
             text-align: center;
             position: relative;
           "}
-          title={"Hotbar #{idx + 1} (#{idx + 1} key)#{if slot_type, do: " — Right-click to change", else: " — Click to assign"}"}
+          title={"Hotbar #{idx + 1} (#{idx + 1} key)#{if slot_type, do: " — #{Helpers.building_cost_label(slot_type, @starter_kit_remaining)} — Right-click to change", else: " — Click to assign"}"}
         >
           <span style="font-size: 8px; color: var(--fbc-text-dim); position: absolute; top: 2px; left: 4px;">{idx + 1}</span>
           {if slot_type, do: Lore.display_name(slot_type), else: "+"}
