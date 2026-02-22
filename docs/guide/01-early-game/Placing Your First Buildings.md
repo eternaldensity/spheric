@@ -73,6 +73,19 @@ If a building's output is stuck — for example, a Smelter with no downstream co
 
 You can have at most **5 construction sites** pending at once. Finish existing sites before placing more buildings. This keeps your resource flow focused and prevents over-expanding before your factory can supply the materials.
 
+### Decommissioning
+
+Click a building and press **Decommission** to remove it. What you get back depends on the building's tier:
+
+- **Tier 0** (Conveyors, Miners, Smelters, Terminals): the building is returned to your [[Your Starter Kit|Starter Kit]] as a free placement. No resources are dropped — you simply get the free build credit back.
+- **Tier 1+**: **half** the construction cost is dropped as ground items. If a [[Building Reference#Storage & Trade|Storage Container]] with space is within **3 tiles**, the **full** amount of that resource is deposited into the container instead.
+- **Incomplete construction sites**: whatever materials were delivered so far are refunded using the same rules above.
+
+Any items held by the building (conveyor cargo, smelter buffers, etc.) are always dropped as ground items.
+
+> [!tip] Reconfiguring
+> Since tier 0 buildings refund as free placements, you can freely rearrange your early factory without wasting resources.
+
 ## Your First Complete Chain
 
 Set up two parallel lines:

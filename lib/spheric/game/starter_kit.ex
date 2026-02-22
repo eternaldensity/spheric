@@ -61,6 +61,15 @@ defmodule Spheric.Game.StarterKit do
     Map.get(get_remaining(player_id), building_type, 0) > 0
   end
 
+  @doc "Restore a free building to a player's starter kit (on decommission)."
+  def restore(player_id, building_type) do
+    remaining = get_remaining(player_id)
+    count = Map.get(remaining, building_type, 0)
+    new_remaining = Map.put(remaining, building_type, count + 1)
+    :ets.insert(@table, {player_id, new_remaining})
+    :ok
+  end
+
   @doc "Put starter kit directly (for persistence)."
   def put_kit(player_id, kit) do
     :ets.insert(@table, {player_id, kit})

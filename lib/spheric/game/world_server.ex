@@ -352,6 +352,7 @@ defmodule Spheric.Game.WorldServer do
           broadcast_territory_update(key)
         end
 
+        refund_building(key, building)
         WorldStore.remove_building(key)
 
         Phoenix.PubSub.broadcast(
@@ -384,6 +385,7 @@ defmodule Spheric.Game.WorldServer do
               broadcast_territory_update(key)
             end
 
+            refund_building(key, building)
             WorldStore.remove_building(key)
 
             Phoenix.PubSub.broadcast(
@@ -951,5 +953,94 @@ defmodule Spheric.Game.WorldServer do
         reduce: 0 do
       acc -> acc + 1
     end
+  end
+
+  # --- Decommission refund ---
+
+  # Refund resources when a building is decommissioned.
+  # Tier 0: restore starter kit free placement.
+  # Tier 1+: half cost to ground, full cost to nearby storage containers.
+  # Always drops held items (buffers) as ground items.
+  defp refund_building(key, building) do
+    drop_held_items(key, building)
+
+    refund_materials = refund_materials_for(building)
+
+    if refund_materials != %{} do
+      tier = ConstructionCosts.tier(building.type)
+
+      if tier == 0 and building.owner_id != nil do
+        StarterKit.restore(building.owner_id, building.type)
+      else
+        refund_to_world(key, refund_materials)
+      end
+    end
+  end
+
+  defp drop_held_items(key, building) do
+    state = building.state
+
+    if state[:output_buffer] != nil do
+      GroundItems.add(key, state.output_buffer)
+    end
+
+    if state[:item] != nil do
+      GroundItems.add(key, state.item)
+    end
+
+    if state[:input_buffer] != nil do
+      GroundItems.add(key, state.input_buffer)
+    end
+  end
+
+  defp refund_materials_for(building) do
+    case building.state do
+      %{construction: %{complete: true}} ->
+        ConstructionCosts.cost(building.type) || %{}
+
+      %{construction: %{complete: false, delivered: delivered}} ->
+        Enum.filter(delivered, fn {_item, qty} -> qty > 0 end)
+        |> Map.new()
+
+      _ ->
+        %{}
+    end
+  end
+
+  defp refund_to_world(key, materials) do
+    {face, row, col} = key
+
+    Enum.each(materials, fn {item_type, qty} ->
+      storage = find_nearby_storage(face, row, col, item_type)
+
+      case storage do
+        {storage_key, container} ->
+          deposit = min(qty, container.state.capacity - container.state.count)
+          new_state = %{container.state | item_type: item_type, count: container.state.count + deposit}
+          WorldStore.put_building(storage_key, %{container | state: new_state})
+
+          overflow = qty - deposit
+          if overflow > 0 do
+            ground_qty = div(overflow, 2)
+            if ground_qty > 0, do: GroundItems.add(key, item_type, ground_qty)
+          end
+
+        nil ->
+          ground_qty = div(qty, 2)
+          if ground_qty > 0, do: GroundItems.add(key, item_type, ground_qty)
+      end
+    end)
+  end
+
+  defp find_nearby_storage(face, row, col, item_type) do
+    WorldStore.get_face_buildings(face)
+    |> Enum.find_value(fn {{_bf, br, bc} = skey, b} ->
+      if b.type == :storage_container and
+           abs(br - row) <= 3 and abs(bc - col) <= 3 and
+           (b.state.item_type == nil or b.state.item_type == item_type) and
+           b.state.count < b.state.capacity do
+        {skey, b}
+      end
+    end)
   end
 end

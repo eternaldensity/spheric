@@ -195,6 +195,7 @@ defmodule SphericWeb.GameLive.BuildingEvents do
         socket =
           socket
           |> assign(:tile_info, tile_info)
+          |> assign(:starter_kit_remaining, StarterKit.get_remaining(socket.assigns.player_id))
           |> push_event("building_removed", %{face: face, row: row, col: col})
 
         {:noreply, socket}
