@@ -309,16 +309,29 @@ defmodule SphericWeb.GameLive do
         <div :if={@tile_info.building_owner_name} style="color: var(--fbc-text-dim); font-size: 11px;">
           Operator: <span style="color: var(--fbc-info);">{@tile_info.building_owner_name}</span>
         </div>
-        <button
-          :if={@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id}
-          phx-click="remove_building"
-          phx-value-face={@tile_info.face}
-          phx-value-row={@tile_info.row}
-          phx-value-col={@tile_info.col}
-          style="margin-top: 6px; padding: 4px 10px; border: 1px solid var(--fbc-accent-dim); background: rgba(136,34,34,0.2); color: var(--fbc-accent); cursor: pointer; font-family: 'Courier New', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;"
-        >
-          Decommission
-        </button>
+        <div style="display: flex; gap: 6px; margin-top: 6px;">
+          <button
+            :if={@tile_info.building.state[:output_buffer] != nil and
+              (@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id)}
+            phx-click="eject_output"
+            phx-value-face={@tile_info.face}
+            phx-value-row={@tile_info.row}
+            phx-value-col={@tile_info.col}
+            style="padding: 4px 10px; border: 1px solid var(--fbc-border-light); background: rgba(255,255,255,0.06); color: var(--fbc-highlight); cursor: pointer; font-family: 'Courier New', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;"
+          >
+            Eject
+          </button>
+          <button
+            :if={@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id}
+            phx-click="remove_building"
+            phx-value-face={@tile_info.face}
+            phx-value-row={@tile_info.row}
+            phx-value-col={@tile_info.col}
+            style="padding: 4px 10px; border: 1px solid var(--fbc-accent-dim); background: rgba(136,34,34,0.2); color: var(--fbc-accent); cursor: pointer; font-family: 'Courier New', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;"
+          >
+            Decommission
+          </button>
+        </div>
       </div>
       <div :if={@tile_info.building == nil} style="color: var(--fbc-text-dim); margin-top: 4px;">
         No structure
@@ -1020,6 +1033,10 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_event("remove_building", params, socket),
     do: BuildingEvents.handle_event("remove_building", params, socket)
+
+  @impl true
+  def handle_event("eject_output", params, socket),
+    do: BuildingEvents.handle_event("eject_output", params, socket)
 
   @impl true
   def handle_event("link_conduit", params, socket),

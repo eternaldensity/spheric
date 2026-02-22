@@ -67,6 +67,11 @@ defmodule Spheric.Game.WorldServer do
     GenServer.call(__MODULE__, {:remove_buildings, keys, player_id})
   end
 
+  @doc "Eject a building's output buffer to the ground. Returns :ok or {:error, reason}."
+  def eject_output({_face_id, _row, _col} = key, player_id \\ nil) do
+    GenServer.call(__MODULE__, {:eject_output, key, player_id})
+  end
+
   @doc """
   Read tile state directly from ETS (no GenServer call).
   Returns tile data map or nil.
@@ -392,6 +397,37 @@ defmodule Spheric.Game.WorldServer do
       end)
 
     {:reply, results, state}
+  end
+
+  @impl true
+  def handle_call({:eject_output, key, player_id}, _from, state) do
+    building = WorldStore.get_building(key)
+
+    cond do
+      building == nil ->
+        {:reply, {:error, :no_building}, state}
+
+      building.owner_id != nil and player_id != nil and building.owner_id != player_id ->
+        {:reply, {:error, :not_owner}, state}
+
+      building.state[:output_buffer] == nil ->
+        {:reply, {:error, :no_output}, state}
+
+      true ->
+        item = building.state.output_buffer
+        new_state = Map.put(building.state, :output_buffer, nil)
+        WorldStore.put_building(key, %{building | state: new_state})
+
+        # Drop item on the tile the building faces (its output side)
+        drop_key =
+          case Spheric.Geometry.TileNeighbors.neighbor(key, building.orientation) do
+            {:ok, neighbor_key} -> neighbor_key
+            :boundary -> key
+          end
+
+        GroundItems.add(drop_key, item)
+        {:reply, {:ok, item}, state}
+    end
   end
 
   @impl true

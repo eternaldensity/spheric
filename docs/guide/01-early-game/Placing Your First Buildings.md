@@ -62,6 +62,13 @@ Under construction (0/3) — needs 2 Ferric Standard, 1 Paraelectric Bar
 
 Once all materials are delivered, the wireframe solidifies into the finished building and it begins working on the next tick.
 
+### Ejecting items
+
+If a building's output is stuck — for example, a Smelter with no downstream conveyor — you can manually retrieve the item. Click the building to open the tile info panel, then press the **Eject** button. The item drops onto the ground on the building's output side (its facing direction).
+
+> [!tip] Bootstrapping
+> Early on you may have a Smelter producing Ferric Standards but no conveyors to move them. Eject an ingot from the Smelter, and the nearby construction site will automatically pick it up.
+
 ### Construction limits
 
 You can have at most **5 construction sites** pending at once. Finish existing sites before placing more buildings. This keeps your resource flow focused and prevents over-expanding before your factory can supply the materials.

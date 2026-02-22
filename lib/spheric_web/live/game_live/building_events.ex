@@ -204,6 +204,22 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     end
   end
 
+  def handle_event("eject_output", %{"face" => face, "row" => row, "col" => col}, socket) do
+    face = Helpers.to_int(face)
+    row = Helpers.to_int(row)
+    col = Helpers.to_int(col)
+    key = {face, row, col}
+
+    case WorldServer.eject_output(key, socket.assigns.player_id) do
+      {:ok, _item} ->
+        tile_info = Helpers.build_tile_info(key)
+        {:noreply, assign(socket, :tile_info, tile_info)}
+
+      {:error, _reason} ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_event("link_conduit", params, socket) do
     %{
       "face" => face,

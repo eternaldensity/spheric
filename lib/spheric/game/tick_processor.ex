@@ -33,10 +33,10 @@ defmodule Spheric.Game.TickProcessor do
   Process one tick. Returns `{tick, items_by_face}`.
   """
   def process_tick(tick) do
-    buildings = gather_all_buildings()
+    original_buildings = gather_all_buildings()
 
     # Phase 0: Construction delivery — pull from ground items into construction sites
-    {buildings, newly_completed} = process_construction_delivery(buildings)
+    {buildings, newly_completed} = process_construction_delivery(original_buildings)
 
     # Phase 0b: Power resolution (every 5 ticks)
     if rem(tick, 5) == 0, do: Power.resolve()
@@ -232,7 +232,7 @@ defmodule Spheric.Game.TickProcessor do
     final_buildings = apply_output_effects(final_buildings, movements)
 
     # Batch write all modified building states to ETS
-    write_changes(buildings, final_buildings)
+    write_changes(original_buildings, final_buildings)
 
     # Build per-face item state for broadcasting
     items_by_face = build_item_snapshot(final_buildings, movements)
@@ -1290,10 +1290,21 @@ defmodule Spheric.Game.TickProcessor do
         {dest_key, src_key}
       end)
 
-    buildings
-    |> Enum.flat_map(fn {key, building} ->
-      items_from_building(key, building, movement_sources)
-    end)
+    building_items =
+      Enum.flat_map(buildings, fn {key, building} ->
+        items_from_building(key, building, movement_sources)
+      end)
+
+    # Include ground items so they render on the sphere
+    ground_items =
+      GroundItems.all()
+      |> Enum.flat_map(fn {{face, row, col}, items_map} ->
+        Enum.map(items_map, fn {item_type, _count} ->
+          %{face: face, row: row, col: col, item: item_type, from_face: nil, from_row: nil, from_col: nil}
+        end)
+      end)
+
+    (building_items ++ ground_items)
     |> Enum.group_by(fn item -> item.face end)
   end
 
