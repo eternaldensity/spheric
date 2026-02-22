@@ -234,6 +234,29 @@ defmodule Spheric.Game.TickProcessor do
     # Batch write all modified building states to ETS
     write_changes(original_buildings, final_buildings)
 
+    # Detect construction completions from push delivery (not caught by ground delivery)
+    completed_set = MapSet.new(newly_completed)
+
+    push_completed =
+      Enum.flat_map(final_buildings, fn {key, building} ->
+        if not MapSet.member?(completed_set, key) and
+             building.state[:construction] != nil and
+             building.state.construction.complete == true do
+          orig = Map.get(original_buildings, key)
+
+          if orig != nil and orig.state[:construction] != nil and
+               orig.state.construction.complete == false do
+            [key]
+          else
+            []
+          end
+        else
+          []
+        end
+      end)
+
+    newly_completed = newly_completed ++ push_completed
+
     # Build per-face item state for broadcasting
     items_by_face = build_item_snapshot(final_buildings, movements)
 
@@ -693,6 +716,18 @@ defmodule Spheric.Game.TickProcessor do
   # Try to accept an item at the destination building
   defp try_accept(_key, nil, _requests, _n), do: nil
 
+  # Construction sites: accept needed items from any adjacent building
+  defp try_accept(
+         _dest_key,
+         %{state: %{construction: %{complete: false} = constr}} = _building,
+         requests,
+         _n
+       ) do
+    Enum.find(requests, fn {_src, _dest, item} ->
+      ConstructionCosts.needs_item?(constr, item)
+    end)
+  end
+
   defp try_accept(_key, %{type: :conveyor, state: %{item: nil}}, [winner | _], _n), do: winner
 
   # Conveyor Mk2: accept if any slot available
@@ -954,26 +989,6 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
-  # Construction sites: accept items matching their requirements from rear
-  defp try_accept(
-         dest_key,
-         %{orientation: dir, state: %{construction: %{complete: false} = constr}} = _building,
-         requests,
-         n
-       ) do
-    rear_dir = rem(dir + 2, 4)
-
-    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
-      {:ok, valid_src} ->
-        Enum.find(requests, fn {src, _dest, item} ->
-          src == valid_src and ConstructionCosts.needs_item?(constr, item)
-        end)
-
-      :boundary ->
-        nil
-    end
-  end
-
   defp try_accept(_key, _building, _requests, _n), do: nil
 
   # Accept the first request whose source is the neighbor in the given direction
@@ -1109,6 +1124,13 @@ defmodule Spheric.Game.TickProcessor do
 
       # Set destination input
       Map.update!(acc, dest_key, fn b ->
+        # Construction sites consume items as construction materials, not normal input
+        if b.state[:construction] != nil and b.state.construction.complete == false do
+          case ConstructionCosts.deliver_item(b.state.construction, item) do
+            nil -> b
+            new_constr -> %{b | state: %{b.state | construction: new_constr}}
+          end
+        else
         case b.type do
           :conveyor ->
             %{b | state: %{b.state | item: item}}
@@ -1222,15 +1244,8 @@ defmodule Spheric.Game.TickProcessor do
             end
 
           _ ->
-            # Handle construction site delivery
-            case b.state do
-              %{construction: %{complete: false} = constr} ->
-                new_constr = ConstructionCosts.deliver_item(constr, item)
-                %{b | state: %{b.state | construction: new_constr}}
-
-              _ ->
-                b
-            end
+            b
+        end
         end
       end)
     end)
@@ -1448,14 +1463,13 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
-  # Process construction delivery: pull items from nearby ground items
+  # Process construction delivery: pull items from nearby ground items and buildings
   # Returns {updated_buildings, newly_completed_keys}
   defp process_construction_delivery(buildings) do
     {updated, completed} =
       Enum.reduce(buildings, {buildings, []}, fn {key, building}, {acc, completed_keys} ->
         case building.state do
           %{construction: %{complete: false} = constr} ->
-            # Check nearby ground items (radius 3)
             needed =
               Enum.flat_map(constr.required, fn {item, qty} ->
                 delivered = Map.get(constr.delivered, item, 0)
@@ -1463,33 +1477,43 @@ defmodule Spheric.Game.TickProcessor do
               end)
 
             if needed == [] do
-              # All items delivered — mark complete
               new_constr = %{constr | complete: true}
               new_acc = Map.put(acc, key, %{building | state: %{building.state | construction: new_constr}})
               {new_acc, [key | completed_keys]}
             else
-              # Try to pull one item from ground
-              {_face, _row, _col} = key
-              nearby = GroundItems.items_near(key, 3)
+              # Try to pull from ground items first
+              nearby_ground = GroundItems.items_near(key, 3)
 
-              new_constr =
-                Enum.reduce(needed, constr, fn item, c ->
-                  total_nearby =
-                    Enum.reduce(nearby, 0, fn {_tile_key, items}, sum ->
+              {new_constr, remaining_needed} =
+                Enum.reduce(needed, {constr, []}, fn item, {c, still_needed} ->
+                  ground_count =
+                    Enum.reduce(nearby_ground, 0, fn {_tile_key, items}, sum ->
                       sum + Map.get(items, item, 0)
                     end)
 
-                  if total_nearby > 0 do
-                    # Take from the first tile that has it
+                  if ground_count > 0 do
                     {taken_key, _} =
-                      Enum.find(nearby, fn {_tile_key, items} ->
+                      Enum.find(nearby_ground, fn {_tile_key, items} ->
                         Map.get(items, item, 0) > 0
                       end)
 
                     GroundItems.take(taken_key, item)
-                    ConstructionCosts.deliver_item(c, item)
+                    {ConstructionCosts.deliver_item(c, item), still_needed}
                   else
-                    c
+                    {c, [item | still_needed]}
+                  end
+                end)
+
+              # Then try to pull from nearby buildings holding items (radius 3)
+              {new_constr, acc} =
+                Enum.reduce(remaining_needed, {new_constr, acc}, fn item, {c, b_acc} ->
+                  case find_nearby_building_with_item(key, item, b_acc) do
+                    nil ->
+                      {c, b_acc}
+
+                    {donor_key, updated_donor} ->
+                      b_acc = Map.put(b_acc, donor_key, updated_donor)
+                      {ConstructionCosts.deliver_item(c, item), b_acc}
                   end
                 end)
 
@@ -1510,6 +1534,35 @@ defmodule Spheric.Game.TickProcessor do
 
     {updated, completed}
   end
+
+  # Find a nearby building (radius 3, same face) holding the needed item and return
+  # {donor_key, updated_donor_building} with the item removed, or nil.
+  defp find_nearby_building_with_item({face, row, col}, item, buildings) do
+    Enum.find_value(buildings, fn {{bf, br, bc} = bkey, b} ->
+      under_construction =
+        b.state[:construction] != nil and b.state.construction.complete == false
+
+      if bf == face and bkey != {face, row, col} and
+           abs(br - row) <= 3 and abs(bc - col) <= 3 and
+           not under_construction do
+        take_item_from_building(bkey, b, item)
+      end
+    end)
+  end
+
+  # Try to take a specific item from a building's held slots.
+  # Returns {key, updated_building} or nil.
+  defp take_item_from_building(key, %{state: %{item: held}} = b, item)
+       when held == item do
+    {key, %{b | state: %{b.state | item: nil}}}
+  end
+
+  defp take_item_from_building(key, %{state: %{output_buffer: held}} = b, item)
+       when held == item do
+    {key, %{b | state: %{b.state | output_buffer: nil}}}
+  end
+
+  defp take_item_from_building(_key, _building, _item), do: nil
 
   # Efficiency boost: chance to not consume input when producing output
   defp apply_efficiency_effects(buildings) do
