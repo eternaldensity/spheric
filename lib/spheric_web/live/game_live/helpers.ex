@@ -119,6 +119,23 @@ defmodule SphericWeb.GameLive.Helpers do
     end
   end
 
+  def building_status_text(%{state: %{construction: %{complete: false} = constr}}) do
+    total_required =
+      Enum.reduce(constr.required, 0, fn {_item, qty}, acc -> acc + qty end)
+
+    total_delivered =
+      Enum.reduce(constr.delivered, 0, fn {_item, qty}, acc -> acc + qty end)
+
+    needed =
+      Enum.flat_map(constr.required, fn {item, qty} ->
+        delivered = Map.get(constr.delivered, item, 0)
+        remaining = qty - delivered
+        if remaining > 0, do: ["#{remaining} #{Lore.display_name(item)}"], else: []
+      end)
+
+    "Under construction (#{total_delivered}/#{total_required}) — needs #{Enum.join(needed, ", ")}"
+  end
+
   def building_status_text(%{type: :miner, state: state}) do
     cond do
       state[:output_buffer] != nil -> "Output: #{Lore.display_name(state.output_buffer)}"
@@ -407,13 +424,18 @@ defmodule SphericWeb.GameLive.Helpers do
   def build_buildings_snapshot do
     for face_id <- 0..29,
         {{f, r, c}, building} <- WorldStore.get_face_buildings(face_id) do
-      %{
+      base = %{
         face: f,
         row: r,
         col: c,
         type: Atom.to_string(building.type),
         orientation: building.orientation
       }
+
+      case building.state do
+        %{construction: %{complete: false}} -> Map.put(base, :under_construction, true)
+        _ -> base
+      end
     end
   end
 end

@@ -144,17 +144,25 @@ defmodule SphericWeb.GameLive.BuildingEvents do
             building = WorldStore.get_building(key)
             tile_info = Helpers.build_tile_info(key)
 
+            payload = %{
+              face: face,
+              row: row,
+              col: col,
+              type: Atom.to_string(building.type),
+              orientation: building.orientation
+            }
+
+            payload =
+              case building.state do
+                %{construction: %{complete: false}} -> Map.put(payload, :under_construction, true)
+                _ -> payload
+              end
+
             socket =
               socket
               |> assign(:selected_tile, tile)
               |> assign(:tile_info, tile_info)
-              |> push_event("building_placed", %{
-                face: face,
-                row: row,
-                col: col,
-                type: Atom.to_string(building.type),
-                orientation: building.orientation
-              })
+              |> push_event("building_placed", payload)
 
             {:noreply, socket}
 

@@ -39,6 +39,7 @@ defmodule Spheric.Game.WorldServer do
 
   @tick_interval_ms 200
   @default_seed 42
+  @max_pending_constructions 50
 
   # --- Client API ---
 
@@ -180,6 +181,10 @@ defmodule Spheric.Game.WorldServer do
       not Territory.can_build?(owner[:id], key) ->
         {:reply, {:error, :territory_blocked}, state}
 
+      would_require_construction?(owner[:id], type) and
+          pending_construction_count(owner[:id]) >= @max_pending_constructions ->
+        {:reply, {:error, :too_many_constructions}, state}
+
       true ->
         initial_state = Buildings.initial_state(type)
 
@@ -264,6 +269,10 @@ defmodule Spheric.Game.WorldServer do
 
           not Territory.can_build?(owner[:id], key) ->
             {key, {:error, :territory_blocked}}
+
+          would_require_construction?(owner[:id], type) and
+              pending_construction_count(owner[:id]) >= @max_pending_constructions ->
+            {key, {:error, :too_many_constructions}}
 
           true ->
             initial_state = Buildings.initial_state(type)
@@ -476,9 +485,22 @@ defmodule Spheric.Game.WorldServer do
   def handle_info(:tick, state) do
     new_tick = state.tick + 1
 
-    {_tick, items_by_face, submissions} = TickProcessor.process_tick(new_tick)
+    {_tick, items_by_face, submissions, newly_completed} = TickProcessor.process_tick(new_tick)
 
     current_item_faces = items_by_face |> Map.keys() |> MapSet.new()
+
+    # Broadcast construction completions so clients can remove ghost effect
+    for {face_id, _row, _col} = key <- newly_completed do
+      building = WorldStore.get_building(key)
+
+      if building do
+        Phoenix.PubSub.broadcast(
+          Spheric.PubSub,
+          "world:face:#{face_id}",
+          {:construction_complete, key, building}
+        )
+      end
+    end
 
     # Broadcast item updates for faces that have items
     for {face_id, items} <- items_by_face do
@@ -870,5 +892,28 @@ defmodule Spheric.Game.WorldServer do
 
   defp schedule_tick do
     Process.send_after(self(), :tick, @tick_interval_ms)
+  end
+
+  # Check if placing this building type would require construction for this player
+  defp would_require_construction?(nil, _type), do: false
+
+  defp would_require_construction?(player_id, type) do
+    not StarterKit.has_free?(player_id, type) and
+      not ConstructionCosts.always_free?(type) and
+      ConstructionCosts.cost(type) != nil
+  end
+
+  # Count how many pending (incomplete) construction sites a player has
+  defp pending_construction_count(nil), do: 0
+
+  defp pending_construction_count(player_id) do
+    for face_id <- 0..29,
+        {_key, building} <- WorldStore.get_face_buildings(face_id),
+        building.owner_id == player_id,
+        building.state[:construction] != nil,
+        building.state.construction.complete == false,
+        reduce: 0 do
+      acc -> acc + 1
+    end
   end
 end

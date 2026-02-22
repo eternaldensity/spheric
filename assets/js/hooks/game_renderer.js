@@ -190,7 +190,7 @@ const GameRenderer = {
 
   // --- Building placement on sphere ---
 
-  addBuildingToScene(face, row, col, type, orientation) {
+  addBuildingToScene(face, row, col, type, orientation, underConstruction = false) {
     const key = `${face}:${row}:${col}`;
 
     // Track building data for texture regeneration
@@ -202,6 +202,22 @@ const GameRenderer = {
     }
 
     const mesh = createBuildingMesh(type);
+
+    // Apply ghost effect for construction sites
+    if (underConstruction) {
+      mesh.traverse((child) => {
+        if (child.isMesh && child.material) {
+          // Clone material so we don't affect shared materials
+          child.material = child.material.clone();
+          child.material.transparent = true;
+          child.material.opacity = 0.35;
+          child.material.wireframe = true;
+          child.material._shared = false;
+        }
+      });
+      mesh.userData.underConstruction = true;
+    }
+
     const normal = this.getTileCenter(face, row, col).normalize();
 
     // Position slightly above surface
@@ -309,17 +325,22 @@ const GameRenderer = {
       }
     });
 
-    this.handleEvent("building_placed", ({ face, row, col, type, orientation }) => {
-      this.addBuildingToScene(face, row, col, type, orientation);
+    this.handleEvent("building_placed", ({ face, row, col, type, orientation, under_construction }) => {
+      this.addBuildingToScene(face, row, col, type, orientation, !!under_construction);
     });
 
     this.handleEvent("building_removed", ({ face, row, col }) => {
       this.removeBuildingFromScene(face, row, col);
     });
 
+    this.handleEvent("construction_complete", ({ face, row, col, type, orientation }) => {
+      // Re-add as a fully built building (removes ghost effect)
+      this.addBuildingToScene(face, row, col, type, orientation, false);
+    });
+
     this.handleEvent("buildings_snapshot", ({ buildings }) => {
       for (const b of buildings) {
-        this.addBuildingToScene(b.face, b.row, b.col, b.type, b.orientation);
+        this.addBuildingToScene(b.face, b.row, b.col, b.type, b.orientation, !!b.under_construction);
       }
     });
 

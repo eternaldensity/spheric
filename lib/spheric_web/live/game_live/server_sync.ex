@@ -21,8 +21,32 @@ defmodule SphericWeb.GameLive.ServerSync do
   # --- Building Handlers ---
 
   def handle_info({:building_placed, {face, row, col}, building}, socket) do
+    payload = %{
+      face: face,
+      row: row,
+      col: col,
+      type: Atom.to_string(building.type),
+      orientation: building.orientation
+    }
+
+    payload =
+      case building.state do
+        %{construction: %{complete: false}} -> Map.put(payload, :under_construction, true)
+        _ -> payload
+      end
+
+    socket = push_event(socket, "building_placed", payload)
+    {:noreply, socket}
+  end
+
+  def handle_info({:building_removed, {face, row, col}}, socket) do
+    socket = push_event(socket, "building_removed", %{face: face, row: row, col: col})
+    {:noreply, socket}
+  end
+
+  def handle_info({:construction_complete, {face, row, col}, building}, socket) do
     socket =
-      push_event(socket, "building_placed", %{
+      push_event(socket, "construction_complete", %{
         face: face,
         row: row,
         col: col,
@@ -30,11 +54,6 @@ defmodule SphericWeb.GameLive.ServerSync do
         orientation: building.orientation
       })
 
-    {:noreply, socket}
-  end
-
-  def handle_info({:building_removed, {face, row, col}}, socket) do
-    socket = push_event(socket, "building_removed", %{face: face, row: row, col: col})
     {:noreply, socket}
   end
 

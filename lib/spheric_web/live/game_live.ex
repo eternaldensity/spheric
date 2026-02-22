@@ -1156,6 +1156,10 @@ defmodule SphericWeb.GameLive do
     do: ServerSync.handle_info(msg, socket)
 
   @impl true
+  def handle_info({:construction_complete, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
   def handle_info({:tick_update, _, _, _} = msg, socket),
     do: ServerSync.handle_info(msg, socket)
 

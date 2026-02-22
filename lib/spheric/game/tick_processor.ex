@@ -36,7 +36,7 @@ defmodule Spheric.Game.TickProcessor do
     buildings = gather_all_buildings()
 
     # Phase 0: Construction delivery — pull from ground items into construction sites
-    buildings = process_construction_delivery(buildings)
+    {buildings, newly_completed} = process_construction_delivery(buildings)
 
     # Phase 0b: Power resolution (every 5 ticks)
     if rem(tick, 5) == 0, do: Power.resolve()
@@ -237,7 +237,7 @@ defmodule Spheric.Game.TickProcessor do
     # Build per-face item state for broadcasting
     items_by_face = build_item_snapshot(final_buildings, movements)
 
-    {tick, items_by_face, submissions}
+    {tick, items_by_face, submissions, newly_completed}
   end
 
   defp gather_all_buildings do
@@ -1438,59 +1438,66 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   # Process construction delivery: pull items from nearby ground items
+  # Returns {updated_buildings, newly_completed_keys}
   defp process_construction_delivery(buildings) do
-    Enum.reduce(buildings, buildings, fn {key, building}, acc ->
-      case building.state do
-        %{construction: %{complete: false} = constr} ->
-          # Check nearby ground items (radius 3)
-          needed =
-            Enum.flat_map(constr.required, fn {item, qty} ->
-              delivered = Map.get(constr.delivered, item, 0)
-              if delivered < qty, do: [item], else: []
-            end)
-
-          if needed == [] do
-            # All items delivered — mark complete
-            new_constr = %{constr | complete: true}
-            Map.put(acc, key, %{building | state: %{building.state | construction: new_constr}})
-          else
-            # Try to pull one item from ground
-            {_face, _row, _col} = key
-            nearby = GroundItems.items_near(key, 3)
-
-            new_constr =
-              Enum.reduce(needed, constr, fn item, c ->
-                total_nearby =
-                  Enum.reduce(nearby, 0, fn {_tile_key, items}, sum ->
-                    sum + Map.get(items, item, 0)
-                  end)
-
-                if total_nearby > 0 do
-                  # Take from the first tile that has it
-                  {taken_key, _} =
-                    Enum.find(nearby, fn {_tile_key, items} ->
-                      Map.get(items, item, 0) > 0
-                    end)
-
-                  GroundItems.take(taken_key, item)
-                  ConstructionCosts.deliver_item(c, item)
-                else
-                  c
-                end
+    {updated, completed} =
+      Enum.reduce(buildings, {buildings, []}, fn {key, building}, {acc, completed_keys} ->
+        case building.state do
+          %{construction: %{complete: false} = constr} ->
+            # Check nearby ground items (radius 3)
+            needed =
+              Enum.flat_map(constr.required, fn {item, qty} ->
+                delivered = Map.get(constr.delivered, item, 0)
+                if delivered < qty, do: [item], else: []
               end)
 
-            if ConstructionCosts.construction_complete?(new_constr) do
-              new_constr = %{new_constr | complete: true}
-              Map.put(acc, key, %{building | state: %{building.state | construction: new_constr}})
+            if needed == [] do
+              # All items delivered — mark complete
+              new_constr = %{constr | complete: true}
+              new_acc = Map.put(acc, key, %{building | state: %{building.state | construction: new_constr}})
+              {new_acc, [key | completed_keys]}
             else
-              Map.put(acc, key, %{building | state: %{building.state | construction: new_constr}})
-            end
-          end
+              # Try to pull one item from ground
+              {_face, _row, _col} = key
+              nearby = GroundItems.items_near(key, 3)
 
-        _ ->
-          acc
-      end
-    end)
+              new_constr =
+                Enum.reduce(needed, constr, fn item, c ->
+                  total_nearby =
+                    Enum.reduce(nearby, 0, fn {_tile_key, items}, sum ->
+                      sum + Map.get(items, item, 0)
+                    end)
+
+                  if total_nearby > 0 do
+                    # Take from the first tile that has it
+                    {taken_key, _} =
+                      Enum.find(nearby, fn {_tile_key, items} ->
+                        Map.get(items, item, 0) > 0
+                      end)
+
+                    GroundItems.take(taken_key, item)
+                    ConstructionCosts.deliver_item(c, item)
+                  else
+                    c
+                  end
+                end)
+
+              if ConstructionCosts.construction_complete?(new_constr) do
+                new_constr = %{new_constr | complete: true}
+                new_acc = Map.put(acc, key, %{building | state: %{building.state | construction: new_constr}})
+                {new_acc, [key | completed_keys]}
+              else
+                new_acc = Map.put(acc, key, %{building | state: %{building.state | construction: new_constr}})
+                {new_acc, completed_keys}
+              end
+            end
+
+          _ ->
+            {acc, completed_keys}
+        end
+      end)
+
+    {updated, completed}
   end
 
   # Efficiency boost: chance to not consume input when producing output
