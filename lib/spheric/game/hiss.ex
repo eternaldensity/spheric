@@ -24,17 +24,17 @@ defmodule Spheric.Game.Hiss do
   @hiss_entities_table :spheric_hiss_entities
 
   # Corruption spreads every N ticks
-  @spread_interval 50
+  @spread_interval 150
   # Corruption seeds appear every N ticks (after world age threshold)
-  @seed_interval 200
-  # World age (ticks) before corruption starts
-  @corruption_start_tick 500
+  @seed_interval 600
+  # World age (ticks) before corruption starts (~10 minutes at 200ms/tick)
+  @corruption_start_tick 3000
   # Max corruption intensity per tile
   @max_intensity 10
   # Intensity at which Hiss entities can spawn
   @entity_spawn_threshold 7
   # Max number of Hiss entities at once
-  @max_hiss_entities 50
+  @max_hiss_entities 30
   # Hiss entity movement interval (ticks)
   @hiss_move_interval 8
   # Purification beacon immune radius
@@ -45,6 +45,12 @@ defmodule Spheric.Game.Hiss do
   @building_damage_threshold 5
   # Ticks of exposure at damage threshold before building is destroyed
   @building_destroy_ticks 25
+  # Probability (0.0-1.0) that each tile spreads on a given spread cycle
+  @spread_chance 0.3
+  # Probability that a tile's intensity increases on a spread cycle
+  @intensify_chance 0.4
+  # Maximum number of corrupted tiles across the whole world
+  @max_corrupted_tiles 1500
 
   # --- Public API ---
 
@@ -501,15 +507,24 @@ defmodule Spheric.Game.Hiss do
   end
 
   defp do_seed_corruption(tick, seed) do
+    # Don't seed if already at global cap
+    if corruption_count() >= @max_corrupted_tiles do
+      []
+    else
+      do_seed_corruption_inner(tick, seed)
+    end
+  end
+
+  defp do_seed_corruption_inner(tick, seed) do
     rng = :rand.seed_s(:exsss, {seed, tick, tick * 13})
     n = Application.get_env(:spheric, :subdivisions, 64)
 
     # Cache protection zones once for all seed attempts
     zones = gather_protection_zones()
 
-    # Scale seed count with world age (more corruption over time)
-    age_factor = div(tick - @corruption_start_tick, 1000) + 1
-    seed_count = min(age_factor, 3)
+    # Scale seed count with world age (more corruption over time), max 2
+    age_factor = div(tick - @corruption_start_tick, 3000) + 1
+    seed_count = min(age_factor, 2)
 
     {new_tiles, _rng} =
       Enum.reduce(1..seed_count, {[], rng}, fn _i, {acc, rng} ->
@@ -546,35 +561,49 @@ defmodule Spheric.Game.Hiss do
 
     # Snapshot current corrupted tiles (iterate over snapshot, not live table)
     corrupted_snapshot = all_corrupted()
+    current_count = length(corrupted_snapshot)
+
+    # If we've hit the global cap, only intensify existing tiles (no spread)
+    at_cap = current_count >= @max_corrupted_tiles
 
     # Build a set of already-corrupted keys for O(1) membership checks
     corrupted_set = MapSet.new(corrupted_snapshot, fn {key, _data} -> key end)
 
     corrupted_snapshot
     |> Enum.flat_map(fn {key, data} ->
-      if data.intensity < @max_intensity do
-        # Increase intensity of existing tile
-        new_data = %{data | intensity: min(data.intensity + 1, @max_intensity)}
-        :ets.insert(@corruption_table, {key, new_data})
+      # Use deterministic hash to decide if this tile acts this cycle
+      tile_hash = :erlang.phash2({key, tick, :spread})
 
-        # Try to spread to adjacent tiles
-        spread_targets =
-          for dir <- 0..3,
-              {:ok, neighbor_key} <- [TileNeighbors.neighbor(key, dir, n)],
-              not MapSet.member?(corrupted_set, neighbor_key),
-              not tile_in_protection_zones?(neighbor_key, zones),
-              not WorldStore.has_building?(neighbor_key) or
-                WorldStore.get_building(neighbor_key).type not in [
-                  :purification_beacon,
-                  :defense_turret
-                ] do
-            neighbor_key
-          end
+      # Maybe increase intensity (probabilistic, not every cycle)
+      updated =
+        if data.intensity < @max_intensity and
+             rem(:erlang.phash2({key, tick, :intensify}), 100) < trunc(@intensify_chance * 100) do
+          new_data = %{data | intensity: min(data.intensity + 1, @max_intensity)}
+          :ets.insert(@corruption_table, {key, new_data})
+          [{key, new_data}]
+        else
+          []
+        end
 
-        # Pick 1-2 neighbors deterministically using hash instead of Enum.shuffle
-        targets = pick_spread_targets(spread_targets, key, tick)
+      # Maybe spread to neighbors (probabilistic + global cap)
+      new_corruptions =
+        if not at_cap and rem(tile_hash, 100) < trunc(@spread_chance * 100) do
+          spread_targets =
+            for dir <- 0..3,
+                {:ok, neighbor_key} <- [TileNeighbors.neighbor(key, dir, n)],
+                not MapSet.member?(corrupted_set, neighbor_key),
+                not tile_in_protection_zones?(neighbor_key, zones),
+                not WorldStore.has_building?(neighbor_key) or
+                  WorldStore.get_building(neighbor_key).type not in [
+                    :purification_beacon,
+                    :defense_turret
+                  ] do
+              neighbor_key
+            end
 
-        new_corruptions =
+          # Pick only 1 neighbor per spread (slower growth)
+          targets = pick_spread_targets(spread_targets, key, tick)
+
           Enum.map(targets, fn target_key ->
             target_data = %{
               intensity: 1,
@@ -585,32 +614,23 @@ defmodule Spheric.Game.Hiss do
             :ets.insert(@corruption_table, {target_key, target_data})
             {target_key, target_data}
           end)
+        else
+          []
+        end
 
-        [{key, new_data} | new_corruptions]
-      else
-        []
-      end
+      updated ++ new_corruptions
     end)
   end
 
-  # Pick 1-2 spread targets deterministically using a hash-based selection.
-  # Avoids the cost of Enum.shuffle for small lists.
+  # Pick 1 spread target deterministically using a hash-based selection.
   defp pick_spread_targets([], _key, _tick), do: []
   defp pick_spread_targets([single], _key, _tick), do: [single]
 
   defp pick_spread_targets(targets, key, tick) do
     len = length(targets)
     hash = :erlang.phash2({key, tick})
-    count = rem(hash, 2) + 1
-    idx1 = rem(hash, len)
-
-    if count == 1 or len == 1 do
-      [Enum.at(targets, idx1)]
-    else
-      idx2 = rem(Bitwise.bsr(hash, 16), len - 1)
-      idx2 = if idx2 >= idx1, do: idx2 + 1, else: idx2
-      [Enum.at(targets, idx1), Enum.at(targets, idx2)]
-    end
+    idx = rem(hash, len)
+    [Enum.at(targets, idx)]
   end
 
   defp within_radius?({f1, r1, c1}, {f2, r2, c2}, radius) do

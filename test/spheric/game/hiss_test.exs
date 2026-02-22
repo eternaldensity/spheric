@@ -174,14 +174,15 @@ defmodule Spheric.Game.HissTest do
     end
 
     test "does not seed on non-interval ticks" do
-      result = Hiss.maybe_seed_corruption(501, 42)
+      # 3001 is past start tick (3000) but not on seed_interval (600)
+      result = Hiss.maybe_seed_corruption(3001, 42)
       assert result == []
     end
 
     test "seeds corruption at correct interval after start tick" do
-      # seed_interval is 200, corruption_start_tick is 500
-      # So tick 600 = 500 + 100, rem(600, 200) = 0
-      result = Hiss.maybe_seed_corruption(600, 42)
+      # seed_interval is 600, corruption_start_tick is 3000
+      # So tick 3600 = 3000 + 600, rem(3600, 600) = 0
+      result = Hiss.maybe_seed_corruption(3600, 42)
       assert is_list(result)
       # May or may not succeed depending on random tile placement
     end
@@ -196,17 +197,19 @@ defmodule Spheric.Game.HissTest do
 
     test "spreads on correct interval" do
       # Place corruption far from test_face edges for spread
+      # spread_interval is 150, so use tick 150
       Hiss.put_corruption({0, 5, 5}, %{intensity: 3, seeded_at: 0, building_damage_ticks: 0})
-      result = Hiss.spread_corruption(50)
+      result = Hiss.spread_corruption(150)
       assert is_list(result)
-      # Existing tile intensity should increase
+      # Intensity increase is probabilistic (40% chance per cycle),
+      # so just verify intensity is 3 or 4 (not decreased)
       data = Hiss.get_corruption({0, 5, 5})
-      assert data.intensity == 4
+      assert data.intensity >= 3 and data.intensity <= 4
     end
 
     test "does not increase intensity beyond max" do
       Hiss.put_corruption({0, 5, 5}, %{intensity: 10, seeded_at: 0, building_damage_ticks: 0})
-      Hiss.spread_corruption(50)
+      Hiss.spread_corruption(150)
       # intensity is at max (10), no further increase
       data = Hiss.get_corruption({0, 5, 5})
       assert data == %{intensity: 10, seeded_at: 0, building_damage_ticks: 0}
@@ -297,8 +300,8 @@ defmodule Spheric.Game.HissTest do
     end
 
     test "does not spawn when at max entities" do
-      # Fill up entities to max
-      for i <- 0..49 do
+      # Fill up entities to max (30)
+      for i <- 0..29 do
         Hiss.put_hiss_entity("hiss:fill:#{i}", %{
           face: @test_face,
           row: 0,
@@ -308,19 +311,19 @@ defmodule Spheric.Game.HissTest do
         })
       end
 
-      assert Hiss.maybe_spawn_hiss_entities(50, 42) == []
+      assert Hiss.maybe_spawn_hiss_entities(150, 42) == []
     end
 
     test "does not spawn without high-corruption tiles" do
       Hiss.put_corruption({@test_face, 5, 5}, %{intensity: 3, seeded_at: 0, building_damage_ticks: 0})
-      assert Hiss.maybe_spawn_hiss_entities(50, 42) == []
+      assert Hiss.maybe_spawn_hiss_entities(150, 42) == []
     end
 
     test "spawns from high-corruption tiles" do
       key = {@test_face, 5, 5}
       Hiss.put_corruption(key, %{intensity: 8, seeded_at: 0, building_damage_ticks: 0})
 
-      result = Hiss.maybe_spawn_hiss_entities(50, 42)
+      result = Hiss.maybe_spawn_hiss_entities(150, 42)
       assert length(result) > 0
       assert Hiss.hiss_entity_count() > 0
     end

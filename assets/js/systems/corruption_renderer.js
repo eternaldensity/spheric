@@ -1,7 +1,18 @@
 import * as THREE from "three";
 
+const MAX_CORRUPTION_INSTANCES = 2000;
+const MAX_HISS_INSTANCES = 50;
+
+const _tempMatrix = new THREE.Matrix4();
+const _tempPosition = new THREE.Vector3();
+const _tempQuaternion = new THREE.Quaternion();
+const _tempScale = new THREE.Vector3(1, 1, 1);
+const _up = new THREE.Vector3(0, 0, 1);
+const _color = new THREE.Color();
+
 /**
  * CorruptionRenderer manages Hiss corruption overlays and Hiss entity meshes.
+ * Uses InstancedMesh for O(1) draw calls regardless of corruption count.
  */
 export class CorruptionRenderer {
   constructor(scene, getTileCenter, subdivisions) {
@@ -9,11 +20,39 @@ export class CorruptionRenderer {
     this.getTileCenter = getTileCenter;
     this.subdivisions = subdivisions;
 
-    this.corruptionData = new Map();   // "face:row:col" -> { intensity }
-    this.corruptionMeshes = new Map(); // "face:row:col" -> THREE.Mesh
+    // Corruption data: "face:row:col" -> { intensity, phase, index }
+    this.corruptionData = new Map();
+    this._dirty = true; // needs rebuild
+    this._instanceCount = 0;
 
-    this.hissEntityData = [];          // current Hiss entity data for rendering
-    this.hissEntityMeshes = new Map(); // id -> THREE.Mesh
+    // Shared geometry/material for all corruption overlays (single draw call)
+    const tileSize = (1.0 / subdivisions) * 0.9;
+    this._overlayGeometry = new THREE.PlaneGeometry(tileSize, tileSize);
+    this._overlayMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff1111,
+      transparent: true,
+      opacity: 0.4,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+
+    this._instancedMesh = new THREE.InstancedMesh(
+      this._overlayGeometry,
+      this._overlayMaterial,
+      MAX_CORRUPTION_INSTANCES
+    );
+    this._instancedMesh.count = 0;
+    this._instancedMesh.frustumCulled = false;
+    this.scene.add(this._instancedMesh);
+
+    // Per-instance phase offsets for pulsing animation (stored in a flat array)
+    this._phases = new Float32Array(MAX_CORRUPTION_INSTANCES);
+    // Per-instance base alpha values
+    this._baseAlphas = new Float32Array(MAX_CORRUPTION_INSTANCES);
+
+    // Hiss entities
+    this.hissEntityData = [];
+    this.hissEntityMeshes = new Map();
 
     this._hissGeometry = new THREE.OctahedronGeometry(0.006, 0);
     this._hissMaterial = new THREE.MeshStandardMaterial({
@@ -29,89 +68,96 @@ export class CorruptionRenderer {
 
   addOverlay(face, row, col, intensity) {
     const key = `${face}:${row}:${col}`;
-    this.corruptionData.set(key, { intensity });
-
-    if (this.corruptionMeshes.has(key)) {
-      this.scene.remove(this.corruptionMeshes.get(key));
+    const existing = this.corruptionData.get(key);
+    if (existing) {
+      // Just update intensity, will rebuild on next frame
+      existing.intensity = intensity;
+    } else {
+      this.corruptionData.set(key, {
+        face, row, col, intensity,
+        phase: Math.random() * Math.PI * 2,
+      });
     }
-
-    const center = this.getTileCenter(face, row, col);
-    if (!center) return;
-
-    const normal = center.clone().normalize();
-    const alpha = 0.15 + (intensity / 10) * 0.45;
-    const N = this.subdivisions;
-    const tileSize = 1.0 / N * 0.9;
-
-    const geo = new THREE.PlaneGeometry(tileSize, tileSize);
-    const mat = new THREE.MeshBasicMaterial({
-      color: 0xff1111,
-      transparent: true,
-      opacity: alpha,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.copy(normal).multiplyScalar(1.002);
-    mesh.quaternion.setFromUnitVectors(
-      new THREE.Vector3(0, 0, 1), normal
-    );
-
-    mesh.userData.intensity = intensity;
-    mesh.userData.phase = Math.random() * Math.PI * 2;
-    this.scene.add(mesh);
-    this.corruptionMeshes.set(key, mesh);
+    this._dirty = true;
   }
 
   removeOverlay(face, row, col) {
     const key = `${face}:${row}:${col}`;
-    const mesh = this.corruptionMeshes.get(key);
-    if (mesh) {
-      this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      mesh.material.dispose();
-      this.corruptionMeshes.delete(key);
-    }
     this.corruptionData.delete(key);
+    this._dirty = true;
   }
 
   syncFace(face, tiles) {
-    // Remove old corruption meshes for this face
-    for (const [key, mesh] of this.corruptionMeshes) {
+    // Remove all entries for this face
+    for (const [key] of this.corruptionData) {
       if (key.startsWith(`${face}:`)) {
-        this.scene.remove(mesh);
-        this.corruptionMeshes.delete(key);
         this.corruptionData.delete(key);
       }
     }
+    // Add new entries
     for (const tile of tiles) {
-      this.addOverlay(tile.face, tile.row, tile.col, tile.intensity);
+      const key = `${tile.face}:${tile.row}:${tile.col}`;
+      this.corruptionData.set(key, {
+        face: tile.face, row: tile.row, col: tile.col,
+        intensity: tile.intensity,
+        phase: Math.random() * Math.PI * 2,
+      });
     }
+    this._dirty = true;
+  }
+
+  /**
+   * Rebuild the instanced mesh transforms from corruption data.
+   * Only called when data changes (not every frame).
+   */
+  _rebuildInstances() {
+    let idx = 0;
+    for (const [, data] of this.corruptionData) {
+      if (idx >= MAX_CORRUPTION_INSTANCES) break;
+
+      const center = this.getTileCenter(data.face, data.row, data.col);
+      if (!center) continue;
+
+      _tempPosition.copy(center).normalize().multiplyScalar(1.002);
+      _tempQuaternion.setFromUnitVectors(_up, _tempPosition.clone().normalize());
+      _tempMatrix.compose(_tempPosition, _tempQuaternion, _tempScale);
+      this._instancedMesh.setMatrixAt(idx, _tempMatrix);
+
+      this._phases[idx] = data.phase;
+      this._baseAlphas[idx] = 0.15 + (data.intensity / 10) * 0.45;
+      idx++;
+    }
+
+    this._instanceCount = idx;
+    this._instancedMesh.count = idx;
+    this._instancedMesh.instanceMatrix.needsUpdate = true;
+    this._dirty = false;
   }
 
   updateOverlays(now) {
-    const t = now * 0.001;
-    for (const [, mesh] of this.corruptionMeshes) {
-      const intensity = mesh.userData.intensity || 1;
-      const baseAlpha = 0.15 + (intensity / 10) * 0.45;
-      const pulse = 0.8 + 0.2 * Math.sin(t * 3.0 + mesh.userData.phase);
-      mesh.material.opacity = baseAlpha * pulse;
+    if (this._dirty) {
+      this._rebuildInstances();
     }
+
+    // Pulse the global material opacity based on average —
+    // individual per-instance opacity isn't supported by InstancedMesh,
+    // so we do a single global pulse which is much cheaper
+    const t = now * 0.001;
+    const pulse = 0.8 + 0.2 * Math.sin(t * 2.0);
+    this._overlayMaterial.opacity = 0.35 * pulse;
   }
 
   // --- Hiss entity management ---
 
   syncHissEntities(face, entities) {
     for (const [id, mesh] of this.hissEntityMeshes) {
-      const data = this.hissEntityData.find(e => e.id === id);
+      const data = this.hissEntityData.find((e) => e.id === id);
       if (data && data.face === face) {
         this.scene.remove(mesh);
-        // geometry/material are shared — don't dispose per-mesh
         this.hissEntityMeshes.delete(id);
       }
     }
-    this.hissEntityData = this.hissEntityData.filter(e => e.face !== face);
+    this.hissEntityData = this.hissEntityData.filter((e) => e.face !== face);
     this.hissEntityData.push(...entities);
   }
 
@@ -120,7 +166,7 @@ export class CorruptionRenderer {
   }
 
   moveHissEntity(id, entity) {
-    const idx = this.hissEntityData.findIndex(e => e.id === id);
+    const idx = this.hissEntityData.findIndex((e) => e.id === id);
     if (idx >= 0) {
       this.hissEntityData[idx] = { id, ...entity };
     } else {
@@ -129,11 +175,10 @@ export class CorruptionRenderer {
   }
 
   killHissEntity(id) {
-    this.hissEntityData = this.hissEntityData.filter(e => e.id !== id);
+    this.hissEntityData = this.hissEntityData.filter((e) => e.id !== id);
     const mesh = this.hissEntityMeshes.get(id);
     if (mesh) {
       this.scene.remove(mesh);
-      // geometry/material are shared — don't dispose per-mesh
       this.hissEntityMeshes.delete(id);
     }
   }
@@ -158,7 +203,7 @@ export class CorruptionRenderer {
     }
 
     // Remove meshes for entities that no longer exist
-    const activeIds = new Set(this.hissEntityData.map(e => e.id));
+    const activeIds = new Set(this.hissEntityData.map((e) => e.id));
     for (const [id, mesh] of this.hissEntityMeshes) {
       if (!activeIds.has(id)) {
         this.scene.remove(mesh);
@@ -168,12 +213,19 @@ export class CorruptionRenderer {
   }
 
   dispose() {
-    for (const [, mesh] of this.corruptionMeshes) {
-      this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      mesh.material.dispose();
+    if (this._instancedMesh) {
+      this.scene.remove(this._instancedMesh);
+      this._instancedMesh.dispose();
+      this._instancedMesh = null;
     }
-    this.corruptionMeshes.clear();
+    if (this._overlayGeometry) {
+      this._overlayGeometry.dispose();
+      this._overlayGeometry = null;
+    }
+    if (this._overlayMaterial) {
+      this._overlayMaterial.dispose();
+      this._overlayMaterial = null;
+    }
     this.corruptionData.clear();
 
     for (const [, mesh] of this.hissEntityMeshes) {
@@ -182,7 +234,13 @@ export class CorruptionRenderer {
     this.hissEntityMeshes.clear();
     this.hissEntityData = [];
 
-    if (this._hissGeometry) { this._hissGeometry.dispose(); this._hissGeometry = null; }
-    if (this._hissMaterial) { this._hissMaterial.dispose(); this._hissMaterial = null; }
+    if (this._hissGeometry) {
+      this._hissGeometry.dispose();
+      this._hissGeometry = null;
+    }
+    if (this._hissMaterial) {
+      this._hissMaterial.dispose();
+      this._hissMaterial = null;
+    }
   }
 }
