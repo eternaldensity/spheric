@@ -607,13 +607,13 @@ defmodule SphericWeb.GameLive do
             :for={input <- recipe.inputs}
             style="color: var(--fbc-info); margin-left: 4px;"
           >
-            {input.name}
+            <span :if={input.count > 1}>{input.count}x </span>{input.name}
           </span>
         </div>
         <div style="font-size: 11px;">
           <span style="color: var(--fbc-text-dim);">Output:</span>
           <span style="color: var(--fbc-success); margin-left: 4px;">
-            {recipe.output.name}
+            <span :if={recipe.output.count > 1}>{recipe.output.count}x </span>{recipe.output.name}
           </span>
         </div>
       </div>

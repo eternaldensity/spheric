@@ -7,10 +7,9 @@ defmodule Spheric.Game.Behaviors.AdvancedAssembler do
 
   use Spheric.Game.Behaviors.Production,
     rate: 12,
-    inputs: 2,
-    recipes: %{
-      {:frame, :reinforced_plate} => :heavy_frame,
-      {:circuit, :cable} => :advanced_circuit,
-      {:polycarbonate, :sulfur_compound} => :plastic_sheet
-    }
+    recipes: [
+      %{inputs: [frame: 1, reinforced_plate: 1], output: {:heavy_frame, 1}},
+      %{inputs: [circuit: 2, cable: 1], output: {:advanced_circuit, 1}},
+      %{inputs: [polycarbonate: 1, sulfur_compound: 1], output: {:plastic_sheet, 1}}
+    ]
 end

@@ -240,7 +240,8 @@ defmodule Spheric.Game.Persistence do
     :altered_effect,
     :fuel,
     :fuel_type,
-    :item_type
+    :item_type,
+    :output_type
   ]
 
   defp atomize_state_value(key, value) when key in @atom_fields and is_binary(value) do

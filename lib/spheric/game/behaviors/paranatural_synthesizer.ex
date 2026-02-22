@@ -9,11 +9,10 @@ defmodule Spheric.Game.Behaviors.ParanaturalSynthesizer do
 
   use Spheric.Game.Behaviors.Production,
     rate: 30,
-    inputs: 3,
     requires_creature: true,
-    recipes: %{
-      {:supercomputer, :advanced_composite, :creature_essence} => :containment_module,
-      {:nuclear_cell, :containment_module, :creature_essence} => :dimensional_core,
-      {:quartz_crystal, :quartz_crystal, :creature_essence} => :astral_lens
-    }
+    recipes: [
+      %{inputs: [supercomputer: 1, advanced_composite: 1, creature_essence: 1], output: {:containment_module, 1}},
+      %{inputs: [nuclear_cell: 1, containment_module: 1, creature_essence: 1], output: {:dimensional_core, 1}},
+      %{inputs: [quartz_crystal: 1, quartz_crystal: 1, creature_essence: 1], output: {:astral_lens, 1}}
+    ]
 end

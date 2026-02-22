@@ -655,11 +655,11 @@ defmodule Spheric.Game.TickProcessor do
       %{type: :conveyor_mk3, state: %{item: item, buffer1: b1, buffer2: b2}} ->
         item != nil and b1 != nil and b2 != nil
 
-      %{type: :smelter, state: %{input_buffer: buf}} ->
-        buf != nil
+      %{type: :smelter, state: state} ->
+        Behaviors.Smelter.full?(state)
 
-      %{type: :refinery, state: %{input_buffer: buf}} ->
-        buf != nil
+      %{type: :refinery, state: state} ->
+        Behaviors.Refinery.full?(state)
 
       %{type: :splitter, state: %{item: item}} ->
         item != nil
@@ -677,28 +677,28 @@ defmodule Spheric.Game.TickProcessor do
         state.count >= state.capacity
 
       %{type: :assembler, state: state} ->
-        state.input_a != nil and state.input_b != nil
+        Behaviors.Assembler.full?(state)
 
-      %{type: :advanced_smelter, state: %{input_buffer: buf}} ->
-        buf != nil
+      %{type: :advanced_smelter, state: state} ->
+        Behaviors.AdvancedSmelter.full?(state)
 
       %{type: :advanced_assembler, state: state} ->
-        state.input_a != nil and state.input_b != nil
+        Behaviors.AdvancedAssembler.full?(state)
 
       %{type: :fabrication_plant, state: state} ->
-        state.input_a != nil and state.input_b != nil and state.input_c != nil
+        Behaviors.FabricationPlant.full?(state)
 
       %{type: :particle_collider, state: state} ->
-        state.input_a != nil and state.input_b != nil
+        Behaviors.ParticleCollider.full?(state)
 
-      %{type: :nuclear_refinery, state: %{input_buffer: buf}} ->
-        buf != nil
+      %{type: :nuclear_refinery, state: state} ->
+        Behaviors.NuclearRefinery.full?(state)
 
       %{type: :paranatural_synthesizer, state: state} ->
-        state.input_a != nil and state.input_b != nil and state.input_c != nil
+        Behaviors.ParanaturalSynthesizer.full?(state)
 
       %{type: :board_interface, state: state} ->
-        state.input_a != nil and state.input_b != nil and state.input_c != nil
+        Behaviors.BoardInterface.full?(state)
 
       %{type: :bio_generator, state: %{input_buffer: buf}} ->
         buf != nil
@@ -749,11 +749,33 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
-  defp try_accept(_key, %{type: :smelter, state: %{input_buffer: nil}}, [winner | _], _n),
-    do: winner
+  defp try_accept(dest_key, %{type: :smelter, orientation: dir, state: state}, requests, n) do
+    rear_dir = rem(dir + 2, 4)
 
-  defp try_accept(_key, %{type: :refinery, state: %{input_buffer: nil}}, [winner | _], _n),
-    do: winner
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.Smelter.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
+
+  defp try_accept(dest_key, %{type: :refinery, orientation: dir, state: state}, requests, n) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.Refinery.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
 
   # Storage container: accepts items from rear, if type matches and not full
   defp try_accept(
@@ -873,14 +895,18 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   # Advanced smelter: accepts from rear into input_buffer
-  defp try_accept(
-         dest_key,
-         %{type: :advanced_smelter, orientation: dir, state: %{input_buffer: nil}},
-         requests,
-         n
-       ) do
+  defp try_accept(dest_key, %{type: :advanced_smelter, orientation: dir, state: state}, requests, n) do
     rear_dir = rem(dir + 2, 4)
-    accept_from_direction(dest_key, rear_dir, requests, n)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.AdvancedSmelter.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
   end
 
   # Advanced assembler: dual-input, routes item to correct slot
@@ -929,14 +955,18 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   # Nuclear refinery: single-input from rear
-  defp try_accept(
-         dest_key,
-         %{type: :nuclear_refinery, orientation: dir, state: %{input_buffer: nil}},
-         requests,
-         n
-       ) do
+  defp try_accept(dest_key, %{type: :nuclear_refinery, orientation: dir, state: state}, requests, n) do
     rear_dir = rem(dir + 2, 4)
-    accept_from_direction(dest_key, rear_dir, requests, n)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.NuclearRefinery.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
   end
 
   # Paranatural synthesizer: triple-input
@@ -1151,10 +1181,16 @@ defmodule Spheric.Game.TickProcessor do
             end
 
           :smelter ->
-            %{b | state: %{b.state | input_buffer: item}}
+            case Behaviors.Smelter.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
 
           :refinery ->
-            %{b | state: %{b.state | input_buffer: item}}
+            case Behaviors.Refinery.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
 
           :assembler ->
             case Behaviors.Assembler.try_accept_item(b.state, item) do
@@ -1201,7 +1237,10 @@ defmodule Spheric.Game.TickProcessor do
             %{b | state: %{b.state | input_buffer: item}}
 
           :advanced_smelter ->
-            %{b | state: %{b.state | input_buffer: item}}
+            case Behaviors.AdvancedSmelter.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
 
           :advanced_assembler ->
             case Behaviors.AdvancedAssembler.try_accept_item(b.state, item) do
@@ -1222,7 +1261,10 @@ defmodule Spheric.Game.TickProcessor do
             end
 
           :nuclear_refinery ->
-            %{b | state: %{b.state | input_buffer: item}}
+            case Behaviors.NuclearRefinery.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
 
           :paranatural_synthesizer ->
             case Behaviors.ParanaturalSynthesizer.try_accept_item(b.state, item) do
@@ -1423,7 +1465,8 @@ defmodule Spheric.Game.TickProcessor do
       building = Map.get(acc, src_key)
 
       if building && building.state[:altered_effect] == :duplication &&
-           building.state[:output_buffer] == nil do
+           building.state[:output_buffer] == nil &&
+           (building.state[:output_remaining] || 0) == 0 do
         if :rand.uniform(100) <= 5 do
           Map.put(acc, src_key, %{
             building
@@ -1448,18 +1491,28 @@ defmodule Spheric.Game.TickProcessor do
       Statistics.record_production(key, new_state.output_buffer)
     end
 
-    # Detect consumption for single-input buildings (smelter, refinery)
+    # Detect consumption for single-input buildings (smelter, refinery, etc.)
+    # Inputs are consumed when input_buffer goes from non-nil to nil
     if old_state[:input_buffer] != nil and new_state[:input_buffer] == nil and
          new_state[:output_buffer] != nil do
-      Statistics.record_consumption(key, old_state.input_buffer)
+      old_count = old_state[:input_count] || 1
+      for _ <- 1..old_count, do: Statistics.record_consumption(key, old_state.input_buffer)
     end
 
-    # Detect consumption for dual-input buildings (assembler)
+    # Detect consumption for dual-input buildings (assembler, etc.)
     if old_state[:input_a] != nil and old_state[:input_b] != nil and
          new_state[:input_a] == nil and new_state[:input_b] == nil and
          new_state[:output_buffer] != nil do
-      Statistics.record_consumption(key, old_state.input_a)
-      Statistics.record_consumption(key, old_state.input_b)
+      old_a_count = old_state[:input_a_count] || 1
+      old_b_count = old_state[:input_b_count] || 1
+      for _ <- 1..old_a_count, do: Statistics.record_consumption(key, old_state.input_a)
+      for _ <- 1..old_b_count, do: Statistics.record_consumption(key, old_state.input_b)
+
+      # Triple-input: also consume input_c
+      if old_state[:input_c] != nil and new_state[:input_c] == nil do
+        old_c_count = old_state[:input_c_count] || 1
+        for _ <- 1..old_c_count, do: Statistics.record_consumption(key, old_state.input_c)
+      end
     end
   end
 
@@ -1599,12 +1652,15 @@ defmodule Spheric.Game.TickProcessor do
       if building do
         output_chance = Creatures.output_chance(src_key)
 
-        if output_chance > 0 and building.state[:output_buffer] == nil do
+        if output_chance > 0 and building.state[:output_buffer] == nil and
+             (building.state[:output_remaining] || 0) == 0 do
           if :rand.uniform(100) <= round(output_chance * 100) do
-            Map.put(acc, src_key, %{
-              building
-              | state: Map.put(building.state, :output_buffer, item)
-            })
+            new_state =
+              building.state
+              |> Map.put(:output_buffer, item)
+              |> Map.put(:output_type, item)
+
+            Map.put(acc, src_key, %{building | state: new_state})
           else
             acc
           end

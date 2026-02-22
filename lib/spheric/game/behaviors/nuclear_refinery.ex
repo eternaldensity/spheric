@@ -8,8 +8,7 @@ defmodule Spheric.Game.Behaviors.NuclearRefinery do
 
   use Spheric.Game.Behaviors.Production,
     rate: 20,
-    inputs: 1,
-    recipes: %{
-      raw_uranium: :enriched_uranium
-    }
+    recipes: [
+      %{inputs: [raw_uranium: 1], output: {:enriched_uranium, 1}}
+    ]
 end

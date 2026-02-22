@@ -14,91 +14,58 @@
 #   mix run scripts/calculate_costs.exs --supply           # supply vs demand analysis
 
 # ── Recipe database ──────────────────────────────────────────────────────────
+#
+# Format: output_atom => {[{input, qty}, ...], output_qty}
+# "To make output_qty of output, you need input_qty of each input."
 
-# Single-input recipes: input => output
-smelter = %{
-  iron_ore: :iron_ingot,
-  copper_ore: :copper_ingot,
-  titanium_ore: :titanium_ingot,
-  raw_quartz: :quartz_crystal
+recipe_lookup = %{
+  # Smelter (all 1:1)
+  iron_ingot: {[iron_ore: 1], 1},
+  copper_ingot: {[copper_ore: 1], 1},
+  titanium_ingot: {[titanium_ore: 1], 1},
+  quartz_crystal: {[raw_quartz: 1], 1},
+
+  # Refinery
+  polycarbonate: {[crude_oil: 2], 1},
+  sulfur_compound: {[raw_sulfur: 1], 1},
+  refined_fuel: {[biofuel: 3], 2},
+
+  # Nuclear refinery
+  enriched_uranium: {[raw_uranium: 1], 1},
+
+  # Assembler
+  wire: {[copper_ingot: 1, copper_ingot: 1], 3},
+  plate: {[iron_ingot: 1, iron_ingot: 1], 2},
+  circuit: {[wire: 1, quartz_crystal: 1], 1},
+  frame: {[plate: 1, titanium_ingot: 1], 1},
+  motor: {[iron_ingot: 2, wire: 1], 1},
+  cable: {[wire: 1, polycarbonate: 1], 1},
+  reinforced_plate: {[plate: 2, iron_ingot: 1], 1},
+  heat_sink: {[copper_ingot: 1, sulfur_compound: 1], 1},
+
+  # Advanced assembler
+  heavy_frame: {[frame: 1, reinforced_plate: 1], 1},
+  advanced_circuit: {[circuit: 2, cable: 1], 1},
+  plastic_sheet: {[polycarbonate: 1, sulfur_compound: 1], 1},
+
+  # Fabrication plant
+  computer: {[advanced_circuit: 2, advanced_circuit: 1, plastic_sheet: 1], 1},
+  motor_housing: {[heavy_frame: 1, motor: 1, heat_sink: 1], 1},
+  composite: {[reinforced_plate: 1, plastic_sheet: 1, titanium_ingot: 1], 1},
+
+  # Particle collider
+  supercomputer: {[computer: 1, advanced_circuit: 2], 1},
+  advanced_composite: {[composite: 1, quartz_crystal: 1], 1},
+  nuclear_cell: {[enriched_uranium: 1, advanced_composite: 1], 1},
+
+  # Paranatural synthesizer
+  containment_module: {[supercomputer: 1, advanced_composite: 1, creature_essence: 1], 1},
+  dimensional_core: {[nuclear_cell: 1, containment_module: 1, creature_essence: 1], 1},
+  astral_lens: {[quartz_crystal: 1, quartz_crystal: 1, creature_essence: 1], 1},
+
+  # Board interface
+  board_resonator: {[dimensional_core: 1, supercomputer: 1, astral_lens: 1], 1}
 }
-
-refinery = %{
-  crude_oil: :polycarbonate,
-  raw_sulfur: :sulfur_compound,
-  biofuel: :refined_fuel
-}
-
-nuclear_refinery = %{
-  raw_uranium: :enriched_uranium
-}
-
-# Dual-input recipes: {a, b} => output
-assembler = %{
-  {:copper_ingot, :copper_ingot} => :wire,
-  {:iron_ingot, :iron_ingot} => :plate,
-  {:wire, :quartz_crystal} => :circuit,
-  {:plate, :titanium_ingot} => :frame,
-  {:iron_ingot, :wire} => :motor,
-  {:wire, :polycarbonate} => :cable,
-  {:plate, :iron_ingot} => :reinforced_plate,
-  {:copper_ingot, :sulfur_compound} => :heat_sink
-}
-
-advanced_assembler = %{
-  {:frame, :reinforced_plate} => :heavy_frame,
-  {:circuit, :cable} => :advanced_circuit,
-  {:polycarbonate, :sulfur_compound} => :plastic_sheet
-}
-
-particle_collider = %{
-  {:computer, :advanced_circuit} => :supercomputer,
-  {:composite, :quartz_crystal} => :advanced_composite,
-  {:enriched_uranium, :advanced_composite} => :nuclear_cell
-}
-
-# Triple-input recipes: {a, b, c} => output
-fabrication_plant = %{
-  {:advanced_circuit, :advanced_circuit, :plastic_sheet} => :computer,
-  {:heavy_frame, :motor, :heat_sink} => :motor_housing,
-  {:reinforced_plate, :plastic_sheet, :titanium_ingot} => :composite
-}
-
-paranatural_synthesizer = %{
-  {:supercomputer, :advanced_composite, :creature_essence} => :containment_module,
-  {:nuclear_cell, :containment_module, :creature_essence} => :dimensional_core,
-  {:quartz_crystal, :quartz_crystal, :creature_essence} => :astral_lens
-}
-
-board_interface = %{
-  {:dimensional_core, :supercomputer, :astral_lens} => :board_resonator
-}
-
-# ── Build reverse lookup: output_item => list of input items ─────────────────
-
-# Invert single-input recipes
-single_recipes =
-  [smelter, refinery, nuclear_refinery]
-  |> Enum.flat_map(fn recipes ->
-    Enum.map(recipes, fn {input, output} -> {output, [input]} end)
-  end)
-
-# Invert dual-input recipes
-dual_recipes =
-  [assembler, advanced_assembler, particle_collider]
-  |> Enum.flat_map(fn recipes ->
-    Enum.map(recipes, fn {{a, b}, output} -> {output, [a, b]} end)
-  end)
-
-# Invert triple-input recipes
-triple_recipes =
-  [fabrication_plant, paranatural_synthesizer, board_interface]
-  |> Enum.flat_map(fn recipes ->
-    Enum.map(recipes, fn {{a, b, c}, output} -> {output, [a, b, c]} end)
-  end)
-
-# Combined reverse lookup: item => [inputs needed to make 1 of it]
-recipe_lookup = Map.new(single_recipes ++ dual_recipes ++ triple_recipes)
 
 # Raw materials (no recipe to make them — they are mined or gathered)
 raw_materials = MapSet.new([
@@ -112,6 +79,13 @@ raw_materials = MapSet.new([
 defmodule CostCalculator do
   @moduledoc false
 
+  @doc """
+  Resolve the raw material cost to produce `qty` of `item`.
+
+  recipe_lookup format: %{output_atom => {[{input, input_qty}, ...], output_qty}}
+  To make `qty` of item: need ceil(qty / output_qty) batches, each batch
+  consuming input_qty of each input.
+  """
   def resolve(item, qty, recipe_lookup, raw_materials, cache \\ %{}) do
     if MapSet.member?(raw_materials, item) do
       {%{item => qty}, cache}
@@ -121,21 +95,24 @@ defmodule CostCalculator do
           # Unknown item, treat as raw
           {%{item => qty}, cache}
 
-        inputs ->
+        {inputs, out_qty} ->
           case Map.get(cache, item) do
             nil ->
-              # Resolve cost for 1 unit of this item
-              {unit_cost, cache} =
-                Enum.reduce(inputs, {%{}, cache}, fn input_item, {acc, cache} ->
-                  {sub_cost, cache} = resolve(input_item, 1, recipe_lookup, raw_materials, cache)
+              # Resolve cost for 1 batch (produces out_qty of this item)
+              {batch_cost, cache} =
+                Enum.reduce(inputs, {%{}, cache}, fn {input_item, input_qty}, {acc, cache} ->
+                  {sub_cost, cache} = resolve(input_item, input_qty, recipe_lookup, raw_materials, cache)
                   {merge_costs(acc, sub_cost), cache}
                 end)
 
-              cache = Map.put(cache, item, unit_cost)
-              {scale_costs(unit_cost, qty), cache}
+              # Cache stores cost per batch (which produces out_qty items)
+              cache = Map.put(cache, item, {batch_cost, out_qty})
+              batches = ceil(qty / out_qty)
+              {scale_costs(batch_cost, batches), cache}
 
-            unit_cost ->
-              {scale_costs(unit_cost, qty), cache}
+            {batch_cost, cached_out_qty} ->
+              batches = ceil(qty / cached_out_qty)
+              {scale_costs(batch_cost, batches), cache}
           end
       end
     end

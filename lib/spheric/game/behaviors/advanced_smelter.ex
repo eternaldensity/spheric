@@ -8,12 +8,11 @@ defmodule Spheric.Game.Behaviors.AdvancedSmelter do
 
   use Spheric.Game.Behaviors.Production,
     rate: 8,
-    inputs: 1,
-    recipes: %{
-      iron_ore: :iron_ingot,
-      copper_ore: :copper_ingot,
-      titanium_ore: :titanium_ingot,
-      raw_quartz: :quartz_crystal,
-      raw_uranium: :enriched_uranium
-    }
+    recipes: [
+      %{inputs: [iron_ore: 1], output: {:iron_ingot, 1}},
+      %{inputs: [copper_ore: 1], output: {:copper_ingot, 1}},
+      %{inputs: [titanium_ore: 1], output: {:titanium_ingot, 1}},
+      %{inputs: [raw_quartz: 1], output: {:quartz_crystal, 1}},
+      %{inputs: [raw_uranium: 1], output: {:enriched_uranium, 1}}
+    ]
 end

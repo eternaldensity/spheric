@@ -9,10 +9,9 @@ defmodule Spheric.Game.Behaviors.Refinery do
 
   use Spheric.Game.Behaviors.Production,
     rate: 12,
-    inputs: 1,
-    recipes: %{
-      crude_oil: :polycarbonate,
-      raw_sulfur: :sulfur_compound,
-      biofuel: :refined_fuel
-    }
+    recipes: [
+      %{inputs: [crude_oil: 2], output: {:polycarbonate, 1}},
+      %{inputs: [raw_sulfur: 1], output: {:sulfur_compound, 1}},
+      %{inputs: [biofuel: 3], output: {:refined_fuel, 2}}
+    ]
 end

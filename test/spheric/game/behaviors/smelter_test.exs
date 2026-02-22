@@ -5,12 +5,20 @@ defmodule Spheric.Game.Behaviors.SmelterTest do
 
   @key {0, 5, 5}
 
+  # Helper to build a full smelter state with all required fields
+  defp smelter_state(overrides) do
+    Map.merge(Smelter.initial_state(), overrides)
+  end
+
   test "initial_state has correct structure" do
     state = Smelter.initial_state()
     assert state.input_buffer == nil
     assert state.output_buffer == nil
     assert state.progress == 0
     assert state.rate == 10
+    assert state.input_count == 0
+    assert state.output_remaining == 0
+    assert state.output_type == nil
   end
 
   test "idle when no input" do
@@ -21,7 +29,7 @@ defmodule Spheric.Game.Behaviors.SmelterTest do
   end
 
   test "increments progress when has input and output is clear" do
-    state = %{input_buffer: :iron_ore, output_buffer: nil, progress: 0, rate: 10}
+    state = smelter_state(%{input_buffer: :iron_ore, input_count: 1})
     building = %{type: :smelter, orientation: 0, state: state}
 
     updated = Smelter.tick(@key, building)
@@ -31,7 +39,7 @@ defmodule Spheric.Game.Behaviors.SmelterTest do
   end
 
   test "produces ingot when progress reaches rate" do
-    state = %{input_buffer: :iron_ore, output_buffer: nil, progress: 9, rate: 10}
+    state = smelter_state(%{input_buffer: :iron_ore, input_count: 1, progress: 9})
     building = %{type: :smelter, orientation: 0, state: state}
 
     updated = Smelter.tick(@key, building)
@@ -41,7 +49,7 @@ defmodule Spheric.Game.Behaviors.SmelterTest do
   end
 
   test "produces copper ingot from copper ore" do
-    state = %{input_buffer: :copper_ore, output_buffer: nil, progress: 9, rate: 10}
+    state = smelter_state(%{input_buffer: :copper_ore, input_count: 1, progress: 9})
     building = %{type: :smelter, orientation: 0, state: state}
 
     updated = Smelter.tick(@key, building)
@@ -49,7 +57,7 @@ defmodule Spheric.Game.Behaviors.SmelterTest do
   end
 
   test "stalls when output buffer is full" do
-    state = %{input_buffer: :iron_ore, output_buffer: :iron_ingot, progress: 0, rate: 10}
+    state = smelter_state(%{input_buffer: :iron_ore, input_count: 1, output_buffer: :iron_ingot, output_type: :iron_ingot})
     building = %{type: :smelter, orientation: 0, state: state}
 
     updated = Smelter.tick(@key, building)
@@ -59,7 +67,7 @@ defmodule Spheric.Game.Behaviors.SmelterTest do
   end
 
   test "full smelting cycle over multiple ticks" do
-    state = %{input_buffer: :iron_ore, output_buffer: nil, progress: 0, rate: 10}
+    state = smelter_state(%{input_buffer: :iron_ore, input_count: 1})
     building = %{type: :smelter, orientation: 0, state: state}
 
     # Tick 9 times (progress 0->9)
@@ -79,9 +87,16 @@ defmodule Spheric.Game.Behaviors.SmelterTest do
     assert building.state.progress == 0
   end
 
-  test "recipes returns expected mappings" do
+  test "recipes returns expected list format" do
     recipes = Smelter.recipes()
-    assert Map.get(recipes, :iron_ore) == :iron_ingot
-    assert Map.get(recipes, :copper_ore) == :copper_ingot
+    assert is_list(recipes)
+
+    iron_recipe = Enum.find(recipes, fn r -> r.output == {:iron_ingot, 1} end)
+    assert iron_recipe != nil
+    assert iron_recipe.inputs == [iron_ore: 1]
+
+    copper_recipe = Enum.find(recipes, fn r -> r.output == {:copper_ingot, 1} end)
+    assert copper_recipe != nil
+    assert copper_recipe.inputs == [copper_ore: 1]
   end
 end
