@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Add server setup and operation guide page (#79)
 - Bulk demolish mode for area removal of structures (#60)
 - Phase 7: Advanced Logistics & Polish (#49)
 - Add blueprint tool for stamp-placing building patterns (#52)

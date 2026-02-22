@@ -50,7 +50,8 @@ defmodule SphericWeb.GuideLive do
     "research-case-files" => "reference/Research Case Files.md",
     "biomes-resources" => "reference/Biomes & Resources.md",
     "altered-items-reference" => "reference/Altered Items Reference.md",
-    "glossary" => "reference/Glossary.md"
+    "glossary" => "reference/Glossary.md",
+    "server-setup-administration" => "reference/Server Setup & Administration.md"
   }
 
   # Reverse map: page title → slug (for wikilink resolution)
@@ -118,7 +119,8 @@ defmodule SphericWeb.GuideLive do
        {"Research Case Files", "research-case-files"},
        {"Biomes & Resources", "biomes-resources"},
        {"Altered Items Reference", "altered-items-reference"},
-       {"Glossary", "glossary"}
+       {"Glossary", "glossary"},
+       {"Server Setup & Administration", "server-setup-administration"}
      ]}
   ]
 

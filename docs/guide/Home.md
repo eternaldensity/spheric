@@ -77,3 +77,4 @@ Complete tables and data for quick lookup.
 - [[Biomes & Resources]]
 - [[Altered Items Reference]]
 - [[Glossary]]
+- [[Server Setup & Administration]]
