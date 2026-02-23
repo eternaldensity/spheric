@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Hide drone bay upgrades until construction complete (#122)
 - Clumpy ore distribution: cluster resource deposits into veins (#109)
 - Add Scoop and PostgreSQL installation instructions to server guide (#83)
 - Add Windows PostgreSQL Error 1067 troubleshooting to server guide (#81)

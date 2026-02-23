@@ -103,8 +103,10 @@ defmodule SphericWeb.GameLive.Helpers do
     if building do
       owner_name = Persistence.get_player_name(building[:owner_id])
 
+      under_construction = match?(%{construction: %{complete: false}}, building.state)
+
       drone_bay_info =
-        if building.type == :drone_bay do
+        if building.type == :drone_bay && !under_construction do
           player_upgrades = Persistence.get_drone_upgrades(building[:owner_id])
 
           %{
