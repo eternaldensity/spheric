@@ -3,7 +3,7 @@ defmodule Spheric.Game.ConstructionCosts do
   Building construction cost definitions and tier mapping.
 
   Each building type has a clearance tier and a resource cost.
-  Buildings with `nil` cost are always free (gathering_post).
+  Buildings with `nil` cost are always free.
   """
 
   @costs %{

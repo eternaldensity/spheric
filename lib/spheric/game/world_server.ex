@@ -217,12 +217,7 @@ defmodule Spheric.Game.WorldServer do
                 {state_with_altered, false}
 
               construction ->
-                # Gathering post is always free
-                if type == :gathering_post do
-                  {state_with_altered, false}
-                else
-                  {Map.put(state_with_altered, :construction, construction), false}
-                end
+                {Map.put(state_with_altered, :construction, construction), false}
             end
           end
 
