@@ -1002,14 +1002,15 @@ defmodule Spheric.Game.WorldServer do
   defp refund_building(key, building) do
     drop_held_items(key, building)
 
-    refund_materials = refund_materials_for(building)
+    tier = ConstructionCosts.tier(building.type)
 
-    if refund_materials != %{} do
-      tier = ConstructionCosts.tier(building.type)
+    if tier == 0 and building.owner_id != nil do
+      # Tier 0 buildings always restore a starter kit slot for free reconstruction
+      StarterKit.restore(building.owner_id, building.type)
+    else
+      refund_materials = refund_materials_for(building)
 
-      if tier == 0 and building.owner_id != nil do
-        StarterKit.restore(building.owner_id, building.type)
-      else
+      if refund_materials != %{} do
         refund_to_world(key, refund_materials)
       end
     end
