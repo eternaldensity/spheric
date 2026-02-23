@@ -44,7 +44,12 @@ Lighting is calculated **per cell** (each face is divided into a 4x4 grid of cel
 
 ## Resources
 
-Roughly **8% of tiles** contain resource deposits. Each deposit holds **100–500 units**.
+Resources appear in **ore veins** — clusters of the same resource type that form natural deposits across the sphere's surface. Each deposit tile holds **100–500 units**.
+
+Rather than being scattered randomly, ore veins radiate outward from a central point with the densest concentration at the core and thinning toward the edges. Resource-rich biomes (Volcanic, Desert) produce more and larger veins, while sparse biomes (Tundra, Forest) have fewer. Occasional lone deposits can appear outside veins, but the bulk of resources are found in clusters.
+
+> [!tip] Vein Scouting
+> When you find a resource tile, check the surrounding area — there's likely a whole vein nearby. Plan your miner layouts around the densest part of the cluster for maximum yield.
 
 | Resource | Bureau Name (Raw) | Bureau Name (Processed) | Processing Building |
 |---|---|---|---|

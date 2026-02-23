@@ -16,8 +16,17 @@ defmodule Spheric.Game.WorldGen do
   @default_seed 42
   @default_subdivisions 64
   @cells_per_axis 4
-  @resource_density 0.08
   @resource_amount_range 100..500
+
+  # Vein clustering parameters
+  # How many vein centers to seed per face (average)
+  @veins_per_face 12
+  # Vein radius in tile units — tiles within this radius have high spawn chance
+  @vein_radius 6.0
+  # Probability at vein center (falls off with distance)
+  @vein_center_prob 0.65
+  # Background chance for tiles far from any vein (sparse lone deposits)
+  @vein_background_prob 0.008
 
   @doc """
   Generate terrain for all tiles and insert into ETS.
@@ -49,6 +58,9 @@ defmodule Spheric.Game.WorldGen do
         # Precompute biomes for each of the 4x4 cells on this face
         cell_biomes = compute_cell_biomes(face_id, verts)
 
+        # Seed vein centers for this face
+        {veins, rng} = seed_veins(rng, cell_biomes, subdivisions)
+
         {face_tiles, rng} =
           Enum.reduce(0..(subdivisions - 1), {[], rng}, fn row, {acc, rng} ->
             {row_tiles, rng} =
@@ -57,7 +69,7 @@ defmodule Spheric.Game.WorldGen do
                 cell_col = div(col, tiles_per_cell)
                 biome = Map.get(cell_biomes, {cell_row, cell_col})
 
-                {resource, rng} = maybe_place_resource(rng, biome)
+                {resource, rng} = maybe_place_resource_clustered(rng, biome, row, col, veins)
                 tile = {{face_id, row, col}, %{terrain: biome, resource: resource}}
                 {[tile | acc], rng}
               end)
@@ -122,25 +134,101 @@ defmodule Spheric.Game.WorldGen do
     end
   end
 
-  defp maybe_place_resource(rng, biome) do
+  # Seed vein centers across the face. Each vein has a position (row, col),
+  # resource type, and radius. Veins cluster resources into natural deposits.
+  defp seed_veins(rng, cell_biomes, subdivisions) do
+    # Scale vein count with face size, apply biome density multipliers
+    base_count = @veins_per_face
+    tiles_per_cell = div(subdivisions, @cells_per_axis)
+
+    {veins, rng} =
+      Enum.reduce(1..base_count, {[], rng}, fn _i, {veins, rng} ->
+        # Random position on the face
+        {row_f, rng} = :rand.uniform_s(rng)
+        {col_f, rng} = :rand.uniform_s(rng)
+        vein_row = row_f * subdivisions
+        vein_col = col_f * subdivisions
+
+        # Determine biome at this vein center
+        cell_row = min(div(trunc(vein_row), tiles_per_cell), @cells_per_axis - 1)
+        cell_col = min(div(trunc(vein_col), tiles_per_cell), @cells_per_axis - 1)
+        biome = Map.get(cell_biomes, {cell_row, cell_col})
+
+        # Biome density affects whether this vein spawns at all
+        density_mult = biome_density_multiplier(biome)
+        {spawn_roll, rng} = :rand.uniform_s(rng)
+
+        if spawn_roll < density_mult do
+          # Pick a resource type weighted by biome
+          {resource_type, rng} = pick_resource_type(rng, biome)
+
+          # Vary radius slightly per vein
+          {radius_roll, rng} = :rand.uniform_s(rng)
+          radius = @vein_radius * (0.6 + radius_roll * 0.8)
+
+          vein = %{row: vein_row, col: vein_col, type: resource_type, radius: radius}
+          {[vein | veins], rng}
+        else
+          {veins, rng}
+        end
+      end)
+
+    {veins, rng}
+  end
+
+  defp biome_density_multiplier(:volcanic), do: 1.0
+  defp biome_density_multiplier(:desert), do: 0.9
+  defp biome_density_multiplier(:grassland), do: 0.75
+  defp biome_density_multiplier(:forest), do: 0.6
+  defp biome_density_multiplier(:tundra), do: 0.5
+
+  # Place resources based on proximity to vein centers.
+  # Close to a vein = high chance of that vein's resource type.
+  # Far from all veins = very small background chance.
+  defp maybe_place_resource_clustered(rng, biome, row, col, veins) do
     {roll, rng} = :rand.uniform_s(rng)
 
-    density = resource_density_for_biome(biome)
+    # Find the closest vein and compute spawn probability
+    case closest_vein(row, col, veins) do
+      {vein, dist} when dist < vein.radius ->
+        # Quadratic falloff: probability decreases with distance squared
+        t = dist / vein.radius
+        prob = @vein_center_prob * (1.0 - t * t)
 
-    if roll < density do
-      {resource_type, rng} = pick_resource_type(rng, biome)
-      {amount, rng} = random_amount(rng)
-      {{resource_type, amount}, rng}
-    else
-      {nil, rng}
+        if roll < prob do
+          {amount, rng} = random_amount(rng)
+          {{vein.type, amount}, rng}
+        else
+          {nil, rng}
+        end
+
+      _ ->
+        # Far from any vein — small background chance with biome-weighted type
+        if roll < @vein_background_prob do
+          {resource_type, rng} = pick_resource_type(rng, biome)
+          {amount, rng} = random_amount(rng)
+          {{resource_type, amount}, rng}
+        else
+          {nil, rng}
+        end
     end
   end
 
-  defp resource_density_for_biome(:volcanic), do: @resource_density * 1.5
-  defp resource_density_for_biome(:desert), do: @resource_density * 1.2
-  defp resource_density_for_biome(:grassland), do: @resource_density
-  defp resource_density_for_biome(:forest), do: @resource_density * 0.8
-  defp resource_density_for_biome(:tundra), do: @resource_density * 0.6
+  defp closest_vein(_row, _col, []), do: nil
+
+  defp closest_vein(row, col, veins) do
+    Enum.min_by(veins, fn vein ->
+      dr = row - vein.row
+      dc = col - vein.col
+      dr * dr + dc * dc
+    end)
+    |> then(fn vein ->
+      dr = row - vein.row
+      dc = col - vein.col
+      {vein, :math.sqrt(dr * dr + dc * dc)}
+    end)
+  end
+
 
   defp pick_resource_type(rng, biome) do
     {roll, rng} = :rand.uniform_s(rng)

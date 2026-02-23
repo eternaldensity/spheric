@@ -10,7 +10,7 @@ The extraction-and-processing loop is the foundation of everything you build.
 - Stops producing when the deposit is depleted (100–500 units per tile)
 
 > [!tip] Deposit Scouting
-> Click tiles to check for resources before committing to a layout. Look for clusters of the same resource type to minimize [[The Conveyor Network|conveyor]] length.
+> Resources appear in **ore veins** — clusters of the same type radiating from a central point. When you find a resource tile, explore the surrounding area to find the full vein. Place miners on the densest part of the cluster to minimize [[The Conveyor Network|conveyor]] length.
 
 ## The Smelter (Processor)
 

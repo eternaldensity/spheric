@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Clumpy ore distribution: cluster resource deposits into veins (#109)
 - Add Scoop and PostgreSQL installation instructions to server guide (#83)
 - Add Windows PostgreSQL Error 1067 troubleshooting to server guide (#81)
 - Expand server guide troubleshooting with database and common failure recovery (#80)
@@ -24,4 +25,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Fix resource rendering: remove hatched overlay, keep vertex-color glow (#20)
 
 ### Changed
+- Update user guide with clumpy ore distribution info (#110)
 - Replace ETS tab2list() with targeted queries (#74)
