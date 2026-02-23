@@ -61,9 +61,9 @@ The **Transfer Station** (Clearance 4) bridges distant Substations to extend you
 
 Biofuel comes from [[Creatures & Containment|creatures]]:
 
-1. Capture creatures with a Gathering Post + Containment Trap
+1. Capture creatures with a Gathering Post + Trap
 2. Use an **Essence Extractor** (Clearance 5) to extract essence from assigned creatures
-3. Route **Entity Biofuel** or **Anomalous Essence** into your Refinery to produce **Refined Entity Fuel**
+3. Route **Entity Biofuel** or **Anomalous Essence** into your Distiller to produce **Refined Entity Fuel**
 
 > [!tip] Fuel Planning
 > A single Bio Generator consumes fuel continuously. Plan your creature capture pipeline early — you'll need a steady supply of biofuel for any serious mid-to-late-game production.

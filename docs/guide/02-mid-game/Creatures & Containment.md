@@ -1,6 +1,6 @@
 # Creatures & Containment
 
-At **Clearance 3**, you unlock the **Containment Trap**, which lets you capture the wild creatures roaming the sphere.
+At **Clearance 3**, you unlock the **Trap**, which lets you capture the wild creatures roaming the sphere.
 
 ## Wild Creatures
 
@@ -16,7 +16,7 @@ Up to **200 wild creatures** exist on the sphere at once. New creatures spawn ev
 ## Capturing Creatures
 
 1. Place a **Gathering Post** (free, from your [[Your Starter Kit|Starter Kit]]) to attract creatures to your area
-2. Place a **Containment Trap** nearby — captures creatures within **radius 3**
+2. Place a **Trap** nearby — captures creatures within **radius 3**
 3. Wait — capture takes **15 ticks** once a creature enters range
 4. Captured creatures appear in your **Containment Records** panel (**C** key)
 
@@ -66,7 +66,7 @@ See [[Creature Reference]] for the complete list with biomes and stats.
 | Building | Clearance | Function |
 |---|---|---|
 | Gathering Post | 0 (start) | Attracts creatures within radius 7 |
-| Containment Trap | 3 | Captures creatures within radius 3 |
+| Trap | 3 | Captures creatures within radius 3 |
 | Essence Extractor | 5 | Extracts essence from creatures for [[Power & Energy|biofuel]] |
 | Astral Projection Chamber | 7 | Reveals all creature locations ([[Endgame Buildings]]) |
 

@@ -35,7 +35,7 @@ The Synthesizer needs:
 This means you need:
 1. A working [[Nuclear Processing|nuclear chain]] for Radiant Cells
 2. A Particle Collider producing Hypercomputation Cores and Paranatural Composite
-3. A creature pipeline: Gathering Post → Containment Trap → Essence Extractor
+3. A creature pipeline: Gathering Post → Trap → Essence Extractor
 
 > [!tip] Best Creature for Synthesizers
 > An evolved **Void Fragment** (+30% to all stats) is the ideal assignment. A **Resonance Moth** (+70% evolved Efficiency) also works well — saving Anomalous Essence on some crafts.

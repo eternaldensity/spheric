@@ -2,30 +2,30 @@
 
 Every new Operator receives these buildings for free:
 
-| Building | Bureau Name | Qty | Purpose |
+| Bureau Name | Common Name | Qty | Purpose |
 |---|---|---|---|
-| Conveyor | Conduit | 8 | Moves items between buildings |
-| Miner | Extractor | 2 | Extracts raw ore from resource tiles |
-| Smelter | Processor | 2 | Converts raw ore into ingots |
-| Submission Terminal | Terminal | 1 | Submit items for Bureau [[Submitting Research|research]] |
+| Conduit | Conveyor | 8 | Moves items between buildings |
+| Extractor | Miner | 2 | Extracts raw ore from resource tiles |
+| Processor | Smelter | 2 | Converts raw ore into ingots |
+| Terminal | Submission Terminal | 1 | Submit items for Bureau [[Submitting Research|research]] |
 | Gathering Post | Gathering Post | 1 | Attracts nearby [[Creatures & Containment|creatures]] |
 
 Starter Kit buildings are placed **instantly** — no construction required. Once your kit is used up, every new building must be constructed with resources (see [[Placing Your First Buildings#Step 6 Construction|Construction]]).
 
-This is enough to set up your very first production line: two mining chains (one iron, one copper) feeding into a Submission Terminal.
+This is enough to set up your very first production line: two extraction chains (one Ferric Compound, one Paraelectric Ore) feeding into a Terminal.
 
 ## What Each Building Does
 
-### Conveyor (Conduit)
+### Conduit (Conveyor)
 The backbone of your factory. Pushes items one tile in its facing direction every tick. See [[The Conveyor Network]] for details.
 
-### Miner (Extractor)
-Place on a resource tile to begin extracting raw ore. Can only be placed on tiles with deposits. See [[Mining & Smelting]].
+### Extractor (Miner)
+Place on a resource tile to begin extracting raw ore. Can only be placed on tiles with deposits. See [[Extraction & Processing]].
 
-### Smelter (Processor)
-Converts raw ore into usable ingots. Feed it ore via conveyors, and it outputs ingots. See [[Mining & Smelting]].
+### Processor (Smelter)
+Converts raw ore into usable ingots. Feed it ore via Conduits, and it outputs ingots. See [[Extraction & Processing]].
 
-### Submission Terminal
+### Terminal
 The gateway to progression. Items delivered here count toward [[Research Case Files|Case File]] completion. See [[Submitting Research]].
 
 ### Gathering Post

@@ -6,22 +6,22 @@
 
 | Case File | Requirement |
 |---|---|
-| Ferric Standardization | 50 Ferric Standard (iron ingot) |
-| Paraelectric Requisition | 30 Paraelectric Bar (copper ingot) |
+| Ferric Standardization | 50 Ferric Standard |
+| Paraelectric Requisition | 30 Paraelectric Bar |
 
-Submit these via your [[Submitting Research|Submission Terminal]].
+Submit these via your [[Submitting Research|Terminal]].
 
 ## What You Unlock
 
-| Building | Bureau Name | Use |
+| Bureau Name | Common Name | Use |
 |---|---|---|
-| Splitter | Distributor | Splits one conveyor line into multiple outputs |
-| Merger | Converger | Combines multiple inputs into one line |
-| Claim Beacon | Jurisdiction Beacon | [[Claiming Territory|Claims territory]] |
-| Trade Terminal | Exchange Terminal | [[Trading with Other Operators|Trade]] with other players |
-| Conveyor Mk2 | Conduit Mk-II | Faster [[The Conveyor Network|conveyor]] |
-| Storage Container | Containment Vault | Stores items (one type per container) |
-| Crossover | Transit Interchange | Cross two conveyor paths without merging |
+| Distributor | Splitter | Splits one Conduit line into multiple outputs |
+| Converger | Merger | Combines multiple inputs into one line |
+| Jurisdiction Beacon | Claim Beacon | [[Claiming Territory|Claims territory]] |
+| Exchange Terminal | Trade Terminal | [[Trading with Other Operators|Trade]] with other players |
+| Conduit Mk-II | Conveyor Mk2 | Faster [[The Conveyor Network|Conduit]] |
+| Containment Vault | Storage Container | Stores items (one type per container) |
+| Transit Interchange | Crossover | Cross two Conduit paths without merging |
 
 See [[Advanced Logistics]] for details on using these buildings.
 

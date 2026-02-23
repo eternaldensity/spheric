@@ -2,26 +2,26 @@
 
 At Clearance 4–5, you unlock higher-tier production buildings that process more complex materials.
 
-## Advanced Smelter (Advanced Processor)
+## Advanced Processor (Advanced Smelter)
 
 *Unlocked at Clearance 4*
 
-- **Faster** processing: 8 ticks vs [[Mining & Smelting|standard Smelter's]] 10
-- Handles all standard smelter recipes **plus** uranium:
+- **Faster** processing: 8 ticks vs [[Extraction & Processing|standard Processor's]] 10
+- Handles all standard Processor recipes **plus** uranium:
 
 | Input | Output |
 |---|---|
 | Threshold Radiant (Raw) | Enriched Radiant |
 
-This is the first building that processes **uranium**, a critical resource for [[High-Tech Manufacturing|late-game]] production.
+This is the first building that processes **Threshold Radiant** (uranium), a critical resource for [[High-Tech Manufacturing|late-game]] production.
 
 **Cost:** 1 Heavy Astral Frame, 5 Resonance Circuit, 3 Thermal Regulator
 
-## Advanced Assembler (Advanced Fabricator)
+## Advanced Fabricator (Advanced Assembler)
 
 *Unlocked at Clearance 5*
 
-- **Faster** processing: 12 ticks vs [[The Assembler|standard Assembler's]] 15
+- **Faster** processing: 12 ticks vs [[The Fabricator|standard Fabricator's]] 15
 - New recipes using mid-tier components:
 
 | Input A | Input B | Output |
@@ -49,7 +49,7 @@ The first **triple-input** building — requires three different materials.
 | Reinforced Plate | Polymer Membrane | Astral Ingot | Structural Composite |
 
 > [!note] Three Input Lines
-> Like the Assembler but more complex — you need to route **three** separate [[The Conveyor Network|conveyor]] streams. Use [[Advanced Logistics|Crossovers and Underground Conduits]] liberally.
+> Like the Fabricator but more complex — you need to route **three** separate [[The Conveyor Network|Conduit]] streams. Use [[Advanced Logistics|Transit Interchanges and Subsurface Links]] liberally.
 
 **Cost:** 3 Heavy Astral Frame, 5 Adv. Resonance Circuit, 3 Kinetic Driver, 5 Shielded Conduit
 

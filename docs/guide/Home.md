@@ -19,7 +19,7 @@ Safe for all players. Covers the basics, controls, and first steps.
 6. [[Your Starter Kit]]
 7. [[Placing Your First Buildings]]
 8. [[The Conveyor Network]]
-9. [[Mining & Smelting]]
+9. [[Extraction & Processing]]
 10. [[Submitting Research]]
 11. [[Reaching Clearance 1]]
 12. [[Claiming Territory]]
@@ -34,8 +34,8 @@ Safe for all players. Covers the basics, controls, and first steps.
 Intermediate mechanics: production chains, creatures, power, and combat.
 
 1. [[Production Chains]]
-2. [[The Assembler]]
-3. [[The Refinery]]
+2. [[The Fabricator]]
+3. [[The Distiller]]
 4. [[Advanced Logistics]]
 5. [[Creatures & Containment]]
 6. [[Power & Energy]]

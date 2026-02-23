@@ -1,8 +1,8 @@
 # Advanced Logistics
 
-Clearance 1 and 2 unlock several logistics buildings that let you build complex routing networks beyond simple [[The Conveyor Network|conveyor]] chains.
+Clearance 1 and 2 unlock several logistics buildings that let you build complex routing networks beyond simple [[The Conveyor Network|Conduit]] chains.
 
-## Splitter (Distributor)
+## Distributor (Splitter)
 
 *Unlocked at [[Reaching Clearance 1|Clearance 1]]*
 
@@ -12,7 +12,7 @@ Clearance 1 and 2 unlock several logistics buildings that let you build complex 
 
 **Cost:** 3 Ferric Standard, 2 Paraelectric Bar
 
-## Merger (Converger)
+## Converger (Merger)
 
 *Unlocked at [[Reaching Clearance 1|Clearance 1]]*
 
@@ -22,7 +22,7 @@ Clearance 1 and 2 unlock several logistics buildings that let you build complex 
 
 **Cost:** 3 Ferric Standard, 2 Paraelectric Bar
 
-## Balancer (Load Equalizer)
+## Load Equalizer (Balancer)
 
 *Unlocked at Clearance 2*
 
@@ -32,42 +32,42 @@ Clearance 1 and 2 unlock several logistics buildings that let you build complex 
 
 **Cost:** 5 Ferric Standard, 1 Resonance Circuit
 
-## Underground Conduit (Subsurface Link)
+## Subsurface Link (Underground Conduit)
 
 *Unlocked at Clearance 2*
 
 - **Tunnels under 1 tile**
 - Place entrance and exit — items skip the tile between them
-- Useful for crossing other conveyor lines without conflict
+- Useful for crossing other Conduit lines without conflict
 
 **Cost:** 8 Ferric Standard, 5 Paraelectric Bar
 
-## Crossover (Transit Interchange)
+## Transit Interchange (Crossover)
 
 *Unlocked at [[Reaching Clearance 1|Clearance 1]]*
 
-- Allows **two conveyor paths to cross** without merging
+- Allows **two Conduit paths to cross** without merging
 - Items continue straight through in their original direction
 - Essential for complex factory layouts
 
 **Cost:** 4 Ferric Standard, 2 Paraelectric Bar
 
-## Conveyor Mk2 & Mk3
+## Conduit Mk-II & Mk-III
 
 Faster versions of the standard Conduit:
 
 | Tier | Bureau Name | Unlocked At | Cost |
 |---|---|---|---|
-| Mk2 | Conduit Mk-II | Clearance 1 | 2 Ferric Standard, 1 Paraelectric Bar |
-| Mk3 | Conduit Mk-III | Clearance 2 | 3 Ferric Standard, 2 Conductive Filament |
+| Mk-II | Conduit Mk-II | Clearance 1 | 2 Ferric Standard, 1 Paraelectric Bar |
+| Mk-III | Conduit Mk-III | Clearance 2 | 3 Ferric Standard, 2 Conductive Filament |
 
-## Storage Container (Containment Vault)
+## Containment Vault (Storage Container)
 
 *Unlocked at [[Reaching Clearance 1|Clearance 1]]*
 
 - Stores a buffer of items (**one item type** per container)
 - Useful for buffering overproduction or staging items for construction sites
-- Items flow in from conveyors and can be pulled out by downstream conveyors
+- Items flow in from Conduits and can be pulled out by downstream Conduits
 
 **Cost:** 5 Ferric Standard, 2 Structural Plate
 
@@ -85,4 +85,4 @@ Faster versions of the standard Conduit:
 
 See [[Building Reference]] for the complete building list with all costs.
 
-**Previous:** [[The Refinery]] | **Next:** [[Creatures & Containment]]
+**Previous:** [[The Distiller]] | **Next:** [[Creatures & Containment]]

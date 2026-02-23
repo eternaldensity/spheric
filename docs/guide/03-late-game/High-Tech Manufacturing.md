@@ -21,9 +21,9 @@ A dual-input building that creates ultra-advanced components through high-energy
 
 > [!note] The Hypercomputation Core is the most important late-game component — it's needed for nearly every Clearance 7–8 building and the [[Board Contact Quest]].
 
-## Nuclear Refinery (Nuclear Distiller)
+## Nuclear Distiller (Nuclear Refinery)
 
-Processes uranium into enriched fuel. An alternative to the [[Advanced Production#Advanced Smelter (Advanced Processor)|Advanced Smelter]] for uranium enrichment.
+Processes uranium into enriched fuel. An alternative to the [[Advanced Production#Advanced Processor (Advanced Smelter)|Advanced Processor]] for uranium enrichment.
 
 **Processing time:** 20 ticks
 
@@ -37,7 +37,7 @@ Processes uranium into enriched fuel. An alternative to the [[Advanced Productio
 
 Building a Particle Collider requires outputs from:
 - [[Advanced Production#Fabrication Plant|Fabrication Plant]] (Computation Matrix, Armored Drive Assembly)
-- [[Advanced Production#Advanced Assembler (Advanced Fabricator)|Advanced Assembler]] (Heavy Astral Frame, Adv. Resonance Circuit)
+- [[Advanced Production#Advanced Fabricator (Advanced Assembler)|Advanced Fabricator]] (Heavy Astral Frame, Adv. Resonance Circuit)
 
 This means you need a complete Clearance 5 production chain operational before you can construct Clearance 6 buildings.
 

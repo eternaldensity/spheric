@@ -17,7 +17,7 @@ Complete keybinding reference for Spheric.
 | **Left Click** (on tile) | Fly to tile + select / place building |
 | **Right Click** (on building) | Decommission building |
 | **R** | Rotate building orientation |
-| **L** | Toggle Line Mode (draw [[The Conveyor Network|conveyor]] lines) |
+| **L** | Toggle Line Mode (draw [[The Conveyor Network|Conduit]] lines) |
 | **X** | Toggle Demolish Mode (rectangle area selection) |
 | **Escape** | Clear selection / close panel / cancel mode |
 
@@ -28,7 +28,7 @@ Complete keybinding reference for Spheric.
 | **1–5** | Select hotbar slot |
 | **Q** | Open Building Catalog |
 
-Default hotbar: Conveyor (1), Miner (2), Smelter (3), empty (4), empty (5)
+Default hotbar: Conduit (1), Extractor (2), Processor (3), empty (4), empty (5)
 
 Right-click a hotbar slot to reassign it from the Catalog.
 

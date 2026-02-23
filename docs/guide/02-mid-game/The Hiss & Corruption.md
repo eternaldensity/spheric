@@ -25,7 +25,7 @@ Hiss Entities are hostile creatures that spawn from high-intensity corruption zo
 - Move toward nearby buildings and players
 - Attack within **radius 3**
 - Damage buildings they reach
-- Must be killed by **Defense Arrays** (turrets)
+- Must be killed by **Defense Arrays**
 - Drop **Hiss Residue** when killed
 
 Hiss Residue is needed for the [[Board Contact Quest|endgame quest]] — so fighting the Hiss is eventually necessary, not just defensive.
@@ -34,7 +34,7 @@ Hiss Residue is needed for the [[Board Contact Quest|endgame quest]] — so figh
 
 Both unlocked at **Clearance 3**:
 
-### Defense Turret (Defense Array)
+### Defense Array (Defense Turret)
 
 - Auto-attacks Hiss entities within **radius 3**
 - Kills entities and produces **Hiss Residue**

@@ -16,7 +16,7 @@ The game is **multiplayer**: other Operators share the same sphere, each claimin
 ## Core Loop
 
 1. **Extract** raw resources from the sphere's surface
-2. **Process** them through smelters, refineries, and assemblers
+2. **Process** them through Processors, Distillers, and Fabricators
 3. **Submit** materials to the Bureau to unlock new technology
 4. **Expand** your factory with increasingly complex production chains
 5. **Defend** against a parasitic corruption called [[The Hiss & Corruption|The Hiss]]

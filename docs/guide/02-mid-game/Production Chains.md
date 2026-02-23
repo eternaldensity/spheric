@@ -6,19 +6,19 @@
 At Clearance 2, the game transforms from simple ore-to-ingot lines into complex **multi-step production chains**. You now deal with:
 
 - Multiple resource types
-- Multi-input buildings (the [[The Assembler|Assembler]] takes 2 different items)
+- Multi-input buildings (the [[The Fabricator|Fabricator]] takes 2 different items)
 - Intermediate components that feed into higher-tier recipes
 
 ## New Resources
 
 Four new resources become relevant at Clearance 2:
 
-| Resource | Bureau Name | Processed By | Output |
+| Bureau Name | Common Name | Processed By | Output |
 |---|---|---|---|
-| Quartz | Resonance Crystal | [[Mining & Smelting|Smelter]] | Refined Resonance Crystal |
-| Titanium | Astral Ore | Smelter | Astral Ingot |
-| Oil | Black Rock Ichor | [[The Refinery|Refinery]] | Stabilized Polymer |
-| Sulfur | Threshold Dust | Refinery | Threshold Compound |
+| Resonance Crystal | Quartz | [[Extraction & Processing|Processor]] | Refined Resonance Crystal |
+| Astral Ore | Titanium | Processor | Astral Ingot |
+| Black Rock Ichor | Oil | [[The Distiller|Distiller]] | Stabilized Polymer |
+| Threshold Dust | Sulfur | Distiller | Threshold Compound |
 
 See [[Biomes & Resources]] for where to find these deposits.
 
@@ -29,13 +29,13 @@ At a high level, production flows through tiers:
 ```
 Tier 0: Raw Ore
   ↓
-Tier 1: Ingots (Smelter/Refinery)
+Tier 1: Ingots (Processor/Distiller)
   ↓
-Tier 2: Basic Components (Assembler) — wire, plate, circuit, frame
+Tier 2: Basic Components (Fabricator) — Conductive Filament, Structural Plate, Resonance Circuit, Astral Frame
   ↓
-Tier 3: Advanced Components (Adv. Assembler) — heavy frame, adv. circuit
+Tier 3: Advanced Components (Adv. Fabricator) — Heavy Astral Frame, Adv. Resonance Circuit
   ↓
-Tier 4: Complex Items (Fabrication Plant) — computer, motor housing
+Tier 4: Complex Items (Fabrication Plant) — Computation Matrix, Armored Drive Assembly
   ↓
 Tier 5+: Endgame Materials (Particle Collider, Synthesizer)
 ```
@@ -44,26 +44,26 @@ Each tier requires the outputs of the tier below it. Planning your layout to acc
 
 ## Key Production Paths
 
-### Wire & Plate (Foundation of everything)
+### Conductive Filament & Structural Plate (Foundation of everything)
 ```
-Copper Ingot + Copper Ingot → Conductive Filament (wire)
-Iron Ingot + Iron Ingot → Structural Plate
+Paraelectric Bar + Paraelectric Bar → Conductive Filament
+Ferric Standard + Ferric Standard → Structural Plate
 ```
 
 ### Electronics
 ```
-Wire + Quartz Crystal → Resonance Circuit
-Plate + Titanium Ingot → Astral Frame
+Conductive Filament + Refined Resonance Crystal → Resonance Circuit
+Structural Plate + Astral Ingot → Astral Frame
 ```
 
 ### Mechanical
 ```
-Iron Ingot + Wire → Kinetic Driver (motor)
-Wire + Polymer → Shielded Conduit (cable)
+Ferric Standard + Conductive Filament → Kinetic Driver
+Conductive Filament + Stabilized Polymer → Shielded Conduit
 ```
 
 See [[Recipe Reference]] for complete recipe tables.
 
 ---
 
-**Previous:** [[Early Game Tips]] | **Next:** [[The Assembler]]
+**Previous:** [[Early Game Tips]] | **Next:** [[The Fabricator]]

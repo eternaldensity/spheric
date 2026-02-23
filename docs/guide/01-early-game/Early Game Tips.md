@@ -5,17 +5,17 @@
 
 ## Location
 
-- **Find a cluster of iron and copper deposits** near each other before building. This minimizes [[The Conveyor Network|conveyor]] length.
+- **Find a cluster of Ferric Compound and Paraelectric Ore deposits** near each other before building. This minimizes [[The Conveyor Network|Conduit]] length.
 - Click tiles to scout before committing to a layout.
 
 ## Building
 
 - **Orientation is everything.** Before placing, press **R** to check the facing direction. A misaligned building wastes resources.
-- **Use Line Mode (L)** for long conveyor runs. It's much faster than placing one at a time.
+- **Use Line Mode (L)** for long Conduit runs. It's much faster than placing one at a time.
 
 ## Production
 
-- **Don't spread too thin.** Focus on one iron line and one copper line first.
+- **Don't spread too thin.** Focus on one Ferric Compound line and one Paraelectric Ore line first.
 - Your immediate goal is **50 Ferric Standards** and **30 Paraelectric Bars** for [[Reaching Clearance 1|Clearance 1]].
 
 ## Preparation

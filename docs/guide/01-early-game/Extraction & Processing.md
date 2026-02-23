@@ -1,8 +1,8 @@
-# Mining & Smelting
+# Extraction & Processing
 
 The extraction-and-processing loop is the foundation of everything you build.
 
-## The Miner (Extractor)
+## The Extractor (Miner)
 
 - Can **only** be placed on tiles with resource deposits
 - Extracts 1 raw ore per cycle (every **10 ticks**)
@@ -10,15 +10,15 @@ The extraction-and-processing loop is the foundation of everything you build.
 - Stops producing when the deposit is depleted (100–500 units per tile)
 
 > [!tip] Deposit Scouting
-> Resources appear in **ore veins** — clusters of the same type radiating from a central point. When you find a resource tile, explore the surrounding area to find the full vein. Place miners on the densest part of the cluster to minimize [[The Conveyor Network|conveyor]] length.
+> Resources appear in **ore veins** — clusters of the same type radiating from a central point. When you find a resource tile, explore the surrounding area to find the full vein. Place Extractors on the densest part of the cluster to minimize [[The Conveyor Network|Conduit]] length.
 
-## The Smelter (Processor)
+## The Processor (Smelter)
 
-- Accepts raw ore from an adjacent [[The Conveyor Network|conveyor]]
+- Accepts raw ore from an adjacent [[The Conveyor Network|Conduit]]
 - Processes one ore every **10 ticks**
 - Outputs the corresponding ingot in its facing direction
 
-### Smelter Recipes (Clearance 0)
+### Processor Recipes (Clearance 0)
 
 | Input | Output |
 |---|---|
@@ -37,7 +37,7 @@ For the complete recipe list, see [[Recipe Reference]].
 ## Building Your First Chain
 
 ```
-[Iron Deposit] → [Miner →] → [Conveyor →] → [Smelter →] → [Conveyor →] → [Terminal]
+[Ferric Compound Deposit] → [Extractor →] → [Conduit →] → [Processor →] → [Conduit →] → [Terminal]
 ```
 
 The arrows show the facing direction of each building. Every building must face toward the next one in the chain.
@@ -47,10 +47,10 @@ The arrows show the facing direction of each building. Every building must face 
 
 ## What Happens to Output
 
-Ingots produced by the Smelter are pushed downstream. They can go to:
-- A **[[Submitting Research|Submission Terminal]]** — to count toward research
-- Another production building (like an [[The Assembler|Assembler]], unlocked later)
-- A **[[Building Reference#Storage & Trade|Storage Container]]** — to buffer surplus
+Ingots produced by the Processor are pushed downstream. They can go to:
+- A **[[Submitting Research|Terminal]]** — to count toward research
+- Another production building (like a [[The Fabricator|Fabricator]], unlocked later)
+- A **[[Building Reference#Storage & Trade|Containment Vault]]** — to buffer surplus
 
 ---
 

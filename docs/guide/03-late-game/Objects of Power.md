@@ -7,10 +7,10 @@ Each clearance tier, when **fully completed** (all case files submitted), grants
 | Clearance | Object of Power | Effect |
 |---|---|---|
 | 1 | Bureau Directive Alpha | +10% production speed for all structures |
-| 2 | Pneumatic Transit Network | Teleport between owned [[Submitting Research\|Submission Terminals]] |
+| 2 | Pneumatic Transit Network | Teleport between owned [[Submitting Research\|Terminals]] |
 | 3 | Astral Projection | See all [[Creatures & Containment\|creature]] locations on the sphere |
 | 4 | Power Surge | +25% [[Power & Energy\|generator]] fuel duration |
-| 5 | Logistics Mastery | All [[The Conveyor Network\|conveyors]] operate 20% faster |
+| 5 | Logistics Mastery | All [[The Conveyor Network\|Conduits]] operate 20% faster |
 | 6 | Altered Resonance | All [[Altered Items]] effects are doubled |
 | 7 | Entity Communion | +50% [[Creatures & Containment\|creature]] boost stacking |
 | 8 | Board's Favor | [[The Hiss & Corruption\|Corruption]] cannot seed within 10 tiles of your buildings |

@@ -35,7 +35,7 @@ Reveals **all [[Creatures & Containment|creature]] locations** across the entire
 | Astral Projection Lens | 1 |
 
 > [!tip] Creature Scouting
-> Use the Astral Projection Chamber to find rare creatures, then expand your Gathering Post + Containment Trap network to those locations.
+> Use the Astral Projection Chamber to find rare creatures, then expand your Gathering Post + Trap network to those locations.
 
 ---
 

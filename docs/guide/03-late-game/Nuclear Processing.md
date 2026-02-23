@@ -5,24 +5,24 @@ The nuclear production chain is one of the most resource-intensive in the game. 
 ## The Chain
 
 ```
-Uranium Deposit → Miner → Adv. Smelter or Nuclear Refinery → Enriched Radiant
-                                                                      ↓
+Threshold Radiant Deposit → Extractor → Adv. Processor or Nuclear Distiller → Enriched Radiant
+                                                                                      ↓
 Structural Composite + Refined Resonance Crystal → Particle Collider → Paranatural Composite
-                                                                      ↓
+                                                                                      ↓
                                    Enriched Radiant + Paranatural Composite → Radiant Cell
 ```
 
 ## Step by Step
 
-### 1. Source Uranium
+### 1. Source Threshold Radiant
 
-**Threshold Radiant** (uranium) is the rarest base resource on the sphere. Scout the sphere for deposits — you may need to expand your [[Claiming Territory|territory]] to reach them.
+**Threshold Radiant** is the rarest base resource on the sphere. Scout the sphere for deposits — you may need to expand your [[Claiming Territory|territory]] to reach them.
 
 ### 2. Enrich It
 
 Use either:
-- **[[Advanced Production#Advanced Smelter (Advanced Processor)|Advanced Smelter]]** (Clearance 4) — also processes other ores
-- **[[High-Tech Manufacturing#Nuclear Refinery (Nuclear Distiller)|Nuclear Refinery]]** (Clearance 6) — dedicated uranium processing
+- **[[Advanced Production#Advanced Processor (Advanced Smelter)|Advanced Processor]]** (Clearance 4) — also processes other ores
+- **[[High-Tech Manufacturing#Nuclear Distiller (Nuclear Refinery)|Nuclear Distiller]]** (Clearance 6) — dedicated uranium processing
 
 ### 3. Produce Paranatural Composite
 
@@ -40,7 +40,7 @@ Feed Enriched Radiant + Paranatural Composite into a Particle Collider.
 - [[Board Contact Quest]] (50 required)
 
 > [!tip] Start Nuclear Early
-> Uranium deposits are rare and the chain is long. Begin scouting for uranium at Clearance 4–5 so you're ready when you reach Clearance 6.
+> Threshold Radiant deposits are rare and the chain is long. Begin scouting at Clearance 4–5 so you're ready when you reach Clearance 6.
 
 ---
 

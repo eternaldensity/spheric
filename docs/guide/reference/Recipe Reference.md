@@ -6,7 +6,7 @@ Complete production recipe tables for all buildings in Spheric.
 
 ---
 
-## Smelter (Processor) — 10 ticks
+## Processor (Smelter) — 10 ticks
 
 *Available from start*
 
@@ -19,9 +19,9 @@ Complete production recipe tables for all buildings in Spheric.
 
 ---
 
-## Refinery (Distiller) — 12 ticks
+## Distiller (Refinery) — 12 ticks
 
-*Unlocked at Clearance 2. See [[The Refinery]].*
+*Unlocked at Clearance 2. See [[The Distiller]].*
 
 | Input | Output |
 |---|---|
@@ -31,9 +31,9 @@ Complete production recipe tables for all buildings in Spheric.
 
 ---
 
-## Assembler (Fabricator) — 15 ticks
+## Fabricator (Assembler) — 15 ticks
 
-*Unlocked at Clearance 2. See [[The Assembler]].*
+*Unlocked at Clearance 2. See [[The Fabricator]].*
 
 | Input A | Input B | Output |
 |---|---|---|
@@ -48,11 +48,11 @@ Complete production recipe tables for all buildings in Spheric.
 
 ---
 
-## Advanced Smelter (Advanced Processor) — 8 ticks
+## Advanced Processor (Advanced Smelter) — 8 ticks
 
 *Unlocked at Clearance 4. See [[Advanced Production]].*
 
-All standard Smelter recipes, plus:
+All standard Processor recipes, plus:
 
 | Input | Output |
 |---|---|
@@ -60,7 +60,7 @@ All standard Smelter recipes, plus:
 
 ---
 
-## Advanced Assembler (Advanced Fabricator) — 12 ticks
+## Advanced Fabricator (Advanced Assembler) — 12 ticks
 
 *Unlocked at Clearance 5. See [[Advanced Production]].*
 
@@ -96,7 +96,7 @@ All standard Smelter recipes, plus:
 
 ---
 
-## Nuclear Refinery (Nuclear Distiller) — 20 ticks
+## Nuclear Distiller (Nuclear Refinery) — 20 ticks
 
 *Unlocked at Clearance 6. See [[High-Tech Manufacturing]].*
 

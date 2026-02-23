@@ -14,9 +14,9 @@ Bootstrap a basic extraction-and-processing chain, submit materials to the Burea
 
 1. **Get oriented.** Click and drag to rotate the sphere. Scroll to zoom. See [[Controls & Camera]] for full controls.
 2. **Find resources.** Look for glowing tiles — these are resource deposits. Click a tile to inspect it.
-3. **Place your miners.** Use your [[Your Starter Kit|Starter Kit]] buildings to set up an iron extraction line.
-4. **Connect with conveyors.** Chain buildings together so items flow from miner to smelter to terminal.
-5. **Start researching.** Once ingots reach your [[Submitting Research|Submission Terminal]], you're on your way.
+3. **Place your Extractors.** Use your [[Your Starter Kit|Starter Kit]] buildings to set up a Ferric Compound extraction line.
+4. **Connect with Conduits.** Chain buildings together so items flow from Extractor to Processor to Terminal.
+5. **Start researching.** Once ingots reach your [[Submitting Research|Terminal]], you're on your way.
 
 For a detailed walkthrough, continue to [[Placing Your First Buildings]].
 

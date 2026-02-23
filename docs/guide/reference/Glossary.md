@@ -28,10 +28,10 @@ Bureau terminology and game concepts.
 |---|---|---|
 | Conduit | Conveyor | [[The Conveyor Network]] |
 | Conduit Mk-II / Mk-III | Conveyor Mk2 / Mk3 | [[Advanced Logistics]] |
-| Extractor | Miner | [[Mining & Smelting]] |
-| Processor | Smelter | [[Mining & Smelting]] |
-| Fabricator | Assembler | [[The Assembler]] |
-| Distiller | Refinery | [[The Refinery]] |
+| Extractor | Miner | [[Extraction & Processing]] |
+| Processor | Smelter | [[Extraction & Processing]] |
+| Fabricator | Assembler | [[The Fabricator]] |
+| Distiller | Refinery | [[The Distiller]] |
 | Distributor | Splitter | [[Advanced Logistics]] |
 | Converger | Merger | [[Advanced Logistics]] |
 | Load Equalizer | Balancer | [[Advanced Logistics]] |

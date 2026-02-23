@@ -7,7 +7,7 @@
 
 - **Plan before you build.** Sketch your [[Production Chains|production chains]] on paper if needed. Multi-input buildings require careful routing.
 - **Use Blueprints.** Capture a working building pattern and stamp it elsewhere. Great for repeating production cells.
-- **Build dedicated cells.** One production cell per output type (e.g., a "wire cell" with miners → smelters → assembler) keeps things organized.
+- **Build dedicated cells.** One production cell per output type (e.g., a "Conductive Filament cell" with Extractors → Processors → Fabricator) keeps things organized.
 
 ## Creatures
 
@@ -17,8 +17,8 @@
 
 ## Resources
 
-- **Diversify.** You need all 6 base resources (iron, copper, quartz, titanium, oil, sulfur) by Clearance 3. Start scouting for deposits early.
-- **Watch for depletion.** Deposits have 100–500 units. Plan for replacement miners as deposits run dry.
+- **Diversify.** You need all 6 base resources (Ferric Compound, Paraelectric Ore, Resonance Crystal, Astral Ore, Black Rock Ichor, Threshold Dust) by Clearance 3. Start scouting for deposits early.
+- **Watch for depletion.** Deposits have 100–500 units. Plan for replacement Extractors as deposits run dry.
 
 ## Power
 

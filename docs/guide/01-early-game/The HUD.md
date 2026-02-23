@@ -13,7 +13,7 @@ The hotbar has **5 quick-select slots** for buildings.
 
 - Press **1–5** to select a slot
 - Right-click a slot to reassign it from the Building Catalog (**Q**)
-- Default slots: Conveyor, Miner, Smelter, (empty), (empty)
+- Default slots: Conduit, Extractor, Processor, (empty), (empty)
 
 When you select a hotbar slot, the corresponding building becomes your active placement tool. Click any tile to place it.
 

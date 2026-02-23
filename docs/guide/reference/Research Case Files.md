@@ -15,7 +15,7 @@ See [[Submitting Research]] for how the research system works.
 | Ferric Standardization | 50 Ferric Standard |
 | Paraelectric Requisition | 30 Paraelectric Bar |
 
-**Unlocks:** Splitter, Merger, Claim Beacon, Trade Terminal, Conveyor Mk2, Storage Container, Crossover
+**Unlocks:** Distributor, Converger, Jurisdiction Beacon, Exchange Terminal, Conduit Mk-II, Containment Vault, Transit Interchange
 
 **[[Objects of Power|Object of Power]]:** Bureau Directive Alpha — +10% production speed
 
@@ -28,9 +28,9 @@ See [[Submitting Research]] for how the research system works.
 | Fabrication Protocol Alpha | 40 Conductive Filament, 40 Structural Plate |
 | Astral Ore Refinement | 30 Astral Ingot |
 
-**Unlocks:** [[The Assembler|Assembler]], [[The Refinery|Refinery]], Conveyor Mk3, Balancer, Underground Conduit
+**Unlocks:** [[The Fabricator|Fabricator]], [[The Distiller|Distiller]], Conduit Mk-III, Load Equalizer, Subsurface Link
 
-**Object of Power:** Pneumatic Transit Network — teleport between Submission Terminals
+**Object of Power:** Pneumatic Transit Network — teleport between Terminals
 
 ---
 
@@ -40,7 +40,7 @@ See [[Submitting Research]] for how the research system works.
 |---|---|
 | Paranatural Engineering | 30 Resonance Circuit, 20 Astral Frame, 20 Stabilized Polymer |
 
-**Unlocks:** [[Creatures & Containment|Containment Trap]], Purification Beacon, Defense Turret, Shadow Panel, Lamp
+**Unlocks:** [[Creatures & Containment|Trap]], Purification Beacon, Defense Array, Shadow Panel, Lamp
 
 **Object of Power:** Astral Projection — see all creature locations
 
@@ -53,7 +53,7 @@ See [[Submitting Research]] for how the research system works.
 | Industrial Requisition | 20 Kinetic Driver, 20 Shielded Conduit, 30 Thermal Regulator |
 | Organic Energy Mandate | 50 Entity Biofuel, 20 Refined Entity Fuel |
 
-**Unlocks:** [[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Production|Advanced Smelter]]
+**Unlocks:** [[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Production|Advanced Processor]]
 
 **Object of Power:** Power Surge — +25% generator fuel duration
 
@@ -66,9 +66,9 @@ See [[Submitting Research]] for how the research system works.
 | Heavy Industry Protocol | 15 Heavy Astral Frame, 15 Adv. Resonance Circuit |
 | Entity Research Program | 30 Anomalous Essence, 10 Polymer Membrane |
 
-**Unlocks:** [[Advanced Production|Advanced Assembler, Fabrication Plant]], Essence Extractor
+**Unlocks:** [[Advanced Production|Advanced Fabricator, Fabrication Plant]], Essence Extractor
 
-**Object of Power:** Logistics Mastery — all conveyors 20% faster
+**Object of Power:** Logistics Mastery — all Conduits 20% faster
 
 ---
 
@@ -79,7 +79,7 @@ See [[Submitting Research]] for how the research system works.
 | Computational Threshold | 10 Computation Matrix, 10 Armored Drive Assembly |
 | Nuclear Clearance Protocol | 15 Structural Composite, 5 Enriched Radiant |
 
-**Unlocks:** [[High-Tech Manufacturing|Particle Collider, Nuclear Refinery]]
+**Unlocks:** [[High-Tech Manufacturing|Particle Collider, Nuclear Distiller]]
 
 **Object of Power:** Altered Resonance — all [[Altered Items]] effects doubled
 

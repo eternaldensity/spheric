@@ -6,30 +6,30 @@ The sphere is divided into **30 faces**, each containing a **64x64 grid of tiles
 
 Each region belongs to one of five biomes, determined by latitude:
 
-| Biome | Bureau Designation | Character |
+| Bureau Designation | Common Name | Character |
 |---|---|---|
-| Grassland | Threshold Plain | Neutral, temperate terrain |
-| Desert | Arid Expanse | Hot, sandy zones |
-| Tundra | Permafrost Zone | Cold, icy regions |
-| Forest | Overgrowth Sector | Dense, vegetated areas |
-| Volcanic | Astral Rift | Extreme, otherworldly terrain |
+| Threshold Plain | Grassland | Neutral, temperate terrain |
+| Arid Expanse | Desert | Hot, sandy zones |
+| Permafrost Zone | Tundra | Cold, icy regions |
+| Overgrowth Sector | Forest | Dense, vegetated areas |
+| Astral Rift | Volcanic | Extreme, otherworldly terrain |
 
 Biomes affect which [[Creatures & Containment|creatures]] spawn nearby and can influence production during different shift phases. See [[Biomes & Resources]] for full details.
 
 ## Resources
 
-Roughly **8% of tiles** contain natural resource deposits. When you select a tile, the info panel shows what's there.
+Resources appear in **ore veins** — clusters of the same type that form natural deposits. When you select a tile, the info panel shows what's there.
 
 At Clearance 0, you only need to worry about two:
 
-| Resource | Bureau Name | What It Becomes |
+| Bureau Name | Common Name | What It Becomes |
 |---|---|---|
-| Iron | Ferric Compound | Ferric Standard (ingot) |
-| Copper | Paraelectric Ore | Paraelectric Bar (ingot) |
+| Ferric Compound | Iron | Ferric Standard (ingot) |
+| Paraelectric Ore | Copper | Paraelectric Bar (ingot) |
 
-Resources are **finite**. Each deposit contains **100–500 units**. When a deposit is exhausted, the [[Mining & Smelting|Extractor]] stops producing.
+Resources are **finite**. Each deposit contains **100–500 units**. When a deposit is exhausted, the [[Extraction & Processing|Extractor]] stops producing.
 
-More resources (Quartz, Titanium, Oil, Sulfur, Uranium) become relevant as you advance. See [[Production Chains]] and [[Biomes & Resources]].
+More resources (Resonance Crystal, Astral Ore, Black Rock Ichor, Threshold Dust, Threshold Radiant) become relevant as you advance. See [[Production Chains]] and [[Biomes & Resources]].
 
 ## The Shift Cycle
 

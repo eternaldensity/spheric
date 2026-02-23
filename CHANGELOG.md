@@ -25,5 +25,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Fix resource rendering: remove hatched overlay, keep vertex-color glow (#20)
 
 ### Changed
+- Replace common names with bureau names throughout user guide (#111)
 - Update user guide with clumpy ore distribution info (#110)
 - Replace ETS tab2list() with targeted queries (#74)

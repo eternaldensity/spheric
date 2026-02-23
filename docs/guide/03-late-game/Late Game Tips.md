@@ -6,7 +6,7 @@
 ## Resource Priorities
 
 - **Secure uranium early.** Enriched Radiant is in nearly every endgame recipe. Start scouting and mining uranium deposits at Clearance 5–6.
-- **Anomalous Essence is a consumable.** The [[Paranatural Synthesis|Paranatural Synthesizer]] eats it constantly. Build a reliable creature pipeline: Gathering Post → Containment Trap → Essence Extractor.
+- **Anomalous Essence is a consumable.** The [[Paranatural Synthesis|Paranatural Synthesizer]] eats it constantly. Build a reliable creature pipeline: Gathering Post → Trap → Essence Extractor.
 
 ## Creature Management
 
@@ -34,7 +34,7 @@
 - Assign **Speed** [[Creatures & Containment|creatures]] to bottleneck buildings (Particle Colliders, Synthesizers)
 - Place key buildings on [[Altered Items|Altered Item]] tiles
 - Ensure all production buildings are [[Power & Energy|powered]]
-- Use [[Advanced Logistics#Storage Container (Containment Vault)|Storage Containers]] to buffer intermediate products
+- Use [[Advanced Logistics#Containment Vault (Storage Container)|Containment Vaults]] to buffer intermediate products
 
 ---
 

@@ -14,8 +14,8 @@ See [[Altered Items]] for the gameplay guide.
 |---|---|---|
 | Resonance Accelerator | 2x production speed | Building tick rate halved |
 | Probability Fracture | Output duplication | 5% chance per output to produce 2 items |
-| Thermal Anomaly | 2x processing yield | [[Mining & Smelting|Smelters]] and [[The Refinery|Refineries]] output 2 per 1 input |
-| Spatial Distortion | Triple capture radius | [[Creatures & Containment|Containment Trap]] radius: 3 → 9 tiles |
+| Thermal Anomaly | 2x processing yield | [[Extraction & Processing|Processors]] and [[The Distiller|Distillers]] output 2 per 1 input |
+| Spatial Distortion | Triple capture radius | [[Creatures & Containment|Trap]] radius: 3 → 9 tiles |
 | Shifting Anchor | Skip downstream | Output items bypass the next [[The Conveyor Network|building in the chain]] |
 
 ---
@@ -40,8 +40,8 @@ After obtaining the **[[Objects of Power|Altered Resonance]]** Object of Power a
 |---|---|
 | Resonance Accelerator | Your slowest bottleneck (Particle Collider, Paranatural Synthesizer) |
 | Probability Fracture | High-value output (late-game crafters where doubling output matters most) |
-| Thermal Anomaly | High-demand Smelter or Refinery line |
-| Spatial Distortion | Containment Trap (massive capture area) |
+| Thermal Anomaly | High-demand Processor or Distiller line |
+| Spatial Distortion | Trap (massive capture area) |
 | Shifting Anchor | Niche routing optimizations |
 
 ---

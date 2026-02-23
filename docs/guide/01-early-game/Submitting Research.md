@@ -1,11 +1,11 @@
 # Submitting Research
 
-The **Submission Terminal** is how you advance through the Bureau's clearance levels.
+The **Terminal** is how you advance through the Bureau's clearance levels.
 
 ## How It Works
 
-1. Place a Terminal at the end of a [[The Conveyor Network|conveyor]] chain
-2. Items delivered via conveyors are automatically accepted
+1. Place a Terminal at the end of a [[The Conveyor Network|Conduit]] chain
+2. Items delivered via Conduits are automatically accepted
 3. Open the **Case Files** panel (**F** key) to see current requirements
 4. Submitted items count toward completing case files
 5. When all case files for a tier are done, you gain the next **Clearance Level**
@@ -16,10 +16,10 @@ Each clearance level has one or more **case files** — research objectives that
 
 > [!tip] First Goal
 > Your first two case files require:
-> - **50 Ferric Standards** (iron ingots)
-> - **30 Paraelectric Bars** (copper ingots)
+> - **50 Ferric Standards**
+> - **30 Paraelectric Bars**
 >
-> Set up one iron chain and one copper chain feeding into your Terminal.
+> Set up one Ferric Compound chain and one Paraelectric Ore chain feeding into your Terminal.
 
 ## What Clearance Gets You
 
@@ -31,4 +31,4 @@ Completing **all** case files in a clearance tier also awards an **[[Objects of 
 
 ---
 
-**Previous:** [[Mining & Smelting]] | **Next:** [[Reaching Clearance 1]]
+**Previous:** [[Extraction & Processing]] | **Next:** [[Reaching Clearance 1]]
