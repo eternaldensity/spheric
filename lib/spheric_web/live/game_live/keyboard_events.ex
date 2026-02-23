@@ -69,6 +69,10 @@ defmodule SphericWeb.GameLive.KeyboardEvents do
     PanelEvents.handle_event("toggle_board_contact", %{}, socket)
   end
 
+  def handle_event("keydown", %{"key" => "w"}, socket) do
+    PanelEvents.handle_event("toggle_waypoints", %{}, socket)
+  end
+
   def handle_event("keydown", %{"key" => "x"}, socket) do
     DemolishEvents.handle_event("toggle_demolish_mode", %{}, socket)
   end

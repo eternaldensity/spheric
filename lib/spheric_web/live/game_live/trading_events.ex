@@ -22,6 +22,7 @@ defmodule SphericWeb.GameLive.TradingEvents do
         |> assign(:my_trades, my_trades)
         |> assign(:show_research, false)
         |> assign(:show_creatures, false)
+        |> assign(:show_waypoints, false)
       else
         assign(socket, :show_trading, false)
       end

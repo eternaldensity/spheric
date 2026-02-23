@@ -404,6 +404,21 @@ const GameRenderer = {
       } catch (_e) { /* localStorage unavailable */ }
     });
 
+    // --- Waypoints ---
+
+    this.handleEvent("fly_to_waypoint", ({ face, row, col }) => {
+      const point = this.getTileCenter(face, row, col);
+      if (point) {
+        this.droneCamera.flyTo(point.normalize());
+      }
+    });
+
+    this.handleEvent("save_waypoints", ({ waypoints }) => {
+      try {
+        localStorage.setItem("spheric_waypoints", JSON.stringify(waypoints));
+      } catch (_e) { /* localStorage unavailable */ }
+    });
+
     this.handleEvent("players_update", ({ players }) => {
       this.playerPresence.update(players);
     });

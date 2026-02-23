@@ -387,6 +387,29 @@ defmodule SphericWeb.GameLive.Helpers do
     _ -> Buildings.default_hotbar()
   end
 
+  def restore_waypoints(params) do
+    case params["waypoints"] do
+      raw when is_binary(raw) and raw != "" ->
+        case Jason.decode(raw) do
+          {:ok, list} when is_list(list) ->
+            list
+            |> Enum.filter(fn wp ->
+              is_map(wp) and is_binary(wp["name"]) and
+                is_integer(wp["face"]) and is_integer(wp["row"]) and is_integer(wp["col"])
+            end)
+            |> Enum.take(50)
+
+          _ ->
+            []
+        end
+
+      _ ->
+        []
+    end
+  rescue
+    _ -> []
+  end
+
   def restore_player(params) do
     player_id =
       case params["player_id"] do

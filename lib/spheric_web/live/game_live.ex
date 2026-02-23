@@ -152,6 +152,8 @@ defmodule SphericWeb.GameLive do
       |> assign(:shift_phase, ShiftCycle.current_phase())
       |> assign(:show_board_contact, false)
       |> assign(:board_contact, BoardContact.progress_summary())
+      |> assign(:show_waypoints, false)
+      |> assign(:waypoints, Helpers.restore_waypoints(if(connected?(socket), do: get_connect_params(socket), else: %{})))
       |> assign(:demolish_mode, false)
       |> assign(:starter_kit_remaining, StarterKit.get_remaining(player_id))
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
@@ -768,6 +770,85 @@ defmodule SphericWeb.GameLive do
       </div>
     </div>
 
+    <%!-- === WAYPOINTS PANEL (top-right) === --%>
+    <div
+      :if={@show_waypoints}
+      style="position: fixed; top: 50px; right: 16px; background: var(--fbc-panel); color: var(--fbc-text); padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6; pointer-events: auto; min-width: 280px; max-width: 340px; max-height: 70vh; overflow-y: auto; border: 1px solid var(--fbc-info);"
+    >
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--fbc-info); padding-bottom: 8px;">
+        <span style="font-size: 13px; color: var(--fbc-info); text-transform: uppercase; letter-spacing: 0.15em;">
+          Waypoints
+        </span>
+        <span style="font-size: 10px; color: var(--fbc-text-dim); text-transform: uppercase;">
+          {length(@waypoints)} saved
+        </span>
+      </div>
+
+      <%!-- Save current tile as waypoint --%>
+      <div :if={@tile_info} style="margin-bottom: 12px; padding: 8px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.02);">
+        <div style="font-size: 10px; color: var(--fbc-text-dim); text-transform: uppercase; margin-bottom: 6px;">
+          Save selected tile
+        </div>
+        <form phx-submit="save_waypoint" style="display: flex; gap: 4px; align-items: center;">
+          <input type="hidden" name="face" value={@tile_info.face} />
+          <input type="hidden" name="row" value={@tile_info.row} />
+          <input type="hidden" name="col" value={@tile_info.col} />
+          <input
+            type="text"
+            name="name"
+            placeholder="Waypoint name..."
+            required
+            style="flex: 1; padding: 4px 8px; background: rgba(255,255,255,0.06); border: 1px solid var(--fbc-border); color: var(--fbc-text); font-family: 'Courier New', monospace; font-size: 11px;"
+          />
+          <button
+            type="submit"
+            style="padding: 4px 10px; border: 1px solid var(--fbc-info); background: rgba(136,153,170,0.12); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;"
+          >
+            Save
+          </button>
+        </form>
+      </div>
+
+      <div :if={@tile_info == nil && @waypoints == []} style="color: var(--fbc-text-dim); font-size: 11px; text-align: center; padding: 16px 0;">
+        Click a tile to select it, then save it as a waypoint.
+      </div>
+
+      <div :if={@tile_info == nil && @waypoints != []} style="color: var(--fbc-text-dim); font-size: 10px; margin-bottom: 8px;">
+        Click a tile to save a new waypoint.
+      </div>
+
+      <%!-- Waypoint list --%>
+      <div
+        :for={{wp, idx} <- Enum.with_index(@waypoints)}
+        style="display: flex; align-items: center; gap: 6px; padding: 6px 8px; margin-bottom: 4px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.02);"
+      >
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 11px; color: var(--fbc-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            {wp["name"]}
+          </div>
+          <div style="font-size: 9px; color: var(--fbc-text-dim); text-transform: uppercase;">
+            Sector {wp["face"]} &middot; {wp["row"]},{wp["col"]}
+          </div>
+        </div>
+        <button
+          phx-click="fly_to_waypoint"
+          phx-value-face={wp["face"]}
+          phx-value-row={wp["row"]}
+          phx-value-col={wp["col"]}
+          style="padding: 3px 8px; border: 1px solid var(--fbc-info); background: rgba(136,153,170,0.1); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em;"
+        >
+          Fly
+        </button>
+        <button
+          phx-click="delete_waypoint"
+          phx-value-index={idx}
+          style="padding: 3px 6px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.02); color: var(--fbc-text-dim); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px;"
+        >
+          X
+        </button>
+      </div>
+    </div>
+
     <%!-- === FULLSCREEN BUILDING CATALOG === --%>
     <div
       :if={@show_catalog}
@@ -904,6 +985,13 @@ defmodule SphericWeb.GameLive do
         title="Board Contact (G)"
       >
         Board
+      </button>
+      <button
+        phx-click="toggle_waypoints"
+        style={"padding: 6px 10px; border: 1px solid #{if @show_waypoints, do: "var(--fbc-info)", else: "var(--fbc-border)"}; background: #{if @show_waypoints, do: "rgba(136,153,170,0.15)", else: "rgba(255,255,255,0.04)"}; color: #{if @show_waypoints, do: "var(--fbc-info)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;"}
+        title="Waypoints (W)"
+      >
+        Nav
       </button>
       <%!-- Blueprint buttons --%>
       <button
@@ -1097,6 +1185,22 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_event("activate_board_contact", params, socket),
     do: PanelEvents.handle_event("activate_board_contact", params, socket)
+
+  @impl true
+  def handle_event("toggle_waypoints", params, socket),
+    do: PanelEvents.handle_event("toggle_waypoints", params, socket)
+
+  @impl true
+  def handle_event("save_waypoint", params, socket),
+    do: PanelEvents.handle_event("save_waypoint", params, socket)
+
+  @impl true
+  def handle_event("delete_waypoint", params, socket),
+    do: PanelEvents.handle_event("delete_waypoint", params, socket)
+
+  @impl true
+  def handle_event("fly_to_waypoint", params, socket),
+    do: PanelEvents.handle_event("fly_to_waypoint", params, socket)
 
   # Trading events
   @impl true

@@ -1,9 +1,10 @@
 defmodule SphericWeb.GameLive.PanelEvents do
   @moduledoc """
-  Handles toggling UI panels: research, creatures, recipes, stats, board contact.
+  Handles toggling UI panels: research, creatures, recipes, stats, board contact, waypoints.
   """
 
   import Phoenix.Component, only: [assign: 3]
+  import Phoenix.LiveView, only: [push_event: 3]
 
   alias Spheric.Game.{
     Creatures,
@@ -24,6 +25,7 @@ defmodule SphericWeb.GameLive.PanelEvents do
       |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_waypoints, false), else: s end)
 
     {:noreply, socket}
   end
@@ -41,6 +43,7 @@ defmodule SphericWeb.GameLive.PanelEvents do
       |> then(fn s -> if opening, do: assign(s, :show_recipes, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_waypoints, false), else: s end)
 
     {:noreply, socket}
   end
@@ -81,6 +84,7 @@ defmodule SphericWeb.GameLive.PanelEvents do
       |> then(fn s -> if opening, do: assign(s, :show_trading, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_stats, false), else: s end)
       |> then(fn s -> if opening, do: assign(s, :show_board_contact, false), else: s end)
+      |> then(fn s -> if opening, do: assign(s, :show_waypoints, false), else: s end)
 
     {:noreply, socket}
   end
@@ -116,6 +120,7 @@ defmodule SphericWeb.GameLive.PanelEvents do
         |> assign(:show_trading, false)
         |> assign(:show_recipes, false)
         |> assign(:show_board_contact, false)
+        |> assign(:show_waypoints, false)
       else
         assign(socket, :show_stats, false)
       end
@@ -138,6 +143,7 @@ defmodule SphericWeb.GameLive.PanelEvents do
         |> assign(:show_trading, false)
         |> assign(:show_recipes, false)
         |> assign(:show_stats, false)
+        |> assign(:show_waypoints, false)
       else
         assign(socket, :show_board_contact, false)
       end
@@ -170,5 +176,63 @@ defmodule SphericWeb.GameLive.PanelEvents do
     else
       {:noreply, socket}
     end
+  end
+
+  def handle_event("toggle_waypoints", _params, socket) do
+    opening = !socket.assigns.show_waypoints
+
+    socket =
+      if opening do
+        socket
+        |> assign(:show_waypoints, true)
+        |> assign(:show_research, false)
+        |> assign(:show_creatures, false)
+        |> assign(:show_trading, false)
+        |> assign(:show_recipes, false)
+        |> assign(:show_stats, false)
+        |> assign(:show_board_contact, false)
+      else
+        assign(socket, :show_waypoints, false)
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_event("save_waypoint", params, socket) do
+    name = params["name"] || "Waypoint"
+    face = SphericWeb.GameLive.Helpers.to_int(params["face"])
+    row = SphericWeb.GameLive.Helpers.to_int(params["row"])
+    col = SphericWeb.GameLive.Helpers.to_int(params["col"])
+
+    waypoint = %{"name" => name, "face" => face, "row" => row, "col" => col}
+    waypoints = socket.assigns.waypoints ++ [waypoint]
+
+    socket =
+      socket
+      |> assign(:waypoints, waypoints)
+      |> push_event("save_waypoints", %{waypoints: waypoints})
+
+    {:noreply, socket}
+  end
+
+  def handle_event("delete_waypoint", %{"index" => index}, socket) do
+    idx = SphericWeb.GameLive.Helpers.to_int(index)
+    waypoints = List.delete_at(socket.assigns.waypoints, idx)
+
+    socket =
+      socket
+      |> assign(:waypoints, waypoints)
+      |> push_event("save_waypoints", %{waypoints: waypoints})
+
+    {:noreply, socket}
+  end
+
+  def handle_event("fly_to_waypoint", params, socket) do
+    face = SphericWeb.GameLive.Helpers.to_int(params["face"])
+    row = SphericWeb.GameLive.Helpers.to_int(params["row"])
+    col = SphericWeb.GameLive.Helpers.to_int(params["col"])
+
+    socket = push_event(socket, "fly_to_waypoint", %{face: face, row: row, col: col})
+    {:noreply, socket}
   end
 end
