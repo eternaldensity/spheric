@@ -28,6 +28,7 @@ Several panels provide detailed information about different game systems. Toggle
 | **T** | Exchange Requisitions | [[Trading with Other Operators|Trade offers]] |
 | **B** | Bureau Protocols | [[Recipe Reference|All production recipes]] |
 | **P** | Production Report | Throughput statistics per building |
+| **W** | Waypoints | Save and fly to bookmarked locations |
 | **G** | Board Contact | [[Board Contact Quest|Cooperative endgame quest]] |
 | **Q** | Building Catalog | Browse buildings by category |
 

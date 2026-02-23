@@ -41,6 +41,7 @@ Right-click a hotbar slot to reassign it from the Catalog.
 | **T** | Trading | Exchange Requisitions |
 | **B** | Recipes | Bureau Protocols |
 | **P** | Statistics | Production Report |
+| **W** | Waypoints | Navigation Waypoints |
 | **G** | Quest | Board Contact |
 | **Q** | Catalog | Building Catalog |
 

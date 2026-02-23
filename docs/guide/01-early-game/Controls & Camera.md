@@ -18,6 +18,20 @@ Click anywhere on the sphere and the drone will smoothly glide along the surface
 > [!note] Camera Persistence
 > Your camera position and altitude are saved in your browser. When you return, the drone will be right where you left it.
 
+## Waypoints
+
+Press **W** to open the **Waypoints** panel. Waypoints let you bookmark locations on the sphere so you can quickly return to them later — your base, a resource deposit, or anything worth revisiting.
+
+1. **Click a tile** on the sphere to select it.
+2. Open the Waypoints panel (**W**).
+3. Type a name and click **Save**.
+4. Click **Fly** on any saved waypoint to send your drone there instantly.
+
+Waypoints are saved in your browser and persist across sessions. You can delete a waypoint with the **X** button next to it.
+
+> [!tip] Navigating a Sphere
+> On a sphere, it's easy to lose track of where you've been. Save a waypoint at your main base early — you'll thank yourself later.
+
 ## Building Controls
 
 | Input | Action |
@@ -40,6 +54,7 @@ Click anywhere on the sphere and the drone will smoothly glide along the surface
 | **T** | Exchange Requisitions | [[Trading with Other Operators|Player-to-player trading]] |
 | **B** | Bureau Protocols | [[Recipe Reference|Recipe browser]] |
 | **P** | Production Report | Per-building throughput statistics |
+| **W** | Waypoints | Save and fly to bookmarked locations |
 | **G** | Board Contact | [[Board Contact Quest|Late-game cooperative quest]] |
 | **Q** | Building Catalog | Browse all unlocked buildings by category |
 
