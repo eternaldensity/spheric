@@ -16,7 +16,7 @@ export class DroneCamera {
     this.chunkManager = chunkManager;
 
     // Hover height above sphere surface (sphere radius ~1.0)
-    this.minHeight = 0.05;
+    this.minHeight = 0.02;
     this.maxHeight = 5.0;
     this.height = 2.5;
     this.targetHeight = 2.5;

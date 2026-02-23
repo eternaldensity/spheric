@@ -20,7 +20,7 @@ const ITEM_COLORS = {
 };
 
 const ITEM_SCALE = 0.003;
-const ITEM_HEIGHT = 1.008; // Above sphere surface (just above buildings at 1.005)
+const ITEM_HEIGHT = 1.004; // Above sphere surface (just above buildings at 1.001)
 
 /**
  * ItemRenderer manages the 3D meshes for items on conveyors and in building buffers.

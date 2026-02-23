@@ -228,7 +228,7 @@ const GameRenderer = {
     const normal = this.getTileCenter(face, row, col).normalize();
 
     // Position slightly above surface
-    mesh.position.copy(normal).multiplyScalar(1.005);
+    mesh.position.copy(normal).multiplyScalar(1.001);
 
     // Compute forward direction from this tile toward the neighbor in the
     // orientation direction, so buildings point exactly at their output tile.
