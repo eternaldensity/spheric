@@ -20,12 +20,27 @@ Each biome may have production modifiers during different shift phases:
 
 | Phase | Duration |
 |---|---|
-| Dawn Shift | 600 ticks (~2 min) |
-| Zenith Shift | 600 ticks |
-| Dusk Shift | 600 ticks |
-| Nadir Shift | 600 ticks |
+| Dawn Shift | 1200 ticks (~4 min) |
+| Zenith Shift | 1200 ticks |
+| Dusk Shift | 1200 ticks |
+| Nadir Shift | 1200 ticks |
 
-Full cycle: **2400 ticks** (~8 minutes).
+Full day cycle: **4800 ticks** (~16 minutes).
+
+## Seasons & Solar Position
+
+The sun's position is computed using realistic solar astronomy:
+
+- **Solar Declination** varies over a **30-day year** due to the sphere's 23.4° axial tilt. The sun's path shifts between the northern and southern hemispheres, creating seasons.
+- **Solar Hour Angle** drives the daily east-west rotation of the sun.
+- **Solar Elevation** at any point on the sphere depends on both its latitude and the current declination: `sin(elevation) = sin(lat) × sin(decl) + cos(lat) × cos(decl) × cos(hour_angle)`
+
+Lighting is calculated **per cell** (each face is divided into a 4x4 grid of cells), giving 480 distinct illumination zones across the sphere. This means the shadow/light boundary cuts smoothly across faces rather than toggling entire faces at once.
+
+**Seasonal effects on gameplay:**
+- **Polar biomes** (Tundra, Volcanic) experience the strongest seasonal variation — extended light or darkness depending on the time of year
+- **Equatorial biomes** (Grassland, Desert) stay relatively stable year-round
+- **Shadow Panels** near the poles produce power for longer during winter and shorter during summer
 
 ## Resources
 

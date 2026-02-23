@@ -42,7 +42,16 @@ The sphere has a day/night cycle called the **Shift Cycle**, with four phases:
 | **Dusk Shift** | Evening |
 | **Nadir Shift** | Darkness |
 
-Each phase lasts **600 ticks** (~2 minutes). The cycle is primarily visual but can affect biome production modifiers.
+Each phase lasts **1200 ticks** (~4 minutes), making a full day **4800 ticks** (~16 minutes). The cycle affects biome production modifiers and determines which areas are lit or in shadow.
+
+## Seasons
+
+The sphere has a **seasonal cycle** driven by axial tilt, just like a real planet. The sun's path shifts north and south over the course of a **30-day year** (~8 hours real-time):
+
+- At the **equinoxes**, the sun tracks along the equator — all latitudes get roughly equal day/night
+- At the **solstices**, the sun tilts toward one pole — polar regions experience extended daylight or darkness
+
+This means **latitude matters for lighting**. Shadow Panels near the poles may produce power for longer stretches during their hemisphere's winter, while equatorial regions stay more consistent year-round. See [[Power & Energy#Shadow Panel]] and [[Biomes & Resources#The Shift Cycle]] for details.
 
 ---
 

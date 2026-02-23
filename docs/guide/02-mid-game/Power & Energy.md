@@ -32,7 +32,14 @@ Distributes power from a Generator to surrounding buildings.
 
 ## Shadow Panel
 
-Alternative power generation unlocked at Clearance 3.
+Alternative power generation unlocked at Clearance 3. Produces power passively when its location is in **shadow** (the sun is on the far side of the sphere).
+
+- Power output: **1 unit** while in shadow, **0** while lit
+- Lighting is checked **per cell** (16x16 tile blocks), so panels on the same face can have different light states
+- Disabled if a powered **Lamp** is within 3 tiles (lamps suppress nearby shadow panels)
+
+> [!tip] Seasonal Strategy
+> Shadow Panel output varies with the seasons. Panels near the **poles** enjoy longer darkness during their hemisphere's winter, making them more productive. Equatorial panels get roughly equal day and night year-round. See [[Biomes & Resources#Seasons & Solar Position]].
 
 **Cost:** 2 Astral Frame, 3 Refined Resonance Crystal, 2 Conductive Filament
 
