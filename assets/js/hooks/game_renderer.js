@@ -752,15 +752,6 @@ const GameRenderer = {
       this.cancelLineDraw();
       return;
     }
-
-    const tile = this.hitToTile(event);
-    if (!tile) return;
-
-    this.pushEvent("remove_building", {
-      face: tile.face,
-      row: tile.row,
-      col: tile.col,
-    });
   },
 
   onTileHover(event) {
