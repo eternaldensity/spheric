@@ -9,10 +9,6 @@ defmodule Spheric.Game.ConstructionCostsTest do
       assert cost == %{iron_ingot: 3}
     end
 
-    test "returns nil for free buildings" do
-      assert ConstructionCosts.cost(:gathering_post) == nil
-    end
-
     test "returns nil for unknown building types" do
       assert ConstructionCosts.cost(:nonexistent) == nil
     end
@@ -66,21 +62,14 @@ defmodule Spheric.Game.ConstructionCostsTest do
   end
 
   describe "always_free?/1" do
-    test "returns true for gathering_post" do
-      assert ConstructionCosts.always_free?(:gathering_post)
-    end
-
     test "returns false for buildings with costs" do
       refute ConstructionCosts.always_free?(:smelter)
       refute ConstructionCosts.always_free?(:miner)
+      refute ConstructionCosts.always_free?(:gathering_post)
     end
   end
 
   describe "initial_construction/1" do
-    test "returns nil for free buildings" do
-      assert ConstructionCosts.initial_construction(:gathering_post) == nil
-    end
-
     test "returns construction map for buildings with costs" do
       construction = ConstructionCosts.initial_construction(:smelter)
       assert construction.required == %{iron_ingot: 3}

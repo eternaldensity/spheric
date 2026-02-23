@@ -12,7 +12,7 @@ defmodule Spheric.Game.ConstructionCosts do
     miner: %{iron_ingot: 2, copper_ingot: 1},
     smelter: %{iron_ingot: 3},
     submission_terminal: %{iron_ingot: 2, copper_ingot: 2},
-    gathering_post: nil,
+    gathering_post: %{copper_ingot: 1},
 
     # Tier 1
     conveyor_mk2: %{iron_ingot: 2, copper_ingot: 1},
