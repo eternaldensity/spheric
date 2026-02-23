@@ -198,9 +198,9 @@ defmodule Spheric.Game.Research do
       :trade_terminal,
       :conveyor_mk2,
       :storage_container,
-      :crossover
+      :assembler
     ],
-    2 => [:assembler, :refinery, :conveyor_mk3, :balancer, :underground_conduit],
+    2 => [:refinery, :conveyor_mk3, :balancer, :underground_conduit, :crossover],
     3 => [:containment_trap, :purification_beacon, :defense_turret, :shadow_panel, :lamp],
     4 => [:bio_generator, :substation, :transfer_station, :advanced_smelter],
     5 => [:advanced_assembler, :fabrication_plant, :essence_extractor],

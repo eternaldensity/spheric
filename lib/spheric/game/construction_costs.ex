@@ -21,10 +21,10 @@ defmodule Spheric.Game.ConstructionCosts do
     claim_beacon: %{iron_ingot: 5, copper_ingot: 3},
     trade_terminal: %{iron_ingot: 5, wire: 3},
     storage_container: %{iron_ingot: 5, plate: 2},
-    crossover: %{iron_ingot: 4, copper_ingot: 2},
+    assembler: %{iron_ingot: 8, copper_ingot: 5, titanium_ingot: 2},
 
     # Tier 2
-    assembler: %{iron_ingot: 8, copper_ingot: 5, wire: 3},
+    crossover: %{iron_ingot: 4, wire: 2},
     refinery: %{iron_ingot: 10, plate: 3, wire: 3},
     conveyor_mk3: %{iron_ingot: 3, wire: 2},
     balancer: %{iron_ingot: 5, circuit: 1},
@@ -74,8 +74,8 @@ defmodule Spheric.Game.ConstructionCosts do
     claim_beacon: 1,
     trade_terminal: 1,
     storage_container: 1,
-    crossover: 1,
-    assembler: 2,
+    assembler: 1,
+    crossover: 2,
     refinery: 2,
     balancer: 2,
     underground_conduit: 2,

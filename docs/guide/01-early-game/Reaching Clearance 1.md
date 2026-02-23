@@ -21,7 +21,7 @@ Submit these via your [[Submitting Research|Terminal]].
 | Exchange Terminal | Trade Terminal | [[Trading with Other Operators|Trade]] with other players |
 | Conduit Mk-II | Conveyor Mk2 | Faster [[The Conveyor Network|Conduit]] |
 | Containment Vault | Storage Container | Stores items (one type per container) |
-| Transit Interchange | Crossover | Cross two Conduit paths without merging |
+| [[The Fabricator\|Fabricator]] | Assembler | Dual-input production ([[The Fabricator\|details]]) |
 
 See [[Advanced Logistics]] for details on using these buildings.
 

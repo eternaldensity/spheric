@@ -44,13 +44,13 @@ Clearance 1 and 2 unlock several logistics buildings that let you build complex 
 
 ## Transit Interchange (Crossover)
 
-*Unlocked at [[Reaching Clearance 1|Clearance 1]]*
+*Unlocked at Clearance 2*
 
 - Allows **two Conduit paths to cross** without merging
 - Items continue straight through in their original direction
 - Essential for complex factory layouts
 
-**Cost:** 4 Ferric Standard, 2 Paraelectric Bar
+**Cost:** 4 Ferric Standard, 2 Conductive Filament
 
 ## Conduit Mk-II & Mk-III
 

@@ -15,7 +15,7 @@ See [[Submitting Research]] for how the research system works.
 | Ferric Standardization | 50 Ferric Standard |
 | Paraelectric Requisition | 30 Paraelectric Bar |
 
-**Unlocks:** Distributor, Converger, Jurisdiction Beacon, Exchange Terminal, Conduit Mk-II, Containment Vault, Transit Interchange
+**Unlocks:** Distributor, Converger, Jurisdiction Beacon, Exchange Terminal, Conduit Mk-II, Containment Vault, [[The Fabricator|Fabricator]]
 
 **[[Objects of Power|Object of Power]]:** Bureau Directive Alpha — +10% production speed
 
@@ -28,7 +28,7 @@ See [[Submitting Research]] for how the research system works.
 | Fabrication Protocol Alpha | 40 Conductive Filament, 40 Structural Plate |
 | Astral Ore Refinement | 30 Astral Ingot |
 
-**Unlocks:** [[The Fabricator|Fabricator]], [[The Distiller|Distiller]], Conduit Mk-III, Load Equalizer, Subsurface Link
+**Unlocks:** [[The Distiller|Distiller]], Conduit Mk-III, Load Equalizer, Subsurface Link, Transit Interchange
 
 **Object of Power:** Pneumatic Transit Network — teleport between Terminals
 

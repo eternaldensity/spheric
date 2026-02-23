@@ -1,6 +1,6 @@
 # The Fabricator
 
-The **Fabricator** (commonly: Assembler) is unlocked at Clearance 2. It's the first building that accepts **two different inputs** and combines them into a component.
+The **Fabricator** (commonly: Assembler) is unlocked at [[Reaching Clearance 1|Clearance 1]]. It's the first building that accepts **two different inputs** and combines them into a component.
 
 **Processing time:** 15 ticks per item
 
@@ -32,7 +32,7 @@ Use [[Advanced Logistics#Transit Interchange (Crossover)|Transit Interchanges]] 
 |---|---|
 | Ferric Standard | 8 |
 | Paraelectric Bar | 5 |
-| Conductive Filament | 3 |
+| Astral Ingot | 2 |
 
 ## Tips
 

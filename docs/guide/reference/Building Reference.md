@@ -19,7 +19,7 @@ Construction costs are the resources you must deliver to a building's constructi
 | Converger | Merger | 1 | 3 Ferric Standard, 2 Paraelectric Bar | Many in → 1 out |
 | Load Equalizer | Balancer | 2 | 5 Ferric Standard, 1 Resonance Circuit | 1 in → 4 even out |
 | Subsurface Link | Underground Conduit | 2 | 8 Ferric Standard, 5 Paraelectric Bar | Tunnel under 1 tile |
-| Transit Interchange | Crossover | 1 | 4 Ferric Standard, 2 Paraelectric Bar | Cross paths |
+| Transit Interchange | Crossover | 2 | 4 Ferric Standard, 2 Conductive Filament | Cross paths |
 | Transfer Station | Transfer Station | 4 | 10 Shielded Conduit, 2 Astral Frame, 3 Resonance Circuit | Bridge substations |
 
 See [[Advanced Logistics]] and [[The Conveyor Network]] for usage guides.
@@ -32,7 +32,7 @@ See [[Advanced Logistics]] and [[The Conveyor Network]] for usage guides.
 |---|---|---|---|---|
 | Extractor | Miner | 0 | 2 Ferric Standard, 1 Paraelectric Bar | Resource extraction |
 | Processor | Smelter | 0 | 3 Ferric Standard | Ore → ingot |
-| Fabricator | Assembler | 2 | 8 Ferric Standard, 5 Paraelectric Bar, 3 Conductive Filament | Dual-input |
+| Fabricator | Assembler | 1 | 8 Ferric Standard, 5 Paraelectric Bar, 2 Astral Ingot | Dual-input |
 | Distiller | Refinery | 2 | 10 Ferric Standard, 3 Structural Plate, 3 Conductive Filament | Liquids/volatiles |
 | Advanced Processor | Advanced Smelter | 4 | 1 Heavy Astral Frame, 5 Resonance Circuit, 3 Thermal Regulator | Fast + uranium |
 | Advanced Fabricator | Advanced Assembler | 5 | 2 Heavy Astral Frame, 3 Adv. Resonance Circuit, 2 Kinetic Driver | Advanced recipes |

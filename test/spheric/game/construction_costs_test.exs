@@ -29,7 +29,7 @@ defmodule Spheric.Game.ConstructionCostsTest do
       assert ConstructionCosts.tier(:conveyor) == 0
       assert ConstructionCosts.tier(:miner) == 0
       assert ConstructionCosts.tier(:splitter) == 1
-      assert ConstructionCosts.tier(:assembler) == 2
+      assert ConstructionCosts.tier(:assembler) == 1
       assert ConstructionCosts.tier(:containment_trap) == 3
       assert ConstructionCosts.tier(:bio_generator) == 4
       assert ConstructionCosts.tier(:advanced_assembler) == 5
