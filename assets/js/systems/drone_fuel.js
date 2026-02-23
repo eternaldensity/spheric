@@ -178,6 +178,12 @@ export class DroneFuelSystem {
   getGaugeData() {
     const slots = [];
 
+    // Reserve (full) pips first on the left
+    for (const t of this._tank) {
+      slots.push({ type: t, fraction: 1.0, active: false });
+    }
+
+    // Active (draining) pip next
     if (this._currentFuel) {
       slots.push({
         type: this._currentFuel.type,
@@ -186,11 +192,7 @@ export class DroneFuelSystem {
       });
     }
 
-    for (const t of this._tank) {
-      slots.push({ type: t, fraction: 1.0, active: false });
-    }
-
-    // Pad with empty slots up to capacity
+    // Empty slots on the right
     while (slots.length < this.capacity) slots.push(null);
 
     return { slots, lowPower: this._lowPower };
