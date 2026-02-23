@@ -39,7 +39,7 @@ export class DroneCamera {
 
     // Interpolation speed
     this._flySpeed = 0.4;
-    this._heightSpeed = 1.0;
+    this._heightSpeed = 0.8;
     this._orbitSpeed = 4.0;
 
     // Flying state
