@@ -21,8 +21,8 @@ defmodule Spheric.Game.ShiftCycle do
 
   @cycle_table :spheric_shift_cycle
 
-  # Full rotation = 4 phases × 600 ticks = 2400 ticks (~8 min)
-  @phase_duration 600
+  # Full rotation = 4 phases × 1200 ticks = 4800 ticks (~16 min)
+  @phase_duration 1200
   @full_cycle @phase_duration * 4
 
   # Seasonal cycle: 30 game-days = 1 year (each day = 1 full sun rotation)
