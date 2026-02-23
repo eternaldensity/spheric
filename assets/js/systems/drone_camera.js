@@ -17,7 +17,7 @@ export class DroneCamera {
 
     // Hover height above sphere surface (sphere radius ~1.0)
     this.minHeight = 0.02;
-    this.maxHeight = 5.0;
+    this.maxHeight = 3.0;
     this.height = 2.5;
     this.targetHeight = 2.5;
 
@@ -38,9 +38,9 @@ export class DroneCamera {
     this._maxTilt = 1.2;
 
     // Interpolation speed
-    this._flySpeed = 1.0;
-    this._heightSpeed = 3.0;
-    this._orbitSpeed = 6.0;
+    this._flySpeed = 0.4;
+    this._heightSpeed = 1.0;
+    this._orbitSpeed = 4.0;
 
     // Flying state
     this._isFlying = false;
