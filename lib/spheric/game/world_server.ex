@@ -247,6 +247,9 @@ defmodule Spheric.Game.WorldServer do
           {:building_placed, key, building}
         )
 
+        # Persist promptly so building survives page refresh / server restart
+        SaveServer.save_soon()
+
         {:reply, :ok, state}
     end
   end
@@ -335,6 +338,9 @@ defmodule Spheric.Game.WorldServer do
         end
       end)
 
+    # Persist promptly so buildings survive page refresh / server restart
+    if Enum.any?(results, fn {_k, r} -> r == :ok end), do: SaveServer.save_soon()
+
     {:reply, results, state}
   end
 
@@ -365,6 +371,9 @@ defmodule Spheric.Game.WorldServer do
           "world:face:#{face_id}",
           {:building_removed, key}
         )
+
+        # Persist promptly so removal survives page refresh / server restart
+        SaveServer.save_soon()
 
         {:reply, :ok, state}
     end
@@ -402,6 +411,8 @@ defmodule Spheric.Game.WorldServer do
             {key, :ok}
         end
       end)
+
+    if Enum.any?(results, fn {_k, r} -> r == :ok end), do: SaveServer.save_soon()
 
     {:reply, results, state}
   end
