@@ -604,6 +604,7 @@ defmodule SphericWeb.GameLive do
           value={@recipe_search}
           placeholder="Search protocols..."
           phx-debounce="200"
+          onkeydown="event.stopPropagation()"
           style="width: 100%; padding: 6px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--fbc-border); color: var(--fbc-text); font-family: 'Courier New', monospace; font-size: 11px; box-sizing: border-box;"
         />
       </form>
@@ -798,6 +799,7 @@ defmodule SphericWeb.GameLive do
             name="name"
             placeholder="Waypoint name..."
             required
+            onkeydown="event.stopPropagation()"
             style="flex: 1; padding: 4px 8px; background: rgba(255,255,255,0.06); border: 1px solid var(--fbc-border); color: var(--fbc-text); font-family: 'Courier New', monospace; font-size: 11px;"
           />
           <button
