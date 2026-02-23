@@ -2,13 +2,18 @@ defmodule Spheric.Game.ShiftCycle do
   @moduledoc """
   Shift Cycle — sun-driven day/night cycle on the sphere.
 
-  A directional "sun" rotates around the sphere. Half the planet is
-  illuminated and half is in shadow at any time. Each face's light level
-  is the dot product of its outward normal with the sun direction.
+  A directional "sun" rotates around the sphere with realistic solar
+  positioning based on longitude, latitude, and day of year. The sun's
+  elevation varies by latitude and season using proper solar astronomy:
 
-  The cycle is divided into 4 named phases (dawn, zenith, dusk, nadir)
-  for biome productivity modifiers. Phase transitions still broadcast
-  to clients for UI updates.
+  - **Solar Declination**: The sun's angle above/below the equator,
+    varying with day of year due to axial tilt (±23.44°).
+  - **Solar Hour Angle**: Driven by the sun_angle (daily rotation).
+  - **Solar Elevation**: `sin(elev) = sin(lat)*sin(decl) + cos(lat)*cos(decl)*cos(hour_angle)`
+
+  Each face's light level is the dot product of its outward normal with
+  the 3D sun direction vector. The cycle is divided into 4 named phases
+  (dawn, zenith, dusk, nadir) for biome productivity modifiers.
   """
 
   alias Spheric.Geometry.RhombicTriacontahedron, as: RT
@@ -19,6 +24,12 @@ defmodule Spheric.Game.ShiftCycle do
   # Full rotation = 4 phases × 600 ticks = 2400 ticks (~8 min)
   @phase_duration 600
   @full_cycle @phase_duration * 4
+
+  # Seasonal cycle: 30 game-days = 1 year (each day = 1 full sun rotation)
+  @year_length 30
+
+  # Axial tilt in radians (~23.44° like Earth)
+  @axial_tilt 23.44 * :math.pi() / 180.0
 
   @phases [:dawn, :zenith, :dusk, :nadir]
 
@@ -60,7 +71,8 @@ defmodule Spheric.Game.ShiftCycle do
         :ets.insert(@cycle_table, {:state, %{
           sun_angle: 0.0,
           current_phase: :dawn,
-          phase_tick: 0
+          phase_tick: 0,
+          day_of_year: 0
         }})
       _ -> :ok
     end
@@ -173,8 +185,24 @@ defmodule Spheric.Game.ShiftCycle do
   def sun_direction do
     case state() do
       nil -> {1.0, 0.0, 0.0}
-      s -> angle_to_direction(s.sun_angle)
+      s -> sun_direction_from(s.sun_angle, Map.get(s, :day_of_year, 0))
     end
+  end
+
+  @doc "Get the current day of year (0-based)."
+  def day_of_year do
+    case state() do
+      nil -> 0
+      s -> Map.get(s, :day_of_year, 0)
+    end
+  end
+
+  @doc "Get the year length in game-days."
+  def year_length, do: @year_length
+
+  @doc "Get the current solar declination in radians."
+  def solar_declination do
+    solar_declination_for_day(day_of_year())
   end
 
   @doc "Get the illumination level for a face (0.0 = full shadow, 1.0 = full sun)."
@@ -223,9 +251,15 @@ defmodule Spheric.Game.ShiftCycle do
       if current == nil do
         :no_change
       else
-        # Advance sun angle
+        # Advance sun angle (hour angle)
         angle_step = 2 * :math.pi() * 10 / @full_cycle
-        new_angle = fmod(current.sun_angle + angle_step, 2 * :math.pi())
+        old_angle = current.sun_angle
+        new_angle = fmod(old_angle + angle_step, 2 * :math.pi())
+
+        # Advance day_of_year when the sun completes a full rotation
+        day = Map.get(current, :day_of_year, 0)
+        new_day = if new_angle < old_angle, do: rem(day + 1, @year_length), else: day
+
         new_phase = phase_for_angle(new_angle)
         new_phase_tick = if new_phase == current.current_phase, do: current.phase_tick + 10, else: 0
 
@@ -234,9 +268,10 @@ defmodule Spheric.Game.ShiftCycle do
           current_phase: new_phase,
           phase_tick: new_phase_tick
         }
+        new_state = Map.put(new_state, :day_of_year, new_day)
         :ets.insert(@cycle_table, {:state, new_state})
 
-        sun_dir = angle_to_direction(new_angle)
+        sun_dir = sun_direction_from(new_angle, new_day)
 
         if new_phase != current.current_phase do
           lighting = Map.get(@phase_lighting, new_phase)
@@ -251,8 +286,9 @@ defmodule Spheric.Game.ShiftCycle do
 
   @doc "Put state directly (for persistence)."
   def put_state(s) do
-    # Migrate old state that lacks sun_angle
+    # Migrate old state that lacks sun_angle or day_of_year
     s = if Map.has_key?(s, :sun_angle), do: s, else: Map.put(s, :sun_angle, 0.0)
+    s = if Map.has_key?(s, :day_of_year), do: s, else: Map.put(s, :day_of_year, 0)
     :ets.insert(@cycle_table, {:state, s})
   end
 
@@ -280,9 +316,26 @@ defmodule Spheric.Game.ShiftCycle do
 
   # --- Private helpers ---
 
-  # Sun rotates in the XZ plane (Y is the polar axis of the sphere)
-  defp angle_to_direction(angle) do
-    {:math.cos(angle), 0.0, :math.sin(angle)}
+  # Solar declination: the sun's angle above/below the equator for a given day.
+  # Varies sinusoidally over the year between -@axial_tilt and +@axial_tilt.
+  # Day 0 = spring equinox (declination 0), day year/4 = summer solstice (max tilt).
+  defp solar_declination_for_day(day) do
+    @axial_tilt * :math.sin(2 * :math.pi() * day / @year_length)
+  end
+
+  # Compute 3D sun direction from hour angle and day of year.
+  # The sun rotates in the XZ plane (hour angle) but is tilted above/below
+  # the equatorial plane by the solar declination (Y axis = polar axis).
+  #
+  # This gives us a unit vector pointing from the sphere center toward the sun:
+  #   x = cos(declination) * cos(hour_angle)
+  #   y = sin(declination)
+  #   z = cos(declination) * sin(hour_angle)
+  defp sun_direction_from(hour_angle, day) do
+    decl = solar_declination_for_day(day)
+    cos_decl = :math.cos(decl)
+    sin_decl = :math.sin(decl)
+    {:math.cos(hour_angle) * cos_decl, sin_decl, :math.sin(hour_angle) * cos_decl}
   end
 
   # Map angle quadrant to phase name
