@@ -736,6 +736,7 @@ export class ChunkManager {
         const col = u + du;
         if (row >= 0 && row < N && col >= 0 && col < N) {
           const base = tileColors[row * N + col];
+          if (!base) continue;
           const overlay = this.lodTileOverlay(cellKey, row, col, N, overlays);
           adjacent.push(this.applyOverlay(base, overlay));
         }
