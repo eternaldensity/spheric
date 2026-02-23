@@ -25,6 +25,7 @@ const COLORS = {
   dimensional_stabilizer: 0x3366aa,
   astral_projection_chamber: 0x8866cc,
   gathering_post: 0x66884a,
+  drone_bay: 0x445577,
 };
 
 // Shared material cache — reuse materials across all buildings of the same color
@@ -122,6 +123,11 @@ const _SHARED_GEOMETRIES_RAW = {
   astral_dome: new THREE.SphereGeometry(s * 0.8, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
   astral_pillar: new THREE.CylinderGeometry(s * 0.1, s * 0.15, s * 1.2, 6),
   astral_eye: new THREE.IcosahedronGeometry(s * 0.3, 0),
+  // Drone bay
+  drone_bay_pad: new THREE.CylinderGeometry(s * 0.9, s * 1.0, s * 0.2, 8),
+  drone_bay_mast: new THREE.CylinderGeometry(s * 0.08, s * 0.1, s * 1.4, 6),
+  drone_bay_dish: new THREE.SphereGeometry(s * 0.3, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2),
+  drone_bay_arm: new THREE.BoxGeometry(s * 0.6, s * 0.06, s * 0.06),
 };
 // Mark all shared geometries so they won't be disposed when individual buildings are removed
 const SHARED_GEOMETRIES = Object.fromEntries(
@@ -637,6 +643,39 @@ function createGatheringPost() {
   return group;
 }
 
+function createDroneBay() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.drone_bay);
+
+  // Landing pad base
+  const pad = new THREE.Mesh(SHARED_GEOMETRIES.drone_bay_pad, mat);
+  pad.position.y = s * 0.1;
+  group.add(pad);
+
+  // Central antenna mast
+  const mast = new THREE.Mesh(SHARED_GEOMETRIES.drone_bay_mast, makeMaterial(0x667799));
+  mast.position.y = s * 0.9;
+  group.add(mast);
+
+  // Dish on top of mast
+  const dish = new THREE.Mesh(SHARED_GEOMETRIES.drone_bay_dish, makeMaterial(0x88aacc));
+  dish.position.y = s * 1.6;
+  group.add(dish);
+
+  // Cross arms on pad
+  const armMat = makeMaterial(0x556688);
+  const arm1 = new THREE.Mesh(SHARED_GEOMETRIES.drone_bay_arm, armMat);
+  arm1.position.y = s * 0.23;
+  group.add(arm1);
+  const arm2 = new THREE.Mesh(SHARED_GEOMETRIES.drone_bay_arm, armMat);
+  arm2.position.y = s * 0.23;
+  arm2.rotation.y = Math.PI / 2;
+  group.add(arm2);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
@@ -660,6 +699,7 @@ const BUILDERS = {
   dimensional_stabilizer: createDimensionalStabilizer,
   astral_projection_chamber: createAstralProjectionChamber,
   gathering_post: createGatheringPost,
+  drone_bay: createDroneBay,
 };
 
 /**

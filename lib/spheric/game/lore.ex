@@ -107,6 +107,7 @@ defmodule Spheric.Game.Lore do
   def display_name(:nuclear_refinery), do: "Nuclear Distiller"
   def display_name(:paranatural_synthesizer), do: "Paranatural Synthesizer"
   def display_name(:board_interface), do: "Board Interface"
+  def display_name(:drone_bay), do: "Drone Bay"
 
   # New creatures
   def display_name(:flux_serpent), do: "Flux Serpent"

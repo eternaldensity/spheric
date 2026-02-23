@@ -42,7 +42,8 @@ defmodule Spheric.Game.Buildings do
     :particle_collider,
     :nuclear_refinery,
     :paranatural_synthesizer,
-    :board_interface
+    :board_interface,
+    :drone_bay
   ]
 
   @doc "Returns the list of all building type atoms."
@@ -87,6 +88,7 @@ defmodule Spheric.Game.Buildings do
   def display_name(:nuclear_refinery), do: "Nuc Refinery"
   def display_name(:paranatural_synthesizer), do: "Synthesizer"
   def display_name(:board_interface), do: "Board"
+  def display_name(:drone_bay), do: "Drone Bay"
 
   @categories [
     :logistics,
@@ -144,6 +146,7 @@ defmodule Spheric.Game.Buildings do
   def category(:claim_beacon), do: :defense
   def category(:dimensional_stabilizer), do: :defense
   def category(:astral_projection_chamber), do: :defense
+  def category(:drone_bay), do: :storage
 
   @doc "Returns buildings grouped by category as a keyword list."
   def buildings_by_category do
@@ -259,6 +262,9 @@ defmodule Spheric.Game.Buildings do
 
   def initial_state(:board_interface),
     do: Spheric.Game.Behaviors.BoardInterface.initial_state()
+
+  def initial_state(:drone_bay),
+    do: Spheric.Game.Behaviors.DroneBay.initial_state()
 
   def initial_state(_type), do: %{}
 end

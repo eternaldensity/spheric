@@ -4,7 +4,9 @@ defmodule SphericWeb.GameLive.BuildingEvents do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
 
-  alias Spheric.Game.{WorldServer, WorldStore, Buildings, StarterKit}
+  alias Spheric.Game.{WorldServer, WorldStore, Buildings, StarterKit, GroundItems}
+  alias Spheric.Game.Behaviors.DroneBay
+  alias Spheric.Game.Persistence
   alias SphericWeb.GameLive.Helpers
 
   require Logger
@@ -264,6 +266,91 @@ defmodule SphericWeb.GameLive.BuildingEvents do
       WorldStore.put_building(key_b, %{building_b | state: new_state_b})
 
       tile_info = Helpers.build_tile_info(key_a)
+      {:noreply, assign(socket, :tile_info, tile_info)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Drone fuel pickup: client requests fuel from a ground tile
+  def handle_event("pickup_fuel", %{"face" => face, "row" => row, "col" => col}, socket) do
+    face = Helpers.to_int(face)
+    row = Helpers.to_int(row)
+    col = Helpers.to_int(col)
+    key = {face, row, col}
+
+    ground = GroundItems.get(key)
+
+    result =
+      cond do
+        Map.get(ground, :biofuel, 0) > 0 ->
+          GroundItems.take(key, :biofuel)
+          {:ok, :biofuel}
+
+        Map.get(ground, :refined_fuel, 0) > 0 ->
+          GroundItems.take(key, :refined_fuel)
+          {:ok, :refined_fuel}
+
+        true ->
+          :empty
+      end
+
+    case result do
+      {:ok, fuel_type} ->
+        {:noreply,
+         push_event(socket, "fuel_pickup_result", %{
+           success: true,
+           item: Atom.to_string(fuel_type)
+         })}
+
+      :empty ->
+        {:noreply, push_event(socket, "fuel_pickup_result", %{success: false})}
+    end
+  end
+
+  # Drone bay: player selects an upgrade to install
+  def handle_event(
+        "select_drone_upgrade",
+        %{"face" => face, "row" => row, "col" => col, "upgrade" => upgrade_str},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+
+    upgrade =
+      try do
+        String.to_existing_atom(upgrade_str)
+      rescue
+        ArgumentError -> nil
+      end
+
+    building = WorldStore.get_building(key)
+
+    if upgrade && building && building.type == :drone_bay &&
+         building.owner_id == socket.assigns.player_id do
+      player_upgrades = Persistence.get_drone_upgrades(socket.assigns.player_id)
+      new_state = DroneBay.select_upgrade(building.state, upgrade, player_upgrades)
+      WorldStore.put_building(key, %{building | state: new_state})
+      tile_info = Helpers.build_tile_info(key)
+      {:noreply, assign(socket, :tile_info, tile_info)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Drone bay: player cancels upgrade selection
+  def handle_event(
+        "cancel_drone_upgrade",
+        %{"face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+    building = WorldStore.get_building(key)
+
+    if building && building.type == :drone_bay &&
+         building.owner_id == socket.assigns.player_id do
+      new_state = DroneBay.cancel_upgrade(building.state)
+      WorldStore.put_building(key, %{building | state: new_state})
+      tile_info = Helpers.build_tile_info(key)
       {:noreply, assign(socket, :tile_info, tile_info)}
     else
       {:noreply, socket}

@@ -6,6 +6,7 @@ defmodule SphericWeb.GameLive.Helpers do
   alias Spheric.Game.{
     WorldStore,
     Buildings,
+    Behaviors,
     Research,
     Creatures,
     Lore,
@@ -102,12 +103,30 @@ defmodule SphericWeb.GameLive.Helpers do
     if building do
       owner_name = Persistence.get_player_name(building[:owner_id])
 
+      drone_bay_info =
+        if building.type == :drone_bay do
+          player_upgrades = Persistence.get_drone_upgrades(building[:owner_id])
+
+          %{
+            mode: building.state[:mode] || :idle,
+            selected_upgrade: building.state[:selected_upgrade],
+            delivered: building.state[:delivered] || %{},
+            required: building.state[:required] || %{},
+            fuel_buffer_count: length(building.state[:fuel_buffer] || []),
+            upgrade_costs: Behaviors.DroneBay.all_upgrade_costs(),
+            player_upgrades: player_upgrades
+          }
+        else
+          nil
+        end
+
       Map.merge(base, %{
         building_name: Lore.display_name(building.type),
         building_orientation: building.orientation,
         building_status: building_status_text(building),
         building_owner_id: building[:owner_id],
-        building_owner_name: owner_name
+        building_owner_name: owner_name,
+        drone_bay_info: drone_bay_info
       })
     else
       Map.merge(base, %{
@@ -115,7 +134,8 @@ defmodule SphericWeb.GameLive.Helpers do
         building_orientation: nil,
         building_status: nil,
         building_owner_id: nil,
-        building_owner_name: nil
+        building_owner_name: nil,
+        drone_bay_info: nil
       })
     end
   end
@@ -309,7 +329,22 @@ defmodule SphericWeb.GameLive.Helpers do
     end
   end
 
+  def building_status_text(%{type: :drone_bay, state: state}) do
+    case state[:mode] do
+      :accepting -> "Installing upgrade... feed items"
+      :complete -> "Upgrade ready"
+      _ ->
+        buf_count = length(state[:fuel_buffer] || [])
+        if buf_count > 0, do: "Fuel buffer: #{buf_count}/5", else: "Idle"
+    end
+  end
+
   def building_status_text(_building), do: nil
+
+  def upgrade_display_name(:auto_refuel), do: "Auto-Refuel"
+  def upgrade_display_name(:expanded_tank), do: "Expanded Tank"
+  def upgrade_display_name(:drone_spotlight), do: "Drone Spotlight"
+  def upgrade_display_name(other), do: other |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
 
   def creature_boost_label(type) do
     case Creatures.boost_info(type) do

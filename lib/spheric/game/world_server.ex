@@ -561,9 +561,30 @@ defmodule Spheric.Game.WorldServer do
   def handle_info(:tick, state) do
     new_tick = state.tick + 1
 
-    {_tick, items_by_face, submissions, newly_completed} = TickProcessor.process_tick(new_tick)
+    {_tick, items_by_face, submissions, newly_completed, drone_completions} =
+      TickProcessor.process_tick(new_tick)
 
     current_item_faces = items_by_face |> Map.keys() |> MapSet.new()
+
+    # Process drone bay upgrade completions
+    for {key, upgrade, player_id} <- drone_completions, player_id != nil do
+      Spheric.Game.Persistence.apply_drone_upgrade(player_id, upgrade)
+
+      # Enable auto-refuel on the building itself so it accepts fuel input
+      if upgrade == :auto_refuel do
+        bay = WorldStore.get_building(key)
+
+        if bay do
+          WorldStore.put_building(key, %{bay | state: %{bay.state | auto_refuel_enabled: true}})
+        end
+      end
+
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "drone:#{player_id}",
+        {:drone_upgrade_complete, key, upgrade, player_id}
+      )
+    end
 
     # Broadcast construction completions so clients can remove ghost effect
     for {face_id, _row, _col} = key <- newly_completed do

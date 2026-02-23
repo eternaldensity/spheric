@@ -16,6 +16,7 @@ import { BlueprintTool } from "../systems/blueprint_tool.js";
 import { TerritoryRenderer } from "../systems/territory_renderer.js";
 import { CorruptionRenderer } from "../systems/corruption_renderer.js";
 import { AlteredItemRenderer } from "../systems/altered_item_renderer.js";
+import { DroneFuelSystem } from "../systems/drone_fuel.js";
 
 // Terrain biome colors (shared with ChunkManager)
 const TERRAIN_COLORS = {
@@ -117,6 +118,19 @@ const GameRenderer = {
       }
     } catch (_e) { /* localStorage unavailable */ }
 
+    this.droneFuel = new DroneFuelSystem((event, payload) => this.pushEvent(event, payload));
+    this.droneFuel.initFromStorage();
+    this.droneFuel.onLowPowerChange = (isLow) => {
+      this.droneCamera._flySpeed = isLow ? 0.1 : 0.4;
+      this._applyLowPowerEffect(isLow);
+    };
+    this.droneFuel.onFuelChange = () => this._updateFuelHUD();
+
+    // Drone spotlight (toggled with L key when upgrade unlocked)
+    this._spotLight = new THREE.PointLight(0xffeedd, 1.5, 3);
+    this._spotLight.visible = false;
+    this.scene.add(this._spotLight);
+
     this.pathfinding = new PathfindingEngine(this.faceIndices, this.subdivisions, getTileCenter);
 
     this.placementPreview = new PlacementPreview(this.scene, getTileCenter, this.subdivisions);
@@ -153,6 +167,7 @@ const GameRenderer = {
     this.chunkManager.update(this.camera.position);
 
     this.animate();
+    this._updateFuelHUD();
 
     this._onResize = () => this.onResize();
     window.addEventListener("resize", this._onResize);
@@ -596,6 +611,16 @@ const GameRenderer = {
     this.handleEvent("world_reset", () => {
       setTimeout(() => window.location.reload(), 500);
     });
+
+    // --- Drone Fuel ---
+
+    this.handleEvent("fuel_pickup_result", (data) => {
+      this.droneFuel.onPickupResult(data);
+    });
+
+    this.handleEvent("drone_upgrade_granted", ({ upgrade }) => {
+      this.droneFuel.onUpgradeGranted(upgrade);
+    });
   },
 
   // --- Raycasting for tile selection ---
@@ -631,6 +656,10 @@ const GameRenderer = {
       }
       if (event.key === "t" || event.key === "T") {
         this.toggleBuildingRenderMode();
+      }
+      if ((event.key === "l" || event.key === "L") && !this.placementType) {
+        this.droneFuel.toggleSpotlight();
+        this._updateFuelHUD();
       }
     };
     window.addEventListener("keydown", this._onKeyDown);
@@ -921,6 +950,46 @@ const GameRenderer = {
     }, 500);
   },
 
+  // --- Drone fuel HUD ---
+
+  _updateFuelHUD() {
+    const gauge = document.getElementById("fuel-gauge");
+    if (!gauge) return;
+
+    const data = this.droneFuel.getGaugeData();
+    let html = "";
+    for (let i = 0; i < data.slots.length; i++) {
+      const slot = data.slots[i];
+      if (!slot) {
+        html += `<div class="fuel-pip fuel-empty"></div>`;
+      } else {
+        const cls = slot.type === "refined_fuel" ? "fuel-refined" : "fuel-biofuel";
+        const warn = data.lowPower || (slot.active && slot.fraction < 0.3) ? " fuel-warn" : "";
+        const h = Math.max(10, slot.fraction * 100);
+        html += `<div class="fuel-pip ${cls}${warn}"><div class="fuel-fill" style="height:${h}%"></div></div>`;
+      }
+    }
+    if (this.droneFuel.spotlightOn) {
+      html += `<div class="fuel-spotlight-indicator">L</div>`;
+    }
+    gauge.innerHTML = html;
+  },
+
+  _applyLowPowerEffect(isLow) {
+    const vignette = document.getElementById("low-power-vignette");
+    if (vignette) {
+      vignette.style.opacity = isLow ? "1" : "0";
+    }
+    const gauge = document.getElementById("fuel-gauge");
+    if (gauge) {
+      if (isLow) {
+        gauge.classList.add("hud-flicker");
+      } else {
+        gauge.classList.remove("hud-flicker");
+      }
+    }
+  },
+
   // --- Render loop ---
 
   animate() {
@@ -929,6 +998,28 @@ const GameRenderer = {
     // Update drone camera (smooth fly, height, orbit interpolation)
     const dt = 1 / 60;
     this.droneCamera.update(dt);
+
+    // Update drone fuel system
+    this.droneFuel.update(dt);
+
+    // Auto-pickup fuel when zoomed close to surface
+    if (this.droneCamera.height < 0.3) {
+      const surfacePoint = this.droneCamera.surfacePoint || this.camera.position.clone().normalize();
+      const tile = this.chunkManager.surfacePointToTile(surfacePoint);
+      if (tile) {
+        this.droneFuel.tryPickup(tile.face, tile.row, tile.col);
+      }
+    }
+
+    // Update spotlight light
+    if (this._spotLight) {
+      if (this.droneFuel.spotlightOn) {
+        this._spotLight.visible = true;
+        this._spotLight.position.copy(this.camera.position);
+      } else {
+        this._spotLight.visible = false;
+      }
+    }
 
     // Update LOD based on camera position
     const changedCells = this.chunkManager.update(this.camera.position);
@@ -986,6 +1077,11 @@ const GameRenderer = {
     this.lineDrawingTool.dispose();
     this.blueprintTool.dispose();
     this.demolishTool.dispose();
+
+    if (this._spotLight) {
+      this.scene.remove(this._spotLight);
+      this._spotLight.dispose();
+    }
 
     // Dispose all building meshes
     for (const key of Object.keys(this.buildingMeshes)) {

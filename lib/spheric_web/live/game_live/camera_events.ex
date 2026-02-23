@@ -5,7 +5,7 @@ defmodule SphericWeb.GameLive.CameraEvents do
   import Phoenix.LiveView, only: [push_event: 3]
 
   alias Spheric.Geometry.Coordinate
-  alias Spheric.Game.ShiftCycle
+  alias Spheric.Game.{ShiftCycle, WorldStore}
   alias SphericWeb.Presence
 
   @presence_topic "game:presence"
@@ -49,6 +49,47 @@ defmodule SphericWeb.GameLive.CameraEvents do
         bg: local.bg
       })
 
+    # Auto-refuel: when zoomed close, check nearby drone bays with fuel buffer
+    height = :math.sqrt(x * x + y * y + z * z) - 1.0
+
+    socket =
+      if height < 0.5 do
+        try_auto_refuel(socket)
+      else
+        socket
+      end
+
     {:noreply, socket}
+  end
+
+  defp try_auto_refuel(socket) do
+    player_id = socket.assigns.player_id
+
+    # Check drone bays on visible faces only
+    result =
+      socket.assigns.visible_faces
+      |> Enum.flat_map(fn face_id -> WorldStore.get_face_buildings(face_id) end)
+      |> Enum.find(fn {_key, b} ->
+        b.type == :drone_bay &&
+          b.owner_id == player_id &&
+          b.state[:auto_refuel_enabled] == true &&
+          is_list(b.state[:fuel_buffer]) &&
+          length(b.state[:fuel_buffer]) > 0
+      end)
+
+    case result do
+      {key, building} ->
+        [fuel_item | rest] = building.state.fuel_buffer
+        new_state = %{building.state | fuel_buffer: rest}
+        WorldStore.put_building(key, %{building | state: new_state})
+
+        push_event(socket, "fuel_pickup_result", %{
+          success: true,
+          item: Atom.to_string(fuel_item)
+        })
+
+      nil ->
+        socket
+    end
   end
 end

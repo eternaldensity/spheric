@@ -57,6 +57,30 @@ defmodule Spheric.Game.Persistence do
     |> Repo.one()
   end
 
+  @doc "Apply a drone upgrade for a player. Persists to DB."
+  def apply_drone_upgrade(player_id, upgrade) do
+    case Repo.get_by(Player, player_id: player_id) do
+      nil ->
+        :error
+
+      player ->
+        current = player.drone_upgrades || %{}
+        updated = Map.put(current, Atom.to_string(upgrade), true)
+
+        player
+        |> Player.changeset(%{drone_upgrades: updated})
+        |> Repo.update()
+    end
+  end
+
+  @doc "Get a player's drone upgrades map. Returns %{} if not found."
+  def get_drone_upgrades(player_id) do
+    case Repo.get_by(Player, player_id: player_id) do
+      nil -> %{}
+      player -> player.drone_upgrades || %{}
+    end
+  end
+
   @doc """
   Load a world by name. If found, regenerates terrain from seed,
   then overlays saved resource modifications and buildings into ETS.

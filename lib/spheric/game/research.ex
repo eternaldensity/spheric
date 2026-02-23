@@ -198,7 +198,8 @@ defmodule Spheric.Game.Research do
       :trade_terminal,
       :conveyor_mk2,
       :storage_container,
-      :assembler
+      :assembler,
+      :drone_bay
     ],
     2 => [:refinery, :conveyor_mk3, :balancer, :underground_conduit, :crossover],
     3 => [:containment_trap, :purification_beacon, :defense_turret, :shadow_panel, :lamp],

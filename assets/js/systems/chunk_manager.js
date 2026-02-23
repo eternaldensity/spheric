@@ -579,6 +579,49 @@ export class ChunkManager {
   }
 
   /**
+   * Convert a normalized surface point (Vector3 on unit sphere) to the nearest
+   * tile coordinates {face, row, col}. Uses dot-product to find the closest
+   * face, then projects into face-local UV space to derive row/col.
+   */
+  surfacePointToTile(point) {
+    // Find closest face by dot product with face centers
+    let bestFace = 0;
+    let bestDot = -Infinity;
+    for (let i = 0; i < this.faceCenters.length; i++) {
+      const d = this.faceCenters[i].dot(point);
+      if (d > bestDot) {
+        bestDot = d;
+        bestFace = i;
+      }
+    }
+
+    // Project point into face-local coordinates
+    // getTileCenter: origin + (col+0.5)/N * e1 + (row+0.5)/N * e2, normalized
+    // Inverse: solve for u,v in  point ≈ origin + u*e1 + v*e2 (unnormalized)
+    const { origin, e1, e2 } = this.faceEdges[bestFace];
+    const diff = new THREE.Vector3().subVectors(point, origin);
+
+    // Solve 2x2 system using dot products (least-squares projection)
+    const e1e1 = e1.dot(e1);
+    const e1e2 = e1.dot(e2);
+    const e2e2 = e2.dot(e2);
+    const de1 = diff.dot(e1);
+    const de2 = diff.dot(e2);
+
+    const det = e1e1 * e2e2 - e1e2 * e1e2;
+    if (Math.abs(det) < 1e-12) return null;
+
+    const u = (e2e2 * de1 - e1e2 * de2) / det;
+    const v = (e1e1 * de2 - e1e2 * de1) / det;
+
+    const N = this.maxSubdivisions;
+    const col = Math.max(0, Math.min(N - 1, Math.floor(u * N)));
+    const row = Math.max(0, Math.min(N - 1, Math.floor(v * N)));
+
+    return { face: bestFace, row, col };
+  }
+
+  /**
    * Get all visible meshes for raycasting.
    */
   getRaycastMeshes() {

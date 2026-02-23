@@ -126,3 +126,69 @@
   --fbc-info: #8899aa;
   --fbc-gold: #ccaa44;
 }
+
+/* ═══════════════════════════════════════════
+   Drone Fuel Gauge
+   ═══════════════════════════════════════════ */
+.fuel-pip {
+  width: 14px;
+  height: 32px;
+  border: 1px solid #4a3d33;
+  background: rgba(10, 10, 15, 0.7);
+  position: relative;
+  overflow: hidden;
+}
+
+.fuel-pip .fuel-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  transition: height 0.3s;
+}
+
+.fuel-biofuel .fuel-fill {
+  background: #448833;
+}
+
+.fuel-refined .fuel-fill {
+  background: #33aaaa;
+}
+
+.fuel-empty {
+  background: rgba(10, 10, 15, 0.5);
+  border-color: #221a15;
+}
+
+.fuel-warn {
+  animation: fuelWarn 0.6s ease-in-out infinite alternate;
+}
+
+.fuel-spotlight-indicator {
+  width: 14px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  color: #ffeedd;
+  background: rgba(255, 238, 200, 0.12);
+  border: 1px solid #665533;
+  margin-left: 4px;
+}
+
+@keyframes fuelWarn {
+  from { border-color: #cc3333; box-shadow: 0 0 4px rgba(204, 51, 51, 0.4); }
+  to { border-color: #4a3d33; box-shadow: none; }
+}
+
+@keyframes hudFlicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+  75% { opacity: 0.85; }
+}
+
+.hud-flicker {
+  animation: hudFlicker 1.5s ease-in-out infinite;
+}

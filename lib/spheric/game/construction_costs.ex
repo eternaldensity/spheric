@@ -15,6 +15,7 @@ defmodule Spheric.Game.ConstructionCosts do
     gathering_post: %{copper_ingot: 1},
 
     # Tier 1
+    drone_bay: %{iron_ingot: 15, copper_ingot: 10},
     conveyor_mk2: %{iron_ingot: 2, copper_ingot: 1},
     splitter: %{iron_ingot: 3, copper_ingot: 2},
     merger: %{iron_ingot: 3, copper_ingot: 2},
@@ -69,6 +70,7 @@ defmodule Spheric.Game.ConstructionCosts do
     smelter: 0,
     submission_terminal: 0,
     gathering_post: 0,
+    drone_bay: 1,
     splitter: 1,
     merger: 1,
     claim_beacon: 1,

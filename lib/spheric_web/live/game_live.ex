@@ -93,6 +93,7 @@ defmodule SphericWeb.GameLive do
     if connected?(socket) and world_id do
       Research.load_player_unlocks(world_id, player_id)
       Phoenix.PubSub.subscribe(Spheric.PubSub, "research:#{player_id}")
+      Phoenix.PubSub.subscribe(Spheric.PubSub, "drone:#{player_id}")
       Phoenix.PubSub.subscribe(Spheric.PubSub, "world:events")
     end
 
@@ -207,6 +208,20 @@ defmodule SphericWeb.GameLive do
       phx-window-keydown="keydown"
       data-geometry={Jason.encode!(@geometry_data)}
       style="width: 100vw; height: 100vh; overflow: hidden; margin: 0; padding: 0;"
+    >
+    </div>
+
+    <%!-- === FUEL GAUGE (bottom center, above toolbar) === --%>
+    <div
+      id="fuel-gauge"
+      style="position: fixed; bottom: 52px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; align-items: flex-end; pointer-events: none; z-index: 45;"
+    >
+    </div>
+
+    <%!-- === LOW POWER VIGNETTE === --%>
+    <div
+      id="low-power-vignette"
+      style="position: fixed; inset: 0; pointer-events: none; z-index: 40; opacity: 0; transition: opacity 0.5s; background: radial-gradient(ellipse at center, transparent 40%, rgba(180,40,40,0.35) 100%);"
     >
     </div>
 
@@ -344,6 +359,85 @@ defmodule SphericWeb.GameLive do
           >
             Decommission
           </button>
+        </div>
+
+        <%!-- Drone Bay upgrade panel --%>
+        <div
+          :if={@tile_info.drone_bay_info && (@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id)}
+          style="margin-top: 8px; border-top: 1px solid var(--fbc-border); padding-top: 8px;"
+        >
+          <div style="font-size: 10px; color: var(--fbc-info); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">
+            Drone Upgrades
+          </div>
+
+          <%!-- Idle mode: show upgrade cards --%>
+          <div :if={@tile_info.drone_bay_info.mode == :idle}>
+            <div
+              :for={{upgrade, cost} <- @tile_info.drone_bay_info.upgrade_costs}
+              style={"margin-bottom: 6px; padding: 6px 8px; border: 1px solid #{if Map.get(@tile_info.drone_bay_info.player_upgrades || %{}, upgrade), do: "var(--fbc-success)", else: "var(--fbc-border)"}; background: #{if Map.get(@tile_info.drone_bay_info.player_upgrades || %{}, upgrade), do: "rgba(102,136,68,0.08)", else: "rgba(255,255,255,0.02)"};"}
+            >
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 11px; color: var(--fbc-text-bright);">
+                  {Helpers.upgrade_display_name(upgrade)}
+                </span>
+                <span
+                  :if={Map.get(@tile_info.drone_bay_info.player_upgrades || %{}, upgrade)}
+                  style="font-size: 9px; color: var(--fbc-success); text-transform: uppercase;"
+                >
+                  Installed
+                </span>
+                <button
+                  :if={!Map.get(@tile_info.drone_bay_info.player_upgrades || %{}, upgrade)}
+                  phx-click="select_drone_upgrade"
+                  phx-value-face={@tile_info.face}
+                  phx-value-row={@tile_info.row}
+                  phx-value-col={@tile_info.col}
+                  phx-value-upgrade={upgrade}
+                  style="padding: 2px 8px; border: 1px solid var(--fbc-info); background: rgba(136,153,170,0.1); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"
+                >
+                  Install
+                </button>
+              </div>
+              <div style="font-size: 9px; color: var(--fbc-text-dim); margin-top: 2px;">
+                {Enum.map_join(cost, ", ", fn {item, qty} -> "#{qty} #{Lore.display_name(item)}" end)}
+              </div>
+            </div>
+          </div>
+
+          <%!-- Accepting mode: show progress --%>
+          <div :if={@tile_info.drone_bay_info.mode == :accepting}>
+            <div style="font-size: 11px; color: var(--fbc-highlight); margin-bottom: 4px;">
+              Installing: {Helpers.upgrade_display_name(@tile_info.drone_bay_info.selected_upgrade)}
+            </div>
+            <div style="font-size: 10px; color: var(--fbc-text-dim); margin-bottom: 4px;">
+              Feed items via conveyor:
+            </div>
+            <div
+              :for={{item, required_qty} <- @tile_info.drone_bay_info.required}
+              style="font-size: 10px; margin-bottom: 2px;"
+            >
+              <span style={"color: #{if Map.get(@tile_info.drone_bay_info.delivered, item, 0) >= required_qty, do: "var(--fbc-success)", else: "var(--fbc-text)"}"}>
+                {Lore.display_name(item)}: {Map.get(@tile_info.drone_bay_info.delivered, item, 0)}/{required_qty}
+              </span>
+            </div>
+            <button
+              phx-click="cancel_drone_upgrade"
+              phx-value-face={@tile_info.face}
+              phx-value-row={@tile_info.row}
+              phx-value-col={@tile_info.col}
+              style="margin-top: 4px; padding: 3px 8px; border: 1px solid var(--fbc-accent-dim); background: rgba(136,34,34,0.15); color: var(--fbc-accent); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <%!-- Fuel buffer info (when auto-refuel is active) --%>
+          <div
+            :if={@tile_info.drone_bay_info.mode == :idle && @tile_info.drone_bay_info.fuel_buffer_count > 0}
+            style="margin-top: 4px; font-size: 10px; color: var(--fbc-text-dim);"
+          >
+            Fuel buffer: {@tile_info.drone_bay_info.fuel_buffer_count}/5
+          </div>
         </div>
       </div>
       <div :if={@tile_info.building == nil} style="color: var(--fbc-text-dim); margin-top: 4px;">
@@ -1146,6 +1240,18 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_event("link_conduit", params, socket),
     do: BuildingEvents.handle_event("link_conduit", params, socket)
+
+  @impl true
+  def handle_event("pickup_fuel", params, socket),
+    do: BuildingEvents.handle_event("pickup_fuel", params, socket)
+
+  @impl true
+  def handle_event("select_drone_upgrade", params, socket),
+    do: BuildingEvents.handle_event("select_drone_upgrade", params, socket)
+
+  @impl true
+  def handle_event("cancel_drone_upgrade", params, socket),
+    do: BuildingEvents.handle_event("cancel_drone_upgrade", params, socket)
 
   # Panel events
   @impl true

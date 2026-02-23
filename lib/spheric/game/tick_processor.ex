@@ -9,8 +9,8 @@ defmodule Spheric.Game.TickProcessor do
   2. Smelters: process input buffers, fill output buffer
   3. Push resolution: move items from outputs/conveyors to downstream buildings
 
-  Returns `{tick, items_by_face}` where `items_by_face` is a map of
-  `face_id => [item_update]` for broadcasting to clients.
+  Returns `{tick, items_by_face, submissions, newly_completed, drone_completions}`
+  where `items_by_face` is a map of `face_id => [item_update]` for broadcasting.
   """
 
   alias Spheric.Game.{
@@ -221,6 +221,13 @@ defmodule Spheric.Game.TickProcessor do
         end
       end)
 
+    # Phase 2m2: Drone bays tick (passive — no autonomous production)
+    drone_bay_updates =
+      Enum.map(classified.drone_bays, fn {key, building} ->
+        updated = Behaviors.DroneBay.tick(key, building)
+        {key, updated}
+      end)
+
     # Phase 2n: Submission terminals tick (consume items, report submissions)
     {terminal_updates, submissions} =
       Enum.reduce(classified.terminals, {[], []}, fn {key, building}, {updates, subs} ->
@@ -264,6 +271,7 @@ defmodule Spheric.Game.TickProcessor do
         shadow_panel_updates ++
         gathering_updates ++
         essence_updates ++
+        drone_bay_updates ++
         terminal_updates ++ trade_terminal_updates
 
     all_buildings = merge_updates(buildings, all_updates)
@@ -286,6 +294,28 @@ defmodule Spheric.Game.TickProcessor do
 
     # Phase 4c: Output boost — chance to double output
     final_buildings = apply_output_effects(final_buildings, movements)
+
+    # Detect drone bay upgrade completions and reset them to idle
+    drone_completions =
+      Enum.flat_map(final_buildings, fn {key, building} ->
+        if building.type == :drone_bay and building.state[:mode] == :complete do
+          [{key, building.state.selected_upgrade, building.owner_id}]
+        else
+          []
+        end
+      end)
+
+    final_buildings =
+      Enum.reduce(drone_completions, final_buildings, fn {key, _upgrade, _owner}, acc ->
+        case Map.get(acc, key) do
+          nil ->
+            acc
+
+          building ->
+            new_state = Behaviors.DroneBay.cancel_upgrade(building.state)
+            Map.put(acc, key, %{building | state: new_state})
+        end
+      end)
 
     # Batch write all modified building states to ETS
     write_changes(original_buildings, final_buildings)
@@ -316,7 +346,7 @@ defmodule Spheric.Game.TickProcessor do
     # Build per-face item state for broadcasting
     items_by_face = build_item_snapshot(final_buildings, movements)
 
-    {tick, items_by_face, submissions, newly_completed}
+    {tick, items_by_face, submissions, newly_completed, drone_completions}
   end
 
   defp gather_all_buildings do
@@ -347,6 +377,7 @@ defmodule Spheric.Game.TickProcessor do
       shadow_panels: [],
       gathering_posts: [],
       essence_extractors: [],
+      drone_bays: [],
       others: []
     }
 
@@ -373,6 +404,7 @@ defmodule Spheric.Game.TickProcessor do
         :lamp -> acc
         :gathering_post -> %{acc | gathering_posts: [pair | acc.gathering_posts]}
         :essence_extractor -> %{acc | essence_extractors: [pair | acc.essence_extractors]}
+        :drone_bay -> %{acc | drone_bays: [pair | acc.drone_bays]}
         _ -> %{acc | others: [pair | acc.others]}
       end
     end)
@@ -762,6 +794,9 @@ defmodule Spheric.Game.TickProcessor do
       %{type: :bio_generator, state: %{input_buffer: buf}} ->
         buf != nil
 
+      %{type: :drone_bay, state: state} ->
+        Behaviors.DroneBay.full?(state)
+
       %{type: :submission_terminal, state: %{input_buffer: buf}} ->
         buf != nil
 
@@ -1081,6 +1116,26 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
+  # Drone bay: accepts upgrade items or fuel from rear
+  defp try_accept(
+         dest_key,
+         %{type: :drone_bay, orientation: dir, state: state},
+         requests,
+         n
+       ) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.DroneBay.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
+
   defp try_accept(_key, _building, _requests, _n), do: nil
 
   # Accept the first request whose source is the neighbor in the given direction
@@ -1345,6 +1400,12 @@ defmodule Spheric.Game.TickProcessor do
               %{b | state: %{b.state | input_buffer: item}}
             else
               b
+            end
+
+          :drone_bay ->
+            case Behaviors.DroneBay.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
             end
 
           _ ->

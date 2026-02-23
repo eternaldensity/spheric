@@ -84,6 +84,27 @@ defmodule SphericWeb.GameLive.ServerSync do
     end
   end
 
+  # --- Drone Upgrade Handlers ---
+
+  def handle_info({:drone_upgrade_complete, _key, upgrade, _player_id}, socket) do
+    socket =
+      push_event(socket, "drone_upgrade_granted", %{
+        upgrade: Atom.to_string(upgrade)
+      })
+
+    # Refresh tile info if currently viewing this building
+    socket =
+      if socket.assigns[:tile_info] && socket.assigns.tile_info[:building] &&
+           socket.assigns.tile_info.building.type == :drone_bay do
+        key = {socket.assigns.tile_info.face, socket.assigns.tile_info.row, socket.assigns.tile_info.col}
+        assign(socket, :tile_info, Helpers.build_tile_info(key))
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
   # --- Research Handlers ---
 
   def handle_info({:case_file_completed, _case_file_id}, socket) do
