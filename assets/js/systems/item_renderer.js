@@ -27,9 +27,10 @@ const ITEM_HEIGHT = 1.004; // Above sphere surface (just above buildings at 1.00
  * Uses an object pool to avoid creating/destroying meshes every frame.
  */
 export class ItemRenderer {
-  constructor(scene, getTileCenter) {
+  constructor(scene, getTileCenter, chunkManager) {
     this.scene = scene;
     this.getTileCenter = getTileCenter;
+    this.chunkManager = chunkManager;
     this.pool = [];
     this.active = new Map(); // key -> mesh
     this.sharedGeometry = new THREE.SphereGeometry(ITEM_SCALE, 6, 6);
@@ -76,7 +77,7 @@ export class ItemRenderer {
         mesh.position.copy(destPos).multiplyScalar(ITEM_HEIGHT);
       }
 
-      mesh.visible = true;
+      mesh.visible = this.chunkManager.isTileVisible(item.face, item.row, item.col);
     }
 
     // Return unused meshes to pool

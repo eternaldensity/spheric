@@ -50,8 +50,8 @@ defmodule Spheric.Game.ShiftCycleTest do
   end
 
   describe "phase_duration/0" do
-    test "returns 600" do
-      assert ShiftCycle.phase_duration() == 600
+    test "returns 1200" do
+      assert ShiftCycle.phase_duration() == 1200
     end
   end
 
@@ -228,7 +228,7 @@ defmodule Spheric.Game.ShiftCycleTest do
     end
 
     test "returns percentage through phase" do
-      ShiftCycle.put_state(%{sun_angle: 0.0, current_phase: :dawn, phase_tick: 300})
+      ShiftCycle.put_state(%{sun_angle: 0.0, current_phase: :dawn, phase_tick: 600})
       assert ShiftCycle.phase_progress() == 50
     end
   end

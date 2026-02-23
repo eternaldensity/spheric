@@ -4,9 +4,10 @@ import * as THREE from "three";
  * AlteredItemRenderer manages the glowing octahedron meshes for altered items.
  */
 export class AlteredItemRenderer {
-  constructor(scene, getTileCenter) {
+  constructor(scene, getTileCenter, chunkManager) {
     this.scene = scene;
     this.getTileCenter = getTileCenter;
+    this.chunkManager = chunkManager;
     this.items = new Map();  // "face:row:col" -> { type, color }
     this.meshes = new Map(); // "face:row:col" -> THREE.Mesh
     this._time = 0;
@@ -56,6 +57,14 @@ export class AlteredItemRenderer {
     for (const [key, mesh] of this.meshes) {
       const item = this.items.get(key);
       if (!item || !mesh) continue;
+
+      const parts = key.split(":");
+      const visible = this.chunkManager.isTileVisible(
+        parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2])
+      );
+      mesh.visible = visible;
+      if (!visible) continue;
+
       mesh.rotation.x += 0.01;
       mesh.rotation.y += 0.015;
       const pulse = 0.4 + 0.6 * Math.sin(this._time * 2.0 + mesh.userData.phase);

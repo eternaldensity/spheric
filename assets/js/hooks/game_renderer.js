@@ -131,18 +131,18 @@ const GameRenderer = {
 
     this.territoryRenderer = new TerritoryRenderer(this.scene, getTileCenter, this.subdivisions);
 
-    this.corruptionRenderer = new CorruptionRenderer(this.scene, getTileCenter, this.subdivisions);
+    this.corruptionRenderer = new CorruptionRenderer(this.scene, getTileCenter, this.subdivisions, this.chunkManager);
 
-    this.alteredItemRenderer = new AlteredItemRenderer(this.scene, getTileCenter);
+    this.alteredItemRenderer = new AlteredItemRenderer(this.scene, getTileCenter, this.chunkManager);
 
     this.playerPresence = new PlayerPresence(this.scene);
 
     this.atmosphere = new AtmosphereRenderer(this.scene);
 
     this.itemInterpolator = new ItemInterpolator();
-    this.itemRenderer = new ItemRenderer(this.scene, getTileCenter);
+    this.itemRenderer = new ItemRenderer(this.scene, getTileCenter, this.chunkManager);
 
-    this.creatureRenderer = new CreatureRenderer(this.scene, getTileCenter);
+    this.creatureRenderer = new CreatureRenderer(this.scene, getTileCenter, this.chunkManager);
     this.creatureData = [];
 
     this.setupRaycasting();

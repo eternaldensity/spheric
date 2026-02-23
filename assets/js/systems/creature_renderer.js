@@ -25,9 +25,10 @@ const MOVE_DURATION = 1.0; // seconds — matches server @move_interval (5 ticks
  * Movement is smoothly interpolated between tile positions.
  */
 export class CreatureRenderer {
-  constructor(scene, getTileCenter) {
+  constructor(scene, getTileCenter, chunkManager) {
     this.scene = scene;
     this.getTileCenter = getTileCenter;
+    this.chunkManager = chunkManager;
     this.pool = [];
     // creature_id -> { mesh, data, fromPos, toPos, moveT, moveStarted }
     this.active = new Map();
@@ -152,7 +153,7 @@ export class CreatureRenderer {
       // Gentle rotation
       entry.mesh.rotation.y += deltaTime * 1.5;
 
-      entry.mesh.visible = true;
+      entry.mesh.visible = this.chunkManager.isTileVisible(c.face, c.row, c.col);
     }
 
     // Return unused meshes to pool

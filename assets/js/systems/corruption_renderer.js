@@ -15,10 +15,11 @@ const _color = new THREE.Color();
  * Uses InstancedMesh for O(1) draw calls regardless of corruption count.
  */
 export class CorruptionRenderer {
-  constructor(scene, getTileCenter, subdivisions) {
+  constructor(scene, getTileCenter, subdivisions, chunkManager) {
     this.scene = scene;
     this.getTileCenter = getTileCenter;
     this.subdivisions = subdivisions;
+    this.chunkManager = chunkManager;
 
     // Corruption data: "face:row:col" -> { intensity, phase, index }
     this.corruptionData = new Map();
@@ -191,6 +192,10 @@ export class CorruptionRenderer {
         this.scene.add(mesh);
         this.hissEntityMeshes.set(entity.id, mesh);
       }
+
+      const visible = this.chunkManager.isTileVisible(entity.face, entity.row, entity.col);
+      mesh.visible = visible;
+      if (!visible) continue;
 
       const center = this.getTileCenter(entity.face, entity.row, entity.col);
       if (center) {

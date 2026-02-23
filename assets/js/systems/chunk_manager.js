@@ -668,6 +668,15 @@ export class ChunkManager {
   }
 
   /**
+   * Check if a tile's cell is currently visible (LOD > 0).
+   */
+  isTileVisible(faceId, row, col) {
+    const cellRow = Math.floor(row / TILES_PER_CELL);
+    const cellCol = Math.floor(col / TILES_PER_CELL);
+    return (this.cellLOD.get(this.cellKey(faceId, cellRow, cellCol)) || 0) > 0;
+  }
+
+  /**
    * Re-apply all stored overlays after an LOD change for a specific cell.
    */
   reapplyOverlays(faceId, cellRow, cellCol) {
