@@ -1004,8 +1004,13 @@ defmodule Spheric.Game.WorldServer do
 
     tier = ConstructionCosts.tier(building.type)
 
-    if tier == 0 and building.owner_id != nil do
-      # Tier 0 buildings always restore a starter kit slot for free reconstruction
+    # Tier 0 buildings placed via starter kit have no :construction key in state.
+    # Only restore the starter kit slot for those (or completed constructions).
+    # Incomplete construction sites should refund delivered materials instead.
+    placed_via_starter_kit = building.state[:construction] == nil
+    construction_complete = match?(%{construction: %{complete: true}}, building.state)
+
+    if tier == 0 and building.owner_id != nil and (placed_via_starter_kit or construction_complete) do
       StarterKit.restore(building.owner_id, building.type)
     else
       refund_materials = refund_materials_for(building)
