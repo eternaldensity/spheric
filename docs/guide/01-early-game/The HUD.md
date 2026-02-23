@@ -32,6 +32,17 @@ Several panels provide detailed information about different game systems. Toggle
 | **G** | Board Contact | [[Board Contact Quest|Cooperative endgame quest]] |
 | **Q** | Building Catalog | Browse buildings by category |
 
+## Fuel Gauge
+
+The **fuel gauge** appears at the bottom center of the screen, just above the toolbar. It shows your drone's fuel level as a row of pips — one per tank slot.
+
+- **Green**: Entity Biofuel
+- **Cyan**: Refined Entity Fuel
+- **Dark**: Empty slot
+- **Flashing red**: Low fuel warning
+
+When the tank empties, the drone enters [[Drone Fuel & the Drone Bay#Low Power Mode|low power mode]] (25% speed). See [[Drone Fuel & the Drone Bay]] for the full fuel system guide.
+
 ## Tile Info Panel
 
 Click any tile on the sphere to see:

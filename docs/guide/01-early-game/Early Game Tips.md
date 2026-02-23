@@ -23,6 +23,13 @@
 - **Place your [[Your Starter Kit#Gathering Post|Gathering Post]]** near where you're building — it attracts [[Creatures & Containment|creatures]] that will be useful later.
 - **[[Claiming Territory|Claim your territory]] early** once you unlock the Jurisdiction Beacon. Other Operators share the sphere.
 
+## Drone Fuel
+
+- **Your drone starts with 5 minutes of fuel.** Don't panic, but don't ignore it either.
+- **Route biofuel from your Gathering Post** to a convenient pickup spot. Fly low to collect it.
+- **Build a [[Drone Fuel & the Drone Bay|Drone Bay]]** at Clearance 1 for permanent upgrades — Auto-Refuel is especially valuable.
+- Running out of fuel isn't fatal — you just move at 25% speed until you pick up more.
+
 ## Inspection
 
 - **Check tile info** by clicking any tile — it shows resources, [[Biomes & Resources|biome]], buildings, and corruption status.

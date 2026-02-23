@@ -41,7 +41,7 @@ Waypoints are saved in your browser and persist across sessions. You can delete 
 | **R** | Rotate building orientation before placement |
 | **1–5** | Select [[The HUD#Hotbar|hotbar]] slot |
 | **Q** | Open the Building Catalog |
-| **L** | Toggle [[The Conveyor Network#Line Mode|Line Mode]] for Conduit placement |
+| **L** | Toggle [[The Conveyor Network#Line Mode|Line Mode]] (when placing buildings) / Toggle [[Drone Fuel & the Drone Bay#Drone Spotlight|Drone Spotlight]] (otherwise) |
 | **X** | Toggle Demolish Mode (area selection) |
 | **Escape** | Clear selection, close panels, cancel modes |
 

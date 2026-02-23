@@ -31,4 +31,4 @@ See [[Building Reference]] for all building costs.
 
 ---
 
-**Previous:** [[Reaching Clearance 1]] | **Next:** [[Early Game Tips]]
+**Previous:** [[Drone Fuel & the Drone Bay]] | **Next:** [[Early Game Tips]]

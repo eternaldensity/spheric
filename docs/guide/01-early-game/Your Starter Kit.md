@@ -29,7 +29,7 @@ Converts raw ore into usable ingots. Feed it ore via Conduits, and it outputs in
 The gateway to progression. Items delivered here count toward [[Research Case Files|Case File]] completion. See [[Submitting Research]].
 
 ### Gathering Post
-Place near your base. Attracts wild creatures within **radius 7**, making them easier to [[Creatures & Containment|capture]] later.
+Place near your base. Attracts wild creatures within **radius 7**, making them easier to [[Creatures & Containment|capture]] later. Also produces **Entity Biofuel** as a byproduct — your primary source of [[Drone Fuel & the Drone Bay|drone fuel]] in the early game.
 
 ---
 

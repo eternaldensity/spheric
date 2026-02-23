@@ -18,6 +18,7 @@ defmodule SphericWeb.GuideLive do
     "extraction-processing" => "01-early-game/Extraction & Processing.md",
     "submitting-research" => "01-early-game/Submitting Research.md",
     "reaching-clearance-1" => "01-early-game/Reaching Clearance 1.md",
+    "drone-fuel-drone-bay" => "01-early-game/Drone Fuel & the Drone Bay.md",
     "claiming-territory" => "01-early-game/Claiming Territory.md",
     "early-game-tips" => "01-early-game/Early Game Tips.md",
     # Mid Game

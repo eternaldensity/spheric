@@ -22,8 +22,9 @@ Safe for all players. Covers the basics, controls, and first steps.
 9. [[Extraction & Processing]]
 10. [[Submitting Research]]
 11. [[Reaching Clearance 1]]
-12. [[Claiming Territory]]
-13. [[Early Game Tips]]
+12. [[Drone Fuel & the Drone Bay]]
+13. [[Claiming Territory]]
+14. [[Early Game Tips]]
 
 ---
 

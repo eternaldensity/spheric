@@ -19,6 +19,9 @@ Bureau terminology and game concepts.
 | **Shift Cycle** | The day/night cycle with 4 phases (Dawn, Zenith, Dusk, Nadir) |
 | **Tick** | The game's internal time unit; 1 tick = 200ms |
 | **Evolution** | A [[Creatures & Containment|creature]] bonus doubling after 600s of continuous assignment |
+| **Drone** | The camera; a flying observer that consumes [[Drone Fuel & the Drone Bay|fuel]] |
+| **Low Power Mode** | Drone state when fuel is empty; 25% movement speed |
+| **Drone Bay** | A Clearance 1 building for permanent [[Drone Fuel & the Drone Bay#Upgrades|drone upgrades]] |
 
 ---
 
@@ -45,6 +48,8 @@ Bureau terminology and game concepts.
 | Defense Array | Defense Turret | [[The Hiss & Corruption]] |
 | Advanced Processor | Advanced Smelter | [[Advanced Production]] |
 | Advanced Fabricator | Advanced Assembler | [[Advanced Production]] |
+| Drone Bay | Drone Bay | [[Drone Fuel & the Drone Bay]] |
+| Gathering Post | Gathering Post | [[Drone Fuel & the Drone Bay]], [[Creatures & Containment]] |
 
 ---
 

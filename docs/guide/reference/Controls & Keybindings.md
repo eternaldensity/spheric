@@ -17,7 +17,7 @@ Complete keybinding reference for Spheric.
 | **Left Click** (on tile) | Fly to tile + select / place building |
 | **Right Click** (on building) | Decommission building |
 | **R** | Rotate building orientation |
-| **L** | Toggle Line Mode (draw [[The Conveyor Network|Conduit]] lines) |
+| **L** | Toggle Line Mode (when placing) / Toggle [[Drone Fuel & the Drone Bay#Drone Spotlight|Drone Spotlight]] (otherwise) |
 | **X** | Toggle Demolish Mode (rectangle area selection) |
 | **Escape** | Clear selection / close panel / cancel mode |
 
@@ -44,6 +44,15 @@ Right-click a hotbar slot to reassign it from the Catalog.
 | **W** | Waypoints | Navigation Waypoints |
 | **G** | Quest | Board Contact |
 | **Q** | Catalog | Building Catalog |
+
+## Drone
+
+| Input | Action |
+|---|---|
+| **L** (no building selected) | Toggle Drone Spotlight (requires upgrade) |
+| **Zoom close** (scroll down) | Auto-pickup fuel from ground items |
+
+See [[Drone Fuel & the Drone Bay]] for the full fuel system guide.
 
 ## Blueprints
 

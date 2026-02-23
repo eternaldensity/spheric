@@ -76,9 +76,10 @@ See [[Power & Energy]].
 | Containment Vault | Storage Container | 1 | 5 Ferric Standard, 2 Structural Plate | 1 item type |
 | Terminal | Submission Terminal | 0 | 2 Ferric Standard, 2 Paraelectric Bar | Research submissions |
 | Exchange Terminal | Trade Terminal | 1 | 5 Ferric Standard, 3 Conductive Filament | Player trading |
-| Gathering Post | Gathering Post | 0 | Free | Attracts creatures (r7) |
+| Gathering Post | Gathering Post | 0 | 1 Paraelectric Bar | Attracts creatures (r7), produces biofuel |
+| Drone Bay | Drone Bay | 1 | 15 Ferric Standard, 10 Paraelectric Bar | Permanent drone upgrades |
 
-See [[Submitting Research]], [[Trading with Other Operators]], [[Creatures & Containment]].
+See [[Submitting Research]], [[Trading with Other Operators]], [[Creatures & Containment]], [[Drone Fuel & the Drone Bay]].
 
 ---
 

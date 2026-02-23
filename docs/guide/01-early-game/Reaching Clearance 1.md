@@ -22,6 +22,7 @@ Submit these via your [[Submitting Research|Terminal]].
 | Conduit Mk-II | Conveyor Mk2 | Faster [[The Conveyor Network|Conduit]] |
 | Containment Vault | Storage Container | Stores items (one type per container) |
 | [[The Fabricator\|Fabricator]] | Assembler | Dual-input production ([[The Fabricator\|details]]) |
+| [[Drone Fuel & the Drone Bay\|Drone Bay]] | Drone Bay | Permanent [[Drone Fuel & the Drone Bay#Upgrades\|drone upgrades]] |
 
 See [[Advanced Logistics]] for details on using these buildings.
 
@@ -34,4 +35,4 @@ See [[Objects of Power]] for all tier rewards.
 
 ---
 
-**Previous:** [[Submitting Research]] | **Next:** [[Claiming Territory]]
+**Previous:** [[Submitting Research]] | **Next:** [[Drone Fuel & the Drone Bay]]
