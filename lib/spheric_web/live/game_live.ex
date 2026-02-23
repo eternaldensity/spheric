@@ -214,6 +214,7 @@ defmodule SphericWeb.GameLive do
     <%!-- === FUEL GAUGE (bottom center, above toolbar) === --%>
     <div
       id="fuel-gauge"
+      phx-update="ignore"
       style="position: fixed; bottom: 52px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; align-items: flex-end; pointer-events: none; z-index: 45;"
     >
     </div>
@@ -221,6 +222,7 @@ defmodule SphericWeb.GameLive do
     <%!-- === LOW POWER VIGNETTE === --%>
     <div
       id="low-power-vignette"
+      phx-update="ignore"
       style="position: fixed; inset: 0; pointer-events: none; z-index: 40; opacity: 0; transition: opacity 0.5s; background: radial-gradient(ellipse at center, transparent 40%, rgba(180,40,40,0.35) 100%);"
     >
     </div>
