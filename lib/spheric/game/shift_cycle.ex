@@ -51,10 +51,45 @@ defmodule Spheric.Game.ShiftCycle do
   # Threshold: faces with illumination below this are "dark"
   @dark_threshold 0.15
 
+  # 4×4 cells per face
+  @cells_per_axis 4
+
   # Precompute normalized face normals at compile time
   @face_normals (
     for i <- 0..29 do
       RT.normalize(RT.face_center(i))
+    end
+    |> List.to_tuple()
+  )
+
+  # Precompute normalized cell center normals at compile time.
+  # Indexed as a tuple of 30 faces, each a tuple of 16 cells (row-major 4×4).
+  # Cell center = origin + e1*(cellCol+0.5)/4 + e2*(cellRow+0.5)/4, normalized.
+  @cell_normals (
+    verts = RT.vertices()
+    faces = RT.faces()
+
+    for face_verts <- faces do
+      [ai, bi, _ci, di] = face_verts
+      {ax, ay, az} = Enum.at(verts, ai)
+      {bx, by, bz} = Enum.at(verts, bi)
+      {dx, dy, dz} = Enum.at(verts, di)
+
+      # e1 = B - A (col axis), e2 = D - A (row axis)
+      e1 = {bx - ax, by - ay, bz - az}
+      e2 = {dx - ax, dy - ay, dz - az}
+
+      for cell_row <- 0..3, cell_col <- 0..3 do
+        u = (cell_col + 0.5) / 4
+        v = (cell_row + 0.5) / 4
+        {e1x, e1y, e1z} = e1
+        {e2x, e2y, e2z} = e2
+        px = ax + e1x * u + e2x * v
+        py = ay + e1y * u + e2y * v
+        pz = az + e1z * u + e2z * v
+        RT.normalize({px, py, pz})
+      end
+      |> List.to_tuple()
     end
     |> List.to_tuple()
   )
@@ -215,6 +250,39 @@ defmodule Spheric.Game.ShiftCycle do
   @doc "Returns true when the given face is in darkness (illumination below threshold)."
   def dark?(face_id) when face_id >= 0 and face_id <= 29 do
     face_illumination(face_id) < @dark_threshold
+  end
+
+  @doc """
+  Get the illumination level for a specific cell within a face.
+  Cell coordinates are derived from tile row/col: cell_row = div(row, 16), cell_col = div(col, 16).
+  Returns 0.0 (full shadow) to 1.0 (full sun).
+  """
+  def cell_illumination(face_id, cell_row, cell_col)
+      when face_id >= 0 and face_id <= 29
+      and cell_row >= 0 and cell_row <= 3
+      and cell_col >= 0 and cell_col <= 3 do
+    {sx, sy, sz} = sun_direction()
+    {nx, ny, nz} = elem(@cell_normals, face_id) |> elem(cell_row * @cells_per_axis + cell_col)
+    max(0.0, sx * nx + sy * ny + sz * nz)
+  end
+
+  @doc """
+  Get the illumination level for a tile, using its cell's normal.
+  Tiles are 64×64 per face, cells are 4×4 (16 tiles per cell).
+  """
+  def tile_illumination(face_id, row, col)
+      when face_id >= 0 and face_id <= 29 do
+    cell_illumination(face_id, div(row, 16), div(col, 16))
+  end
+
+  @doc "Returns true when a cell is in darkness."
+  def cell_dark?(face_id, cell_row, cell_col) do
+    cell_illumination(face_id, cell_row, cell_col) < @dark_threshold
+  end
+
+  @doc "Returns true when a tile's cell is in darkness."
+  def tile_dark?(face_id, row, col) do
+    tile_illumination(face_id, row, col) < @dark_threshold
   end
 
   @doc "Returns the outward normal for a face."

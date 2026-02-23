@@ -2,9 +2,10 @@ defmodule Spheric.Game.Behaviors.ShadowPanel do
   @moduledoc """
   Shadow Panel building behavior.
 
-  Passive generator that produces power when its face is in shadow
-  (sun on the far side of the sphere). Disabled if a powered lamp
-  is within radius 3.
+  Passive generator that produces power when its cell is in shadow
+  (sun on the far side of the sphere). Uses per-cell illumination
+  for 16× finer shadow boundaries than per-face. Disabled if a
+  powered lamp is within radius 3.
   """
 
   alias Spheric.Game.ShiftCycle
@@ -15,8 +16,8 @@ defmodule Spheric.Game.Behaviors.ShadowPanel do
     %{power_output: 0, rate: 1}
   end
 
-  def tick({face, _row, _col} = key, building) do
-    producing = ShiftCycle.dark?(face) and not lamp_nearby?(key)
+  def tick({face, row, col} = key, building) do
+    producing = ShiftCycle.tile_dark?(face, row, col) and not lamp_nearby?(key)
     new_output = if producing, do: 1, else: 0
 
     if new_output != building.state.power_output do
