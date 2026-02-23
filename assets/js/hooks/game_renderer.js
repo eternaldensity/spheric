@@ -1003,7 +1003,7 @@ const GameRenderer = {
     this.droneFuel.update(dt);
 
     // Auto-pickup fuel when zoomed close to surface — raycast down to find tile
-    if (this.droneCamera.height < 0.3) {
+    if (this.droneCamera.height < 0.1) {
       this._fuelRaycaster = this._fuelRaycaster || new THREE.Raycaster();
       this._fuelRaycaster.setFromCamera({ x: 0, y: 0 }, this.camera);
       const hits = this._fuelRaycaster.intersectObjects(this.chunkManager.getRaycastMeshes());
