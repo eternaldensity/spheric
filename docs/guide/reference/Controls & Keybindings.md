@@ -2,19 +2,19 @@
 
 Complete keybinding reference for Spheric.
 
-## Camera
+## Camera (Drone)
 
 | Input | Action |
 |---|---|
-| **Click + Drag** | Rotate camera around the sphere |
-| **Ctrl + Drag** | Spin the sphere around a fixed point |
-| **Scroll / Pinch** | Zoom in/out |
+| **Left Click** (on sphere) | Fly drone to that point |
+| **Scroll Wheel** | Raise / lower drone altitude |
+| **Right-Click + Drag** | Orbit view around hover point (angle + tilt) |
 
 ## Building
 
 | Input | Action |
 |---|---|
-| **Left Click** (on tile) | Select tile / place building |
+| **Left Click** (on tile) | Fly to tile + select / place building |
 | **Right Click** (on building) | Decommission building |
 | **R** | Rotate building orientation |
 | **L** | Toggle Line Mode (draw [[The Conveyor Network|conveyor]] lines) |

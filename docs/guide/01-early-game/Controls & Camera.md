@@ -1,23 +1,28 @@
 # Controls & Camera
 
-Spheric uses a **trackball camera** that orbits the sphere.
+You view the sphere through a **camera drone** that flies above the surface.
 
 ## Camera Controls
 
 | Input | Action |
 |---|---|
-| **Click + Drag** | Rotate the camera around the sphere |
-| **Ctrl + Drag** | Spin the sphere around a fixed point |
-| **Scroll Wheel / Pinch** | Zoom in and out |
+| **Left Click** (on sphere) | Fly the drone to that point |
+| **Scroll Wheel** | Raise / lower drone altitude |
+| **Right-Click + Drag** | Orbit the view around the current hover point |
+
+Click anywhere on the sphere and the drone will smoothly glide along the surface to hover above that spot. Scroll up to gain altitude for a wider view, or scroll down to get closer to the surface for precise building work.
+
+> [!tip] Orbit
+> Right-click and drag to tilt and rotate the camera around where you're hovering. This lets you look at buildings from different angles without moving the drone.
 
 > [!note] Camera Persistence
-> Your camera position is saved in your browser. When you return, you'll be looking at the same spot.
+> Your camera position and altitude are saved in your browser. When you return, the drone will be right where you left it.
 
 ## Building Controls
 
 | Input | Action |
 |---|---|
-| **Left Click** (on tile) | Select tile, place building, or inspect |
+| **Left Click** (on tile) | Fly drone to tile + select / place / inspect |
 | **Right Click** (on building) | Remove / decommission building |
 | **R** | Rotate building orientation before placement |
 | **1–5** | Select [[The HUD#Hotbar|hotbar]] slot |

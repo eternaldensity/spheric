@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js";
 import { createBuildingMesh } from "../buildings/building_factory.js";
 import { ItemInterpolator } from "../systems/item_interpolator.js";
 import { ItemRenderer } from "../systems/item_renderer.js";
@@ -7,7 +6,7 @@ import { CreatureRenderer } from "../systems/creature_renderer.js";
 import { ChunkManager } from "../systems/chunk_manager.js";
 import { TileTextureGenerator } from "../systems/tile_texture.js";
 import { AtmosphereRenderer } from "../systems/atmosphere.js";
-import { SpinControl } from "../systems/spin_control.js";
+import { DroneCamera } from "../systems/drone_camera.js";
 import { PlayerPresence } from "../systems/player_presence.js";
 import { PathfindingEngine } from "../systems/pathfinding.js";
 import { PlacementPreview } from "../systems/placement_preview.js";
@@ -100,9 +99,23 @@ const GameRenderer = {
 
     const getTileCenter = (face, row, col) => this.getTileCenter(face, row, col);
 
-    this.spinControl = new SpinControl(
-      this.renderer.domElement, this.camera, this.controls, this.chunkManager
-    );
+    this.droneCamera = new DroneCamera(this.camera, this.renderer, this.chunkManager);
+
+    // Restore drone camera state from localStorage
+    try {
+      const droneStateStr = localStorage.getItem("spheric_drone_state");
+      if (droneStateStr) {
+        this.droneCamera.restoreState(JSON.parse(droneStateStr));
+      } else {
+        // Fall back to old camera position format
+        const cx = parseFloat(localStorage.getItem("spheric_camera_x"));
+        const cy = parseFloat(localStorage.getItem("spheric_camera_y"));
+        const cz = parseFloat(localStorage.getItem("spheric_camera_z"));
+        if (cx && cy && cz) {
+          this.droneCamera.restoreFromCameraPos(cx, cy, cz);
+        }
+      }
+    } catch (_e) { /* localStorage unavailable */ }
 
     this.pathfinding = new PathfindingEngine(this.faceIndices, this.subdivisions, getTileCenter);
 
@@ -163,13 +176,7 @@ const GameRenderer = {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.el.appendChild(this.renderer.domElement);
 
-    this.controls = new TrackballControls(this.camera, this.renderer.domElement);
-    this.controls.noPan = true;
-    this.controls.dynamicDampingFactor = 0.15;
-    this.controls.minDistance = 1.08;
-    this.controls.maxDistance = 8;
-    this.controls.rotateSpeed = 2.0;
-    this.controls.zoomSpeed = 0.4;
+    // DroneCamera is initialized after ChunkManager in mounted()
 
     // Atmosphere lighting — sun direction driven by shift cycle
     this.ambientLight = new THREE.AmbientLight(0x404050, 1.2);
@@ -387,8 +394,7 @@ const GameRenderer = {
       } catch (_e) { /* localStorage unavailable */ }
 
       if (camera && camera.z != null) {
-        this.camera.position.set(camera.x, camera.y, camera.z);
-        this.controls.update();
+        this.droneCamera.restoreFromCameraPos(camera.x, camera.y, camera.z);
       }
     });
 
@@ -629,7 +635,14 @@ const GameRenderer = {
   },
 
   onTileClick(event) {
-    if (this.spinControl.suppressClick) return;
+    if (this.droneCamera.suppressClick) return;
+
+    // Raycast to get the 3D hit point for drone navigation
+    const hitPoint = this.droneCamera.raycastSphere(event.clientX, event.clientY);
+    if (hitPoint) {
+      this.droneCamera.flyTo(hitPoint);
+    }
+
     const tile = this.hitToTile(event);
     if (!tile) return;
 
@@ -733,7 +746,7 @@ const GameRenderer = {
 
   onTileRightClick(event) {
     event.preventDefault();
-    if (this.spinControl.spinning) return;
+    if (this.droneCamera.isDragging) return;
 
     if (this.lineStart) {
       this.cancelLineDraw();
@@ -751,7 +764,7 @@ const GameRenderer = {
   },
 
   onTileHover(event) {
-    if (this.spinControl.spinning) return;
+    if (this.droneCamera.isDragging) return;
     const tile = this.hitToTile(event);
 
     // Clear previous hover
@@ -893,6 +906,10 @@ const GameRenderer = {
           localStorage.setItem("spheric_camera_x", pos.x);
           localStorage.setItem("spheric_camera_y", pos.y);
           localStorage.setItem("spheric_camera_z", pos.z);
+
+          // Also save full drone state for better restoration
+          const droneState = this.droneCamera.getState();
+          localStorage.setItem("spheric_drone_state", JSON.stringify(droneState));
         } catch (_e) { /* localStorage unavailable */ }
       }
     }, 500);
@@ -903,15 +920,9 @@ const GameRenderer = {
   animate() {
     this._animId = requestAnimationFrame(() => this.animate());
 
-    // Spin damping
-    this.spinControl.updateDamping();
-
-    // Scale rotate and zoom speed with camera distance
-    const dist = this.camera.position.length();
-    this.controls.rotateSpeed = 0.25 + Math.min((dist - 1.0) / 2.5, 1.0);
-    this.controls.zoomSpeed = 0.1 + 0.3 * Math.min((dist - 1.0) / 2.0, 1.0);
-
-    this.controls.update();
+    // Update drone camera (smooth fly, height, orbit interpolation)
+    const dt = 1 / 60;
+    this.droneCamera.update(dt);
 
     // Update LOD based on camera position
     const changedCells = this.chunkManager.update(this.camera.position);
@@ -954,7 +965,6 @@ const GameRenderer = {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.controls.handleResize();
   },
 
   destroyed() {
@@ -984,13 +994,12 @@ const GameRenderer = {
     this.corruptionRenderer.dispose();
     this.territoryRenderer.dispose();
     this.atmosphere.dispose();
-    this.spinControl.dispose();
+    this.droneCamera.dispose();
 
     if (this.itemRenderer) this.itemRenderer.dispose();
     if (this.creatureRenderer) this.creatureRenderer.dispose();
     if (this.chunkManager) this.chunkManager.dispose();
     if (this.tileTextures) this.tileTextures.dispose();
-    this.controls.dispose();
     this.renderer.dispose();
   },
 };

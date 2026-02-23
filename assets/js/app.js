@@ -43,6 +43,7 @@ function getConnectParams() {
       camera_tx: parseFloat(localStorage.getItem("spheric_camera_tx")) || null,
       camera_ty: parseFloat(localStorage.getItem("spheric_camera_ty")) || null,
       camera_tz: parseFloat(localStorage.getItem("spheric_camera_tz")) || null,
+      drone_state: localStorage.getItem("spheric_drone_state"),
       hotbar: localStorage.getItem("spheric_hotbar"),
     }
   } catch (_e) {
