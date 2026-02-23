@@ -356,4 +356,5 @@ defmodule SphericWeb.GameLive.BuildingEvents do
       {:noreply, socket}
     end
   end
+
 end

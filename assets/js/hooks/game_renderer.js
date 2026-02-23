@@ -1002,12 +1002,16 @@ const GameRenderer = {
     // Update drone fuel system
     this.droneFuel.update(dt);
 
-    // Auto-pickup fuel when zoomed close to surface
+    // Auto-pickup fuel when zoomed close to surface — raycast down to find tile
     if (this.droneCamera.height < 0.3) {
-      const surfacePoint = this.droneCamera.surfacePoint || this.camera.position.clone().normalize();
-      const tile = this.chunkManager.surfacePointToTile(surfacePoint);
-      if (tile) {
-        this.droneFuel.tryPickup(tile.face, tile.row, tile.col);
+      this._fuelRaycaster = this._fuelRaycaster || new THREE.Raycaster();
+      this._fuelRaycaster.setFromCamera({ x: 0, y: 0 }, this.camera);
+      const hits = this._fuelRaycaster.intersectObjects(this.chunkManager.getRaycastMeshes());
+      if (hits.length > 0) {
+        const tile = this.chunkManager.hitToTile(hits[0]);
+        if (tile) {
+          this.droneFuel.tryPickup(tile.face, tile.row, tile.col);
+        }
       }
     }
 
