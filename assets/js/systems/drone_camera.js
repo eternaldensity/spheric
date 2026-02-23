@@ -5,8 +5,8 @@ import * as THREE from "three";
  *
  * - Click on the sphere sets a destination; the drone smoothly flies there.
  * - Scroll wheel raises/lowers the hover height.
- * - Camera always looks down at the surface point directly below it.
- * - Right-click drag rotates the view around the current hover point.
+ * - Camera always sits directly above its surface point.
+ * - Right-click drag tilts/rotates the viewing direction.
  */
 export class DroneCamera {
   constructor(camera, renderer, chunkManager) {
@@ -25,18 +25,22 @@ export class DroneCamera {
     this._surfacePoint = new THREE.Vector3(0, 0, 1).normalize();
     this._targetSurfacePoint = new THREE.Vector3(0, 0, 1).normalize();
 
+    // Persistent "north" tangent vector — parallel-transported as the drone
+    // moves so the frame never snaps.  Initialised from a global reference.
+    this._north = this._initNorth(this._surfacePoint);
+
     // Orbit angle around the surface normal (right-drag rotation)
     this._orbitAngle = 0;
     this._targetOrbitAngle = 0;
-    this._orbitTilt = 0.3; // slight tilt so we look slightly forward, not straight down
+    this._orbitTilt = 0.3;
     this._targetOrbitTilt = 0.3;
-    this._minTilt = 0.0;  // straight down
-    this._maxTilt = 1.2;  // nearly horizontal
+    this._minTilt = 0.0;
+    this._maxTilt = 1.2;
 
-    // Interpolation speed (0-1 range, higher = snappier)
-    this._flySpeed = 3.0;    // surface point interpolation
-    this._heightSpeed = 5.0;  // height interpolation
-    this._orbitSpeed = 8.0;   // orbit angle interpolation
+    // Interpolation speed
+    this._flySpeed = 3.0;
+    this._heightSpeed = 5.0;
+    this._orbitSpeed = 8.0;
 
     // Flying state
     this._isFlying = false;
@@ -53,8 +57,6 @@ export class DroneCamera {
     // Reusable objects
     this._raycaster = new THREE.Raycaster();
     this._mouse = new THREE.Vector2();
-    this._tempVec = new THREE.Vector3();
-    this._tempQuat = new THREE.Quaternion();
 
     // Bind event handlers
     this._onWheel = (e) => this._handleWheel(e);
@@ -67,37 +69,55 @@ export class DroneCamera {
     this.canvas.addEventListener("pointerdown", this._onPointerDown);
     this.canvas.addEventListener("contextmenu", this._onContextMenu);
 
-    // Apply initial camera position
     this._applyCameraPosition();
   }
 
-  /** Whether the drone is currently flying to a destination. */
   get isFlying() { return this._isFlying; }
-
-  /** Whether a click should be suppressed (after a drag). */
   get suppressClick() { return this._suppressClick; }
-
-  /** Whether the user is currently dragging to orbit. */
   get isDragging() { return this._isDragging; }
-
-  /** The current surface point the drone hovers above. */
   get surfacePoint() { return this._surfacePoint.clone(); }
 
   /**
-   * Set a destination for the drone to fly to.
-   * @param {THREE.Vector3} point - Point on sphere surface (will be normalized)
+   * Compute an initial "north" tangent for a given normal.
+   * Only used once at construction / restore — after that it's parallel-transported.
    */
+  _initNorth(normal) {
+    const ref = new THREE.Vector3(0, 1, 0);
+    if (Math.abs(normal.dot(ref)) > 0.99) ref.set(1, 0, 0);
+    const east = new THREE.Vector3().crossVectors(normal, ref).normalize();
+    return new THREE.Vector3().crossVectors(east, normal).normalize();
+  }
+
+  /**
+   * Parallel-transport this._north from oldNormal to newNormal.
+   * Keeps the tangent vector smooth as the drone glides across the sphere.
+   */
+  _transportNorth(oldNormal, newNormal) {
+    const angle = oldNormal.angleTo(newNormal);
+    if (angle < 1e-8) return; // no movement
+
+    // Rotation axis = cross(old, new), normalised
+    const axis = new THREE.Vector3().crossVectors(oldNormal, newNormal);
+    if (axis.lengthSq() < 1e-12) return; // parallel / anti-parallel
+    axis.normalize();
+
+    const q = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+    this._north.applyQuaternion(q);
+
+    // Re-orthogonalise against the new normal to prevent drift
+    this._north.addScaledVector(newNormal, -this._north.dot(newNormal)).normalize();
+  }
+
   flyTo(point) {
     this._targetSurfacePoint.copy(point).normalize();
     this._isFlying = true;
   }
 
-  /**
-   * Immediately set position (no animation), e.g. for restoring saved state.
-   */
   setPosition(surfacePoint, height, orbitAngle, orbitTilt) {
+    const oldN = this._surfacePoint.clone();
     this._surfacePoint.copy(surfacePoint).normalize();
     this._targetSurfacePoint.copy(this._surfacePoint);
+    this._transportNorth(oldN, this._surfacePoint);
     if (height != null) {
       this.height = Math.max(this.minHeight, Math.min(this.maxHeight, height));
       this.targetHeight = this.height;
@@ -113,24 +133,18 @@ export class DroneCamera {
     this._applyCameraPosition();
   }
 
-  /**
-   * Restore camera from a saved position vector (old format compatibility).
-   * Extracts surface point and height from camera world position.
-   */
   restoreFromCameraPos(x, y, z) {
     const pos = new THREE.Vector3(x, y, z);
     const dist = pos.length();
     if (dist < 0.01) return;
     this._surfacePoint.copy(pos).normalize();
     this._targetSurfacePoint.copy(this._surfacePoint);
+    this._north = this._initNorth(this._surfacePoint);
     this.height = Math.max(this.minHeight, Math.min(this.maxHeight, dist - 1.0));
     this.targetHeight = this.height;
     this._applyCameraPosition();
   }
 
-  /**
-   * Update each frame. Call with delta time in seconds.
-   */
   update(dt) {
     const t = Math.min(1.0, dt);
 
@@ -143,7 +157,7 @@ export class DroneCamera {
     }
 
     // Interpolate orbit angle
-    let orbitDiff = this._targetOrbitAngle - this._orbitAngle;
+    const orbitDiff = this._targetOrbitAngle - this._orbitAngle;
     if (Math.abs(orbitDiff) > 0.0001) {
       this._orbitAngle += orbitDiff * Math.min(1.0, this._orbitSpeed * t);
     } else {
@@ -151,29 +165,32 @@ export class DroneCamera {
     }
 
     // Interpolate orbit tilt
-    let tiltDiff = this._targetOrbitTilt - this._orbitTilt;
+    const tiltDiff = this._targetOrbitTilt - this._orbitTilt;
     if (Math.abs(tiltDiff) > 0.0001) {
       this._orbitTilt += tiltDiff * Math.min(1.0, this._orbitSpeed * t);
     } else {
       this._orbitTilt = this._targetOrbitTilt;
     }
 
-    // Interpolate surface point via spherical lerp
+    // Interpolate surface point via spherical lerp, parallel-transporting north
     const angle = this._surfacePoint.angleTo(this._targetSurfacePoint);
     if (angle > 0.001) {
+      const oldN = this._surfacePoint.clone();
       const lerpFactor = Math.min(1.0, this._flySpeed * t);
-      // Use quaternion-based slerp for great-circle path
-      this._tempQuat.setFromUnitVectors(this._surfacePoint, this._targetSurfacePoint);
-      // Partial rotation
-      this._tempQuat.slerp(new THREE.Quaternion(), 1.0 - lerpFactor);
-      // Apply the inverse of the partial remaining to get partial progress
-      const fullQuat = new THREE.Quaternion().setFromUnitVectors(this._surfacePoint, this._targetSurfacePoint);
+      const fullQuat = new THREE.Quaternion().setFromUnitVectors(
+        this._surfacePoint, this._targetSurfacePoint
+      );
       const partialQuat = new THREE.Quaternion().slerpQuaternions(
         new THREE.Quaternion(), fullQuat, lerpFactor
       );
       this._surfacePoint.applyQuaternion(partialQuat).normalize();
+      this._transportNorth(oldN, this._surfacePoint);
     } else {
-      this._surfacePoint.copy(this._targetSurfacePoint);
+      if (!this._surfacePoint.equals(this._targetSurfacePoint)) {
+        const oldN = this._surfacePoint.clone();
+        this._surfacePoint.copy(this._targetSurfacePoint);
+        this._transportNorth(oldN, this._surfacePoint);
+      }
       this._isFlying = false;
     }
 
@@ -186,42 +203,58 @@ export class DroneCamera {
   _applyCameraPosition() {
     const normal = this._surfacePoint;
 
-    // Build a local coordinate frame on the sphere surface
-    // "up" = normal, find tangent axes
-    const up = this._tempVec.set(0, 1, 0);
-    if (Math.abs(normal.dot(up)) > 0.99) {
-      up.set(1, 0, 0);
-    }
-    const tangentX = new THREE.Vector3().crossVectors(up, normal).normalize();
-    const tangentY = new THREE.Vector3().crossVectors(normal, tangentX).normalize();
+    // Camera always sits directly above the surface point.
+    const camDist = 1.0 + this.height;
+    this.camera.position.copy(normal).multiplyScalar(camDist);
 
-    // Orbit: offset the camera position around the normal axis
-    // tilt=0 means directly above, tilt>0 means offset to the side (looking at an angle)
-    const orbX = Math.sin(this._orbitAngle) * Math.sin(this._orbitTilt);
-    const orbY = Math.cos(this._orbitAngle) * Math.sin(this._orbitTilt);
-    const orbZ = Math.cos(this._orbitTilt); // vertical component
+    // Use the persistent, parallel-transported north as our tangent frame.
+    // north = tangent pointing "up on screen" when tilt=0, orbit=0
+    // east  = cross(normal, north) — tangent pointing "right"
+    const north = this._north;
+    const east = new THREE.Vector3().crossVectors(normal, north).normalize();
 
-    const offset = new THREE.Vector3()
-      .addScaledVector(tangentX, orbX)
-      .addScaledVector(tangentY, orbY)
-      .addScaledVector(normal, orbZ)
+    // Orbit + tilt only rotate where the camera LOOKS.
+    // Build the look offset in the tangent plane using orbit angle + tilt magnitude.
+    const sinOrb = Math.sin(this._orbitAngle);
+    const cosOrb = Math.cos(this._orbitAngle);
+    const lookOffset = new THREE.Vector3()
+      .addScaledVector(east, sinOrb * this._orbitTilt)
+      .addScaledVector(north, cosOrb * this._orbitTilt);
+
+    const lookTarget = new THREE.Vector3().copy(normal).add(lookOffset);
+
+    // Build camera orientation manually (avoids lookAt degeneracy).
+    const forward = new THREE.Vector3()
+      .subVectors(lookTarget, this.camera.position).normalize();
+
+    // "Screen up" = the orbit direction rotated 180° (behind the look direction).
+    // This gives a stable, predictable up vector at every tilt including straight down.
+    //
+    // When tilt ≈ 0, forward ≈ -normal.  We want the top of the screen to point
+    // in the direction the orbit angle "faces" — i.e. the orbit direction itself.
+    const orbitDir = new THREE.Vector3()
+      .addScaledVector(east, sinOrb)
+      .addScaledVector(north, cosOrb)
       .normalize();
 
-    // Position camera at height above surface along the offset direction
-    const camDist = 1.0 + this.height;
-    this.camera.position.copy(offset).multiplyScalar(camDist);
+    // Gram-Schmidt: project orbitDir perpendicular to forward
+    let up = orbitDir.clone();
+    up.addScaledVector(forward, -up.dot(forward));
 
-    // Look at the surface point
-    this.camera.lookAt(normal.clone().multiplyScalar(1.0));
+    if (up.lengthSq() < 1e-6) {
+      // Fallback (shouldn't happen, but safety)
+      up.copy(north);
+      up.addScaledVector(forward, -up.dot(forward));
+    }
+    up.normalize();
 
-    // Fix the camera "up" to align with the surface normal for stable orientation
-    this.camera.up.copy(normal);
+    const right = new THREE.Vector3().crossVectors(forward, up).normalize();
+
+    // THREE.js camera looks down local -Z, +Y up, +X right.
+    const m = new THREE.Matrix4().makeBasis(right, up, forward.clone().negate());
+    this.camera.quaternion.setFromRotationMatrix(m);
   }
 
-  /**
-   * Raycast from screen coords to find a point on the sphere.
-   * Returns the hit point (THREE.Vector3) or null.
-   */
   raycastSphere(clientX, clientY) {
     this._mouse.x = (clientX / window.innerWidth) * 2 - 1;
     this._mouse.y = -(clientY / window.innerHeight) * 2 + 1;
@@ -237,7 +270,6 @@ export class DroneCamera {
   _handleWheel(event) {
     event.preventDefault();
     const delta = event.deltaY > 0 ? 1 : -1;
-    // Scale scroll step with current height for consistent feel
     const step = 0.05 + this.targetHeight * 0.08;
     this.targetHeight = Math.max(
       this.minHeight,
@@ -246,7 +278,6 @@ export class DroneCamera {
   }
 
   _handlePointerDown(event) {
-    // Right-click or middle-click: start orbit drag
     if (event.button === 2 || event.button === 1) {
       this._isDragging = true;
       this._dragStartX = event.clientX;
@@ -300,27 +331,31 @@ export class DroneCamera {
     }
   }
 
-  /**
-   * Get camera state for persistence.
-   */
   getState() {
     return {
       sx: this._surfacePoint.x,
       sy: this._surfacePoint.y,
       sz: this._surfacePoint.z,
+      nx: this._north.x,
+      ny: this._north.y,
+      nz: this._north.z,
       height: this.height,
       orbit: this._orbitAngle,
       tilt: this._orbitTilt,
     };
   }
 
-  /**
-   * Restore full drone state from persisted data.
-   */
   restoreState(state) {
     if (state.sx != null) {
       this._surfacePoint.set(state.sx, state.sy, state.sz).normalize();
       this._targetSurfacePoint.copy(this._surfacePoint);
+    }
+    if (state.nx != null) {
+      this._north.set(state.nx, state.ny, state.nz).normalize();
+      // Re-orthogonalise against normal
+      this._north.addScaledVector(this._surfacePoint, -this._north.dot(this._surfacePoint)).normalize();
+    } else {
+      this._north = this._initNorth(this._surfacePoint);
     }
     if (state.height != null) {
       this.height = Math.max(this.minHeight, Math.min(this.maxHeight, state.height));
