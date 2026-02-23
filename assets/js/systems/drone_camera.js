@@ -16,8 +16,8 @@ export class DroneCamera {
     this.chunkManager = chunkManager;
 
     // Hover height above sphere surface (sphere radius ~1.0)
-    this.minHeight = 0.15;
-    this.maxHeight = 7.0;
+    this.minHeight = 0.05;
+    this.maxHeight = 5.0;
     this.height = 2.5;
     this.targetHeight = 2.5;
 
@@ -38,9 +38,9 @@ export class DroneCamera {
     this._maxTilt = 1.2;
 
     // Interpolation speed
-    this._flySpeed = 3.0;
-    this._heightSpeed = 5.0;
-    this._orbitSpeed = 8.0;
+    this._flySpeed = 1.0;
+    this._heightSpeed = 3.0;
+    this._orbitSpeed = 6.0;
 
     // Flying state
     this._isFlying = false;
