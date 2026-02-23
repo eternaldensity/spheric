@@ -30,8 +30,13 @@ export class DroneFuelSystem {
     this._spotlightUnlocked = saved.spotlightUnlocked || false;
     this._spotlightOn = false;
 
+    // Cargo (item pickup/drop)
+    this._cargo = saved.cargo || [];
+    this._cargoCapacity = saved.cargoCapacity || 1;
+
     this._lowPower = false;
     this._lastPickupAttempt = 0;
+    this._lastCargoPickupAttempt = 0;
     this._saveTimer = 0;
 
     /** @type {((isLowPower: boolean) => void) | null} */
@@ -140,12 +145,54 @@ export class DroneFuelSystem {
   }
 
   /**
+   * Attempt to pick up any ground item from a tile. Called when drone is low.
+   */
+  tryPickupItem(face, row, col) {
+    if (this._cargo.length >= this._cargoCapacity) return;
+    const now = performance.now();
+    if (now - this._lastCargoPickupAttempt < PICKUP_COOLDOWN_MS) return;
+    this._lastCargoPickupAttempt = now;
+    this._pushEvent("drone_pickup_item", { face, row, col });
+  }
+
+  /**
+   * Handle server response to item pickup request.
+   */
+  onItemPickupResult({ success, item }) {
+    if (!success) return;
+    if (this._cargo.length < this._cargoCapacity) {
+      this._cargo.push(item);
+      this._dirtySave();
+      this._notifyFuelChange();
+    }
+  }
+
+  /**
+   * Drop the first cargo item. Returns the item type string, or null if empty.
+   */
+  dropItem() {
+    if (this._cargo.length === 0) return null;
+    const item = this._cargo.shift();
+    this._dirtySave();
+    this._notifyFuelChange();
+    return item;
+  }
+
+  /**
+   * Returns cargo data for HUD rendering.
+   */
+  getCargoData() {
+    return { items: [...this._cargo], capacity: this._cargoCapacity };
+  }
+
+  /**
    * Handle server granting a drone upgrade.
    */
   onUpgradeGranted(upgrade) {
     if (upgrade === "expanded_tank") this._capacityBonus = 5;
     if (upgrade === "auto_refuel") this._autoRefuel = true;
     if (upgrade === "drone_spotlight") this._spotlightUnlocked = true;
+    if (upgrade === "expanded_cargo") this._cargoCapacity = 4;
     this._dirtySave();
     this._notifyFuelChange();
   }
@@ -229,6 +276,8 @@ export class DroneFuelSystem {
           capacityBonus: this._capacityBonus,
           autoRefuel: this._autoRefuel,
           spotlightUnlocked: this._spotlightUnlocked,
+          cargo: this._cargo,
+          cargoCapacity: this._cargoCapacity,
         })
       );
     } catch (_e) {
@@ -246,6 +295,8 @@ export class DroneFuelSystem {
           capacityBonus: 0,
           autoRefuel: false,
           spotlightUnlocked: false,
+          cargo: [],
+          cargoCapacity: 1,
         };
       }
       const data = JSON.parse(raw);
@@ -255,6 +306,8 @@ export class DroneFuelSystem {
         capacityBonus: data.capacityBonus || 0,
         autoRefuel: data.autoRefuel || false,
         spotlightUnlocked: data.spotlightUnlocked || false,
+        cargo: data.cargo || [],
+        cargoCapacity: data.cargoCapacity || 1,
       };
     } catch (_e) {
       return {
@@ -263,6 +316,8 @@ export class DroneFuelSystem {
         capacityBonus: 0,
         autoRefuel: false,
         spotlightUnlocked: false,
+        cargo: [],
+        cargoCapacity: 1,
       };
     }
   }

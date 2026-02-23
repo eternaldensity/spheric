@@ -219,6 +219,22 @@ defmodule SphericWeb.GameLive do
     >
     </div>
 
+    <%!-- === CARGO HUD (above fuel gauge) === --%>
+    <div
+      id="cargo-hud"
+      phx-update="ignore"
+      style="position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; align-items: center; pointer-events: none; z-index: 45;"
+    >
+    </div>
+
+    <%!-- === DRONE PROMPT (center screen, above cargo) === --%>
+    <div
+      id="drone-prompt"
+      phx-update="ignore"
+      style="position: fixed; bottom: 104px; left: 50%; transform: translateX(-50%); pointer-events: none; z-index: 45; font-family: 'Courier New', monospace; font-size: 11px; color: var(--fbc-info); text-transform: uppercase; letter-spacing: 0.1em; opacity: 0; transition: opacity 0.2s;"
+    >
+    </div>
+
     <%!-- === LOW POWER VIGNETTE === --%>
     <div
       id="low-power-vignette"
@@ -1246,6 +1262,14 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_event("pickup_fuel", params, socket),
     do: BuildingEvents.handle_event("pickup_fuel", params, socket)
+
+  @impl true
+  def handle_event("drone_pickup_item", params, socket),
+    do: BuildingEvents.handle_event("drone_pickup_item", params, socket)
+
+  @impl true
+  def handle_event("drone_drop_item", params, socket),
+    do: BuildingEvents.handle_event("drone_drop_item", params, socket)
 
   @impl true
   def handle_event("select_drone_upgrade", params, socket),

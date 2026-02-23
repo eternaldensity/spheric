@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { createBuildingMesh } from "../buildings/building_factory.js";
 import { ItemInterpolator } from "../systems/item_interpolator.js";
-import { ItemRenderer } from "../systems/item_renderer.js";
+import { ItemRenderer, ITEM_COLORS } from "../systems/item_renderer.js";
 import { CreatureRenderer } from "../systems/creature_renderer.js";
 import { ChunkManager } from "../systems/chunk_manager.js";
 import { TileTextureGenerator } from "../systems/tile_texture.js";
@@ -124,7 +124,7 @@ const GameRenderer = {
       this.droneCamera._flySpeed = isLow ? 0.1 : 0.4;
       this._applyLowPowerEffect(isLow);
     };
-    this.droneFuel.onFuelChange = () => this._updateFuelHUD();
+    this.droneFuel.onFuelChange = () => { this._updateFuelHUD(); this._updateCargoHUD(); };
 
     // Drone spotlight (toggled with L key when upgrade unlocked)
     this._spotLight = new THREE.PointLight(0xffeedd, 1.5, 3);
@@ -168,6 +168,7 @@ const GameRenderer = {
 
     this.animate();
     this._updateFuelHUD();
+    this._updateCargoHUD();
 
     this._onResize = () => this.onResize();
     window.addEventListener("resize", this._onResize);
@@ -621,6 +622,12 @@ const GameRenderer = {
     this.handleEvent("drone_upgrade_granted", ({ upgrade }) => {
       this.droneFuel.onUpgradeGranted(upgrade);
     });
+
+    // --- Drone Cargo ---
+
+    this.handleEvent("item_pickup_result", (data) => {
+      this.droneFuel.onItemPickupResult(data);
+    });
   },
 
   // --- Raycasting for tile selection ---
@@ -660,6 +667,25 @@ const GameRenderer = {
       if ((event.key === "l" || event.key === "L") && !this.placementType) {
         this.droneFuel.toggleSpotlight();
         this._updateFuelHUD();
+      }
+      // Drone cargo: E to pick up ground item when low
+      if ((event.key === "e" || event.key === "E") && !this.placementType) {
+        if (this.droneCamera.height < 0.1) {
+          const tile = this._raycastTileBelow();
+          if (tile) this.droneFuel.tryPickupItem(tile.face, tile.row, tile.col);
+        }
+      }
+      // Drone cargo: V to drop held item
+      if ((event.key === "v" || event.key === "V") && !this.placementType) {
+        const item = this.droneFuel.dropItem();
+        if (item) {
+          const tile = this._raycastTileBelow();
+          if (tile) {
+            this.pushEvent("drone_drop_item", {
+              face: tile.face, row: tile.row, col: tile.col, item
+            });
+          }
+        }
       }
     };
     window.addEventListener("keydown", this._onKeyDown);
@@ -975,6 +1001,33 @@ const GameRenderer = {
     gauge.innerHTML = html;
   },
 
+  _raycastTileBelow() {
+    this._fuelRaycaster = this._fuelRaycaster || new THREE.Raycaster();
+    this._fuelRaycaster.setFromCamera({ x: 0, y: 0 }, this.camera);
+    const hits = this._fuelRaycaster.intersectObjects(this.chunkManager.getRaycastMeshes());
+    if (hits.length > 0) return this.chunkManager.hitToTile(hits[0]);
+    return null;
+  },
+
+  _updateCargoHUD() {
+    const el = document.getElementById("cargo-hud");
+    if (!el) return;
+    const data = this.droneFuel.getCargoData();
+    if (data.capacity <= 0) { el.innerHTML = ""; return; }
+    let html = '<span style="font-size:9px;color:var(--fbc-text-dim);margin-right:4px;letter-spacing:0.1em;">CARGO</span>';
+    for (let i = 0; i < data.capacity; i++) {
+      const item = data.items[i];
+      if (item) {
+        const hex = ITEM_COLORS[item];
+        const color = hex != null ? "#" + hex.toString(16).padStart(6, "0") : "#aaa";
+        html += `<div style="width:14px;height:14px;border:1px solid ${color};background:${color}33;display:flex;align-items:center;justify-content:center;" title="${item.replace(/_/g, ' ')}"><div style="width:6px;height:6px;border-radius:50%;background:${color};"></div></div>`;
+      } else {
+        html += `<div style="width:14px;height:14px;border:1px solid #333;background:rgba(255,255,255,0.02);"></div>`;
+      }
+    }
+    el.innerHTML = html;
+  },
+
   _applyLowPowerEffect(isLow) {
     const vignette = document.getElementById("low-power-vignette");
     if (vignette) {
@@ -1013,6 +1066,18 @@ const GameRenderer = {
           this.droneFuel.tryPickup(tile.face, tile.row, tile.col);
         }
       }
+    }
+
+    // Update drone prompt (pickup/drop hints)
+    const prompt = document.getElementById("drone-prompt");
+    if (prompt) {
+      const cargo = this.droneFuel.getCargoData();
+      const isLow = this.droneCamera.height < 0.1;
+      let text = "";
+      if (isLow && cargo.items.length < cargo.capacity) text += "[E] Pick up  ";
+      if (cargo.items.length > 0) text += "[V] Drop";
+      prompt.textContent = text;
+      prompt.style.opacity = text ? "1" : "0";
     }
 
     // Update spotlight light

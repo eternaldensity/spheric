@@ -346,6 +346,7 @@ defmodule SphericWeb.GameLive.Helpers do
   def upgrade_display_name(:auto_refuel), do: "Auto-Refuel"
   def upgrade_display_name(:expanded_tank), do: "Expanded Tank"
   def upgrade_display_name(:drone_spotlight), do: "Drone Spotlight"
+  def upgrade_display_name(:expanded_cargo), do: "Expanded Cargo"
   def upgrade_display_name(other), do: other |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
 
   def creature_boost_label(type) do

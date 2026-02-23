@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-const ITEM_COLORS = {
+export const ITEM_COLORS = {
   // Raw ores
   iron_ore: 0xd4722a,
   copper_ore: 0x30c9a8,

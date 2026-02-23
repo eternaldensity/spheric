@@ -18,7 +18,8 @@ defmodule Spheric.Game.Behaviors.DroneBay do
   @upgrade_costs %{
     auto_refuel: %{iron_ingot: 5, copper_ingot: 3, wire: 2},
     expanded_tank: %{plate: 3, circuit: 2, wire: 4},
-    drone_spotlight: %{iron_ingot: 4, wire: 3, copper_ingot: 2}
+    drone_spotlight: %{iron_ingot: 4, wire: 3, copper_ingot: 2},
+    expanded_cargo: %{plate: 5, circuit: 3, wire: 6}
   }
 
   def initial_state do

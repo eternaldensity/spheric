@@ -308,6 +308,116 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     end
   end
 
+  # Drone cargo: pick up a ground item or belt item into drone cargo.
+  # Checks ground items first (exact tile then radius-1 neighbors),
+  # then tries to grab from a conveyor on the tile.
+  def handle_event("drone_pickup_item", %{"face" => face, "row" => row, "col" => col}, socket) do
+    face = Helpers.to_int(face)
+    row = Helpers.to_int(row)
+    col = Helpers.to_int(col)
+    key = {face, row, col}
+
+    # Try ground items: exact tile first, then radius-1 neighbors
+    ground_result =
+      case Map.to_list(GroundItems.get(key)) do
+        [{item_type, _count} | _] ->
+          {:ground, key, item_type}
+
+        [] ->
+          GroundItems.items_near(key, 1)
+          |> Enum.find_value(nil, fn {tile_key, items} ->
+            case Map.to_list(items) do
+              [{item_type, _count} | _] -> {:ground, tile_key, item_type}
+              [] -> nil
+            end
+          end)
+      end
+
+    # Fall back to belt item if no ground items found
+    result = ground_result || try_belt_pickup(key)
+
+    case result do
+      {:ground, pickup_key, item_type} ->
+        GroundItems.take(pickup_key, item_type)
+
+        {:noreply,
+         push_event(socket, "item_pickup_result", %{
+           success: true,
+           item: Atom.to_string(item_type)
+         })}
+
+      {:belt, belt_key, item_type} ->
+        take_belt_item(belt_key, item_type)
+
+        {:noreply,
+         push_event(socket, "item_pickup_result", %{
+           success: true,
+           item: Atom.to_string(item_type)
+         })}
+
+      nil ->
+        {:noreply, push_event(socket, "item_pickup_result", %{success: false})}
+    end
+  end
+
+  # Drone cargo: drop a held item onto a tile.
+  # Prefers placing onto an empty conveyor slot; falls back to ground.
+  def handle_event(
+        "drone_drop_item",
+        %{"face" => face, "row" => row, "col" => col, "item" => item_str},
+        socket
+      ) do
+    face = Helpers.to_int(face)
+    row = Helpers.to_int(row)
+    col = Helpers.to_int(col)
+    key = {face, row, col}
+
+    item =
+      try do
+        String.to_existing_atom(item_str)
+      rescue
+        ArgumentError -> nil
+      end
+
+    if item do
+      building = WorldStore.get_building(key)
+
+      if building && belt_type?(building.type) && building.state[:item] == nil do
+        new_state = %{building.state | item: item}
+        WorldStore.put_building(key, %{building | state: new_state})
+      else
+        GroundItems.add(key, item)
+      end
+
+      {:noreply, push_event(socket, "item_drop_result", %{success: true})}
+    else
+      {:noreply, push_event(socket, "item_drop_result", %{success: false})}
+    end
+  end
+
+  @belt_types [:conveyor, :conveyor_mk2, :conveyor_mk3, :crossover]
+
+  defp belt_type?(type), do: type in @belt_types
+
+  defp try_belt_pickup(key) do
+    building = WorldStore.get_building(key)
+
+    if building && belt_type?(building.type) && building.state[:item] != nil do
+      {:belt, key, building.state.item}
+    else
+      nil
+    end
+  end
+
+  defp take_belt_item(key, _item_type) do
+    building = WorldStore.get_building(key)
+
+    if building do
+      new_state = %{building.state | item: nil}
+      WorldStore.put_building(key, %{building | state: new_state})
+    end
+  end
+
   # Drone bay: player selects an upgrade to install
   def handle_event(
         "select_drone_upgrade",
