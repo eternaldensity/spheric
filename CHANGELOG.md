@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Add deep production chains: Assembler activation, Refinery, 4 new resources, multi-tier recipes (#40)
 
 ### Fixed
+- Fix stuck world events after server reload (#121)
 - Fix PostgreSQL on this machine (#82)
 - Add database error handling and transactional persistence (#73)
 - Fix Three.js memory leaks - building disposal, preview arrows, shared geometry/materials (#72)

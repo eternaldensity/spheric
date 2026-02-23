@@ -635,7 +635,12 @@ defmodule Spheric.Game.Persistence do
     case File.read(path) do
       {:ok, data} ->
         state = :erlang.binary_to_term(data)
-        if state[:world_events], do: WorldEvents.put_state(state.world_events)
+        if state[:world_events] do
+          # Clear any active event — tick counter resets to 0 on reload,
+          # so stale event_start_tick would prevent the event from ever ending.
+          cleaned = Map.merge(state.world_events, %{active_event: nil, event_start_tick: 0})
+          WorldEvents.put_state(cleaned)
+        end
         if state[:board_contact], do: BoardContact.put_state(state.board_contact)
         if state[:shift_cycle], do: ShiftCycle.put_state(state.shift_cycle)
         if state[:ground_items], do: GroundItems.put_all(state.ground_items)
