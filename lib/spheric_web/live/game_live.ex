@@ -190,6 +190,16 @@ defmodule SphericWeb.GameLive do
             sun_z: sz
           })
 
+        # Sync drone upgrades so client localStorage stays in sync with DB
+        drone_upgrades = Persistence.get_drone_upgrades(player_id)
+
+        owned =
+          drone_upgrades
+          |> Enum.filter(fn {_k, v} -> v end)
+          |> Enum.map(fn {k, _v} -> k end)
+
+        socket = push_event(socket, "drone_upgrades_sync", %{upgrades: owned})
+
         socket
       else
         socket
@@ -215,7 +225,7 @@ defmodule SphericWeb.GameLive do
     <div
       id="fuel-gauge"
       phx-update="ignore"
-      style="position: fixed; bottom: 52px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; align-items: flex-end; pointer-events: none; z-index: 45;"
+      style="position: fixed; bottom: 62px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; align-items: flex-end; pointer-events: none; z-index: 45;"
     >
     </div>
 
@@ -223,7 +233,7 @@ defmodule SphericWeb.GameLive do
     <div
       id="cargo-hud"
       phx-update="ignore"
-      style="position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; align-items: center; pointer-events: none; z-index: 45;"
+      style="position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; align-items: center; pointer-events: none; z-index: 46;"
     >
     </div>
 
@@ -231,7 +241,7 @@ defmodule SphericWeb.GameLive do
     <div
       id="drone-prompt"
       phx-update="ignore"
-      style="position: fixed; bottom: 104px; left: 50%; transform: translateX(-50%); pointer-events: none; z-index: 45; font-family: 'Courier New', monospace; font-size: 11px; color: var(--fbc-info); text-transform: uppercase; letter-spacing: 0.1em; opacity: 0; transition: opacity 0.2s;"
+      style="position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); pointer-events: none; z-index: 45; font-family: 'Courier New', monospace; font-size: 11px; color: var(--fbc-info); text-transform: uppercase; letter-spacing: 0.1em; opacity: 0; transition: opacity 0.2s;"
     >
     </div>
 

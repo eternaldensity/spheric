@@ -127,7 +127,7 @@ const GameRenderer = {
     this.droneFuel.onFuelChange = () => { this._updateFuelHUD(); this._updateCargoHUD(); };
 
     // Drone spotlight (toggled with L key when upgrade unlocked)
-    this._spotLight = new THREE.SpotLight(0xffeedd, 8, 6, Math.PI / 12, 0.4, 1.5);
+    this._spotLight = new THREE.SpotLight(0xffeedd, 0.4, 2, Math.PI / 24, 0.6, 1.5);
     this._spotLight.visible = false;
     this._spotLight.target.position.set(0, 0, 0);
     this.scene.add(this._spotLight);
@@ -630,6 +630,12 @@ const GameRenderer = {
       this.droneFuel.onUpgradeGranted(upgrade);
     });
 
+    this.handleEvent("drone_upgrades_sync", ({ upgrades }) => {
+      for (const upgrade of upgrades) {
+        this.droneFuel.onUpgradeGranted(upgrade);
+      }
+    });
+
     // --- Drone Cargo ---
 
     this.handleEvent("item_pickup_result", (data) => {
@@ -1003,8 +1009,9 @@ const GameRenderer = {
         html += `<div class="fuel-pip ${cls}${warn}"><div class="fuel-fill" style="height:${h}%"></div></div>`;
       }
     }
-    if (this.droneFuel.spotlightOn) {
-      html += `<div class="fuel-spotlight-indicator">L</div>`;
+    if (this.droneFuel.spotlightUnlocked) {
+      const cls = this.droneFuel.spotlightOn ? "fuel-spotlight-indicator" : "fuel-spotlight-indicator spotlight-off";
+      html += `<div class="${cls}">L</div>`;
     }
     gauge.innerHTML = html;
   },

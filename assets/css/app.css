@@ -178,6 +178,12 @@
   margin-left: 4px;
 }
 
+.fuel-spotlight-indicator.spotlight-off {
+  color: #55504a;
+  background: rgba(255, 238, 200, 0.03);
+  border-color: #3a3530;
+}
+
 @keyframes fuelWarn {
   from { border-color: #cc3333; box-shadow: 0 0 4px rgba(204, 51, 51, 0.4); }
   to { border-color: #4a3d33; box-shadow: none; }
