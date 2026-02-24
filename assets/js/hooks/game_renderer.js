@@ -1052,8 +1052,11 @@ const GameRenderer = {
     const dt = 1 / 60;
     this.droneCamera.update(dt);
 
-    // Update drone fuel system
-    this.droneFuel.update(dt);
+    // Update drone fuel system — reduced burn when idle / near ground
+    this.droneFuel.update(dt, {
+      isMoving: this.droneCamera.isFlying,
+      height: this.droneCamera.height,
+    });
 
     // Auto-pickup fuel when zoomed close to surface — raycast down to find tile
     if (this.droneCamera.height < 0.1) {

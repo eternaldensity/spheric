@@ -71,9 +71,21 @@ export class DroneFuelSystem {
 
   /**
    * Called every frame from the animate loop. dt is in seconds.
+   * @param {number} dt - frame delta in seconds
+   * @param {object} [droneState] - { isMoving, height }
    */
-  update(dt) {
-    const burnRate = this._spotlightOn ? dt * 2 : dt;
+  update(dt, droneState) {
+    let burnRate = this._spotlightOn ? dt * 2 : dt;
+
+    if (droneState && !droneState.isMoving) {
+      // Parked near the ground: no fuel burn
+      if (droneState.height < 0.1) {
+        burnRate = 0;
+      } else {
+        // Hovering stationary: half burn
+        burnRate *= 0.5;
+      }
+    }
 
     if (this._currentFuel) {
       this._currentFuel.remaining -= burnRate;
