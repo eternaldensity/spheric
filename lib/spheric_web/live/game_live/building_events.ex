@@ -333,24 +333,22 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     col = Helpers.to_int(col)
     key = {face, row, col}
 
-    # Try ground items: exact tile first, then radius-1 neighbors
-    ground_result =
-      case Map.to_list(GroundItems.get(key)) do
-        [{item_type, _count} | _] ->
-          {:ground, key, item_type}
+    # Try belt item first (exact tile), then ground items (exact + radius-1)
+    result =
+      try_belt_pickup(key) ||
+        case Map.to_list(GroundItems.get(key)) do
+          [{item_type, _count} | _] ->
+            {:ground, key, item_type}
 
-        [] ->
-          GroundItems.items_near(key, 1)
-          |> Enum.find_value(nil, fn {tile_key, items} ->
-            case Map.to_list(items) do
-              [{item_type, _count} | _] -> {:ground, tile_key, item_type}
-              [] -> nil
-            end
-          end)
-      end
-
-    # Fall back to belt item if no ground items found
-    result = ground_result || try_belt_pickup(key)
+          [] ->
+            GroundItems.items_near(key, 1)
+            |> Enum.find_value(nil, fn {tile_key, items} ->
+              case Map.to_list(items) do
+                [{item_type, _count} | _] -> {:ground, tile_key, item_type}
+                [] -> nil
+              end
+            end)
+        end
 
     case result do
       {:ground, pickup_key, item_type} ->
