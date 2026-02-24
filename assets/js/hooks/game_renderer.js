@@ -154,7 +154,7 @@ const GameRenderer = {
     this.atmosphere = new AtmosphereRenderer(this.scene);
 
     this.itemInterpolator = new ItemInterpolator();
-    this.itemRenderer = new ItemRenderer(this.scene, getTileCenter, this.chunkManager);
+    this.itemRenderer = new ItemRenderer(this.scene, getTileCenter, this.chunkManager, this.buildingData);
 
     this.creatureRenderer = new CreatureRenderer(this.scene, getTileCenter, this.chunkManager);
     this.creatureData = [];

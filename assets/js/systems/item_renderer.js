@@ -56,23 +56,132 @@ export const ITEM_COLORS = {
 const ITEM_SCALE = 0.003;
 const ITEM_HEIGHT = 1.004; // Above sphere surface (just above buildings at 1.001)
 
+// --- Shared geometries for shaped item types ---
+
+function createIngotGeometry() {
+  // Flat rectangular prism with beveled top edges via ExtrudeGeometry
+  const s = ITEM_SCALE;
+  const hw = s * 0.7; // half-width
+  const hd = s * 0.4; // half-depth
+  const shape = new THREE.Shape();
+  shape.moveTo(-hw, -hd);
+  shape.lineTo(hw, -hd);
+  shape.lineTo(hw, hd);
+  shape.lineTo(-hw, hd);
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: s * 0.5,
+    bevelEnabled: true,
+    bevelThickness: s * 0.15,
+    bevelSize: s * 0.12,
+    bevelSegments: 1,
+  });
+  // Center vertically — extrude goes 0..depth on Z, shift to center
+  geo.translate(0, 0, -s * 0.25);
+  // Rotate so the flat face is in XZ plane (Y = up/radial)
+  geo.rotateX(-Math.PI / 2);
+  return geo;
+}
+
+function createPlateGeometry() {
+  // Wide thin flat box
+  const s = ITEM_SCALE;
+  return new THREE.BoxGeometry(s * 1.6, s * 0.2, s * 1.2);
+}
+
+function createWireGeometry() {
+  // Small torus — coil of wire
+  const s = ITEM_SCALE;
+  return new THREE.TorusGeometry(s * 0.5, s * 0.15, 6, 10);
+}
+
+function createFrameGeometry() {
+  // Open rectangular frame — outer box with hollow center via ExtrudeGeometry
+  const s = ITEM_SCALE;
+  const ow = s * 0.8; // outer half-width
+  const od = s * 0.6; // outer half-depth
+  const t = s * 0.15; // bar thickness
+
+  const outer = new THREE.Shape();
+  outer.moveTo(-ow, -od);
+  outer.lineTo(ow, -od);
+  outer.lineTo(ow, od);
+  outer.lineTo(-ow, od);
+  outer.closePath();
+
+  const hole = new THREE.Path();
+  hole.moveTo(-ow + t, -od + t);
+  hole.lineTo(ow - t, -od + t);
+  hole.lineTo(ow - t, od - t);
+  hole.lineTo(-ow + t, od - t);
+  hole.closePath();
+  outer.holes.push(hole);
+
+  const geo = new THREE.ExtrudeGeometry(outer, {
+    depth: s * 0.6,
+    bevelEnabled: false,
+  });
+  geo.translate(0, 0, -s * 0.3);
+  geo.rotateX(-Math.PI / 2);
+  return geo;
+}
+
+// Build geometry lookup — shaped types get custom geometry, rest get default sphere
+const _shapedGeometries = {
+  iron_ingot: createIngotGeometry(),
+  copper_ingot: createIngotGeometry(),
+  titanium_ingot: createIngotGeometry(),
+  plate: createPlateGeometry(),
+  reinforced_plate: createPlateGeometry(),
+  plastic_sheet: createPlateGeometry(),
+  wire: createWireGeometry(),
+  cable: createWireGeometry(),
+  frame: createFrameGeometry(),
+  heavy_frame: createFrameGeometry(),
+};
+
+// Items with shaped geometry need radial + conveyor-facing orientation
+const _shapedTypes = new Set(Object.keys(_shapedGeometries));
+
+// Direction offsets: orientation 0-3 -> [dRow, dCol]
+// Must match DIR_OFFSETS in game_renderer.js
+const DIR_OFFSETS = [
+  [0, 1],   // 0: col+1
+  [1, 0],   // 1: row+1
+  [0, -1],  // 2: col-1
+  [-1, 0],  // 3: row-1
+];
+
+// Reusable temp objects for orientation math (avoid per-frame allocation)
+const _normal = new THREE.Vector3();
+const _tangentX = new THREE.Vector3();
+const _tangentZ = new THREE.Vector3();
+const _mat4 = new THREE.Matrix4();
+const _up = new THREE.Vector3(0, 1, 0);
+const _quat = new THREE.Quaternion();
+
 /**
  * ItemRenderer manages the 3D meshes for items on conveyors and in building buffers.
  * Uses an object pool to avoid creating/destroying meshes every frame.
  */
 export class ItemRenderer {
-  constructor(scene, getTileCenter, chunkManager) {
+  constructor(scene, getTileCenter, chunkManager, buildingData) {
     this.scene = scene;
     this.getTileCenter = getTileCenter;
     this.chunkManager = chunkManager;
+    this.buildingData = buildingData; // Map<"face:row:col", {type, orientation}>
     this.pool = [];
     this.active = new Map(); // key -> mesh
-    this.sharedGeometry = new THREE.SphereGeometry(ITEM_SCALE, 6, 6);
+    this.defaultGeometry = new THREE.SphereGeometry(ITEM_SCALE, 6, 6);
     this.materials = {};
 
     for (const [type, color] of Object.entries(ITEM_COLORS)) {
       this.materials[type] = new THREE.MeshLambertMaterial({ color });
     }
+  }
+
+  _getGeometry(itemType) {
+    return _shapedGeometries[itemType] || this.defaultGeometry;
   }
 
   /**
@@ -92,23 +201,47 @@ export class ItemRenderer {
         this.active.set(key, mesh);
       }
 
-      // Update material if item type changed
+      // Update material and geometry if item type changed
       const mat = this.materials[item.item];
-      if (mat && mesh.material !== mat) {
-        mesh.material = mat;
-      }
+      if (mat && mesh.material !== mat) mesh.material = mat;
+      const geo = this._getGeometry(item.item);
+      if (mesh.geometry !== geo) mesh.geometry = geo;
 
       // Compute interpolated world position
       const destPos = this.getTileCenter(item.face, item.row, item.col);
+      let worldPos;
 
       if (item.fromFace != null && item.t < 1.0) {
         const srcPos = this.getTileCenter(item.fromFace, item.fromRow, item.fromCol);
         // Lerp and re-normalize for smooth spherical movement
-        const pos = new THREE.Vector3().lerpVectors(srcPos, destPos, item.t);
-        pos.normalize();
-        mesh.position.copy(pos).multiplyScalar(ITEM_HEIGHT);
+        worldPos = new THREE.Vector3().lerpVectors(srcPos, destPos, item.t);
+        worldPos.normalize();
       } else {
-        mesh.position.copy(destPos).multiplyScalar(ITEM_HEIGHT);
+        worldPos = destPos.clone().normalize();
+      }
+
+      mesh.position.copy(worldPos).multiplyScalar(ITEM_HEIGHT);
+
+      // Orient shaped items: radial up + align to conveyor direction
+      if (_shapedTypes.has(item.item)) {
+        const bldKey = `${item.face}:${item.row}:${item.col}`;
+        const bld = this.buildingData.get(bldKey);
+        if (bld != null && bld.orientation != null) {
+          // Same approach as building orientation in game_renderer.js:
+          // compute tangent-plane forward from tile toward its output neighbor
+          _normal.copy(worldPos);
+          const [dr, dc] = DIR_OFFSETS[bld.orientation];
+          const neighborCenter = this.getTileCenter(item.face, item.row + dr, item.col + dc);
+          _tangentX.subVectors(neighborCenter, _normal);
+          _tangentX.addScaledVector(_normal, -_tangentX.dot(_normal)).normalize();
+          _tangentZ.crossVectors(_tangentX, _normal).normalize();
+          _mat4.makeBasis(_tangentX, _normal, _tangentZ);
+          mesh.quaternion.setFromRotationMatrix(_mat4);
+        } else {
+          // No conveyor — just face radially outward
+          _quat.setFromUnitVectors(_up, worldPos);
+          mesh.quaternion.copy(_quat);
+        }
       }
 
       mesh.visible = this.chunkManager.isTileVisible(item.face, item.row, item.col);
@@ -125,14 +258,18 @@ export class ItemRenderer {
   }
 
   acquireMesh(itemType) {
+    const geo = this._getGeometry(itemType);
+    const mat = this.materials[itemType] || this.materials.iron_ore;
+
     if (this.pool.length > 0) {
       const mesh = this.pool.pop();
-      mesh.material = this.materials[itemType] || this.materials.iron_ore;
+      mesh.geometry = geo;
+      mesh.material = mat;
+      mesh.quaternion.identity();
       return mesh;
     }
 
-    const mat = this.materials[itemType] || this.materials.iron_ore;
-    const mesh = new THREE.Mesh(this.sharedGeometry, mat);
+    const mesh = new THREE.Mesh(geo, mat);
     this.scene.add(mesh);
     return mesh;
   }
@@ -144,7 +281,10 @@ export class ItemRenderer {
     for (const mesh of this.pool) {
       this.scene.remove(mesh);
     }
-    this.sharedGeometry.dispose();
+    this.defaultGeometry.dispose();
+    for (const geo of Object.values(_shapedGeometries)) {
+      geo.dispose();
+    }
     for (const mat of Object.values(this.materials)) {
       mat.dispose();
     }
