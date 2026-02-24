@@ -127,9 +127,11 @@ const GameRenderer = {
     this.droneFuel.onFuelChange = () => { this._updateFuelHUD(); this._updateCargoHUD(); };
 
     // Drone spotlight (toggled with L key when upgrade unlocked)
-    this._spotLight = new THREE.PointLight(0xffeedd, 1.5, 3);
+    this._spotLight = new THREE.SpotLight(0xffeedd, 8, 6, Math.PI / 12, 0.4, 1.5);
     this._spotLight.visible = false;
+    this._spotLight.target.position.set(0, 0, 0);
     this.scene.add(this._spotLight);
+    this.scene.add(this._spotLight.target);
 
     this.pathfinding = new PathfindingEngine(this.faceIndices, this.subdivisions, getTileCenter);
 
@@ -1154,6 +1156,7 @@ const GameRenderer = {
     this.demolishTool.dispose();
 
     if (this._spotLight) {
+      this.scene.remove(this._spotLight.target);
       this.scene.remove(this._spotLight);
       this._spotLight.dispose();
     }
