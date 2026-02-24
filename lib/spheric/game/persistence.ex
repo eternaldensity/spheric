@@ -321,6 +321,10 @@ defmodule Spheric.Game.Persistence do
     end
   end
 
+  # Drone bay required/delivered maps have item-type atom keys
+  defp atomize_state_value(:required, value) when is_map(value), do: atomize_item_map(value)
+  defp atomize_state_value(:delivered, value) when is_map(value), do: atomize_item_map(value)
+
   defp atomize_state_value(_key, value), do: value
 
   defp atomize_item_map(map) when is_map(map) do
