@@ -1475,6 +1475,10 @@ defmodule SphericWeb.GameLive do
     do: ServerSync.handle_info(msg, socket)
 
   @impl true
+  def handle_info({:drone_upgrade_complete, _, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
   def handle_info({:creature_spawned, _, _} = msg, socket),
     do: ServerSync.handle_info(msg, socket)
 
