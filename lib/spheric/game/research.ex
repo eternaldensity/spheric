@@ -346,6 +346,10 @@ defmodule Spheric.Game.Research do
   """
   def load_player_unlocks(world_id, player_id) do
     init()
+    # Cache world_id so we can do DB fallback on ETS cache miss
+    # (persistent_term survives ETS table recreation from hot reloads)
+    :persistent_term.put(:spheric_research_world_id, world_id)
+
     progress = get_player_progress(world_id, player_id)
 
     completed_ids =
@@ -406,8 +410,25 @@ defmodule Spheric.Game.Research do
 
       _ ->
         case :ets.lookup(@unlock_table, player_id) do
-          [{^player_id, completed}] -> completed
-          [] -> MapSet.new()
+          [{^player_id, completed}] ->
+            completed
+
+          [] ->
+            # ETS cache miss — reload from DB if we have a cached world_id
+            # (handles hot reloads that clear ETS without re-mounting LiveViews)
+            case :persistent_term.get(:spheric_research_world_id, nil) do
+              nil ->
+                MapSet.new()
+
+              world_id ->
+                Logger.info("Research ETS cache miss for player #{player_id}, reloading from DB")
+                load_player_unlocks(world_id, player_id)
+
+                case :ets.lookup(@unlock_table, player_id) do
+                  [{^player_id, completed}] -> completed
+                  [] -> MapSet.new()
+                end
+            end
         end
     end
   end
