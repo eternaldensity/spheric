@@ -28,6 +28,30 @@ defmodule Spheric.Game.WorldGen do
   # Background chance for tiles far from any vein (sparse lone deposits)
   @vein_background_prob 0.008
 
+  # ── Public accessors for supply analysis scripts ──
+
+  @doc "Returns the resource amount range for deposits."
+  def resource_amount_range, do: @resource_amount_range
+
+  @doc "Returns the default subdivisions per face axis."
+  def subdivisions, do: @default_subdivisions
+
+  @doc "Returns biome density multipliers as a map."
+  def biome_density_multipliers do
+    %{volcanic: 1.0, desert: 0.9, grassland: 0.75, forest: 0.6, tundra: 0.5}
+  end
+
+  @doc "Returns biome resource weights as a map of biome => [{resource, weight}]."
+  def biome_resource_weights do
+    %{
+      volcanic: resource_weights(:volcanic),
+      desert: resource_weights(:desert),
+      grassland: resource_weights(:grassland),
+      forest: resource_weights(:forest),
+      tundra: resource_weights(:tundra)
+    }
+  end
+
   @doc """
   Generate terrain for all tiles and insert into ETS.
 
@@ -240,11 +264,11 @@ defmodule Spheric.Game.WorldGen do
   # Biome-specific resource distribution weights (must sum to 1.0)
   defp resource_weights(:volcanic),
     do: [
-      {:iron, 0.27},
+      {:iron, 0.23},
       {:copper, 0.10},
       {:titanium, 0.23},
       {:sulfur, 0.18},
-      {:oil, 0.05},
+      {:oil, 0.09},
       {:quartz, 0.10},
       {:uranium, 0.07}
     ]
@@ -282,10 +306,10 @@ defmodule Spheric.Game.WorldGen do
   defp resource_weights(:tundra),
     do: [
       {:quartz, 0.28},
-      {:copper, 0.24},
-      {:iron, 0.15},
+      {:copper, 0.26},
+      {:iron, 0.12},
       {:titanium, 0.13},
-      {:oil, 0.05},
+      {:oil, 0.06},
       {:sulfur, 0.10},
       {:uranium, 0.05}
     ]

@@ -16,7 +16,7 @@
 #   mix run scripts/calculate_costs.exs --everything       # buildings + research combined
 #   mix run scripts/calculate_costs.exs --supply           # supply vs demand analysis
 
-alias Spheric.Game.{Behaviors, ConstructionCosts, Research, Lore}
+alias Spheric.Game.{Behaviors, ConstructionCosts, Research, Lore, WorldGen}
 
 # ── Build recipe lookup from game behavior modules ─────────────────────────
 #
@@ -214,31 +214,15 @@ print_building = fn building ->
   end
 end
 
-# ── World supply estimation ──────────────────────────────────────────────────
+# ── World supply estimation (from WorldGen module) ──────────────────────────
 #
-# Based on world_gen.ex parameters:
-#   30 faces x 64x64 = 122,880 tiles
-#   4x4 cells per face = 16 cells per face = 480 cells total
-#   Biome assigned per cell based on cell center latitude (Y coordinate)
-#   Resource density per biome, resource weights per biome
-#   Each deposit: 100-500 ore (average 300)
+# All parameters pulled from WorldGen: biome weights, density multipliers,
+# deposit size range, subdivisions, etc.
 #
-# Biome latitude bands (based on Y/1.309):
-#   tundra:    lat > 0.6   (polar caps)
-#   forest:    0.2 < lat <= 0.6
-#   grassland: -0.2 < lat <= 0.2 (equatorial)
-#   desert:    -0.6 < lat <= -0.2
-#   volcanic:  lat <= -0.6 (south polar)
-#
-# The actual biome distribution depends on geometry. We estimate by
-# computing expected tile counts from the latitude distribution of the
-# 30-face rhombic triacontahedron's cells.
-
-# Approximate biome tile distribution (from actual world gen with seed=42):
-# These are estimated proportions based on the geometry.
-# Each biome's cell count depends on how many of the 480 cells fall in each
-# latitude band. We use rough proportions from the sphere geometry:
+# Biome tile fractions are estimated from the rhombic triacontahedron geometry:
 #   ~15% tundra, ~25% forest, ~30% grassland, ~20% desert, ~10% volcanic
+# (actual distribution depends on latitude bands of the 30 faces' 4x4 cells)
+
 biome_tile_fractions = %{
   tundra: 0.15,
   forest: 0.25,
@@ -247,25 +231,17 @@ biome_tile_fractions = %{
   volcanic: 0.10
 }
 
-total_tiles = 122_880
-base_density = 0.08
-avg_deposit = 300  # average of 100..500
+subdivisions = WorldGen.subdivisions()
+total_tiles = 30 * subdivisions * subdivisions
+amount_range = WorldGen.resource_amount_range()
+avg_deposit = div(Enum.min(amount_range) + Enum.max(amount_range), 2)
 
-biome_density_multipliers = %{
-  volcanic: 1.5,
-  desert: 1.2,
-  grassland: 1.0,
-  forest: 0.8,
-  tundra: 0.6
-}
+biome_density_multipliers = WorldGen.biome_density_multipliers()
 
-biome_resource_weights = %{
-  volcanic: %{iron: 0.27, copper: 0.10, titanium: 0.23, sulfur: 0.18, oil: 0.05, quartz: 0.10, uranium: 0.07},
-  desert: %{iron: 0.25, copper: 0.15, oil: 0.25, sulfur: 0.15, titanium: 0.10, quartz: 0.10},
-  grassland: %{iron: 0.25, copper: 0.25, quartz: 0.15, titanium: 0.10, oil: 0.15, sulfur: 0.10},
-  forest: %{copper: 0.25, quartz: 0.25, iron: 0.15, titanium: 0.10, oil: 0.10, sulfur: 0.15},
-  tundra: %{quartz: 0.28, copper: 0.24, iron: 0.15, titanium: 0.13, oil: 0.05, sulfur: 0.10, uranium: 0.05}
-}
+# WorldGen returns [{resource, weight}] lists; convert to maps for easier lookup
+biome_resource_weights =
+  WorldGen.biome_resource_weights()
+  |> Map.new(fn {biome, weight_list} -> {biome, Map.new(weight_list)} end)
 
 # Map resource types to raw ore names used in recipes
 resource_to_ore = %{
@@ -277,6 +253,9 @@ resource_to_ore = %{
   sulfur: :raw_sulfur,
   uranium: :raw_uranium
 }
+
+# Estimate base density from vein parameters (approximate effective deposit rate)
+base_density = 0.08
 
 # Calculate expected total ore supply across the entire world
 world_supply =
@@ -327,8 +306,9 @@ cond do
     IO.puts("── Estimated World Supply (#{total_tiles} tiles) ──")
     IO.puts("")
     IO.puts("  Biome distribution: tundra 15%, forest 25%, grassland 30%, desert 20%, volcanic 10%")
-    IO.puts("  Resource density: #{base_density} base (x0.6 tundra .. x1.5 volcanic)")
-    IO.puts("  Deposit size: 100-500 ore (avg #{avg_deposit})")
+    density_range = biome_density_multipliers |> Map.values() |> Enum.sort()
+    IO.puts("  Resource density: #{base_density} base (x#{List.first(density_range)} .. x#{List.last(density_range)})")
+    IO.puts("  Deposit size: #{Enum.min(amount_range)}..#{Enum.max(amount_range)} ore (avg #{avg_deposit})")
     IO.puts("")
 
     total_supply = Enum.reduce(world_supply, 0, fn {_k, v}, acc -> acc + v end)
