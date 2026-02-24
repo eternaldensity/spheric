@@ -62,7 +62,7 @@ Click a Drone Bay to open its upgrade panel. The bay offers three permanent upgr
 | Upgrade | Resource Cost | Effect |
 |---|---|---|
 | **Auto-Refuel** | 5 Ferric Standard, 3 Paraelectric Bar, 2 Conductive Filament | Bay accepts biofuel into a buffer and auto-refuels your drone when you fly nearby |
-| **Expanded Tank** | 3 Structural Plate, 2 Resonance Circuit, 4 Conductive Filament | Increases tank capacity from 5 to **10 slots** |
+| **Expanded Tank** | 4 Conductive Filament, 3 Structural Plate, 2 Resonance Circuit | Increases tank capacity from 5 to **10 slots** |
 | **Drone Spotlight** | 4 Ferric Standard, 3 Conductive Filament, 2 Paraelectric Bar | Toggleable light (press **L**); burns fuel at **2x speed** while on |
 
 ### Installing an Upgrade

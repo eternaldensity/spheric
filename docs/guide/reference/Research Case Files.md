@@ -15,7 +15,7 @@ See [[Submitting Research]] for how the research system works.
 | Ferric Standardization | 50 Ferric Standard |
 | Paraelectric Requisition | 30 Paraelectric Bar |
 
-**Unlocks:** Distributor, Converger, Jurisdiction Beacon, Exchange Terminal, Conduit Mk-II, Containment Vault, [[The Fabricator|Fabricator]]
+**Unlocks:** Distributor, Converger, Jurisdiction Beacon, Exchange Terminal, Conduit Mk-II, Containment Vault, [[The Fabricator|Fabricator]], Drone Bay
 
 **[[Objects of Power|Object of Power]]:** Bureau Directive Alpha — +10% production speed
 
@@ -25,7 +25,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Fabrication Protocol Alpha | 40 Conductive Filament, 40 Structural Plate |
+| Fabrication Protocol Alpha | 40 Structural Plate, 40 Conductive Filament |
 | Astral Ore Refinement | 30 Astral Ingot |
 
 **Unlocks:** [[The Distiller|Distiller]], Conduit Mk-III, Load Equalizer, Subsurface Link, Transit Interchange
@@ -50,7 +50,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Industrial Requisition | 20 Kinetic Driver, 20 Shielded Conduit, 30 Thermal Regulator |
+| Industrial Requisition | 30 Thermal Regulator, 20 Shielded Conduit, 20 Kinetic Driver |
 | Organic Energy Mandate | 50 Entity Biofuel, 20 Refined Entity Fuel |
 
 **Unlocks:** [[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Production|Advanced Processor]]
@@ -63,7 +63,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Heavy Industry Protocol | 15 Heavy Astral Frame, 15 Adv. Resonance Circuit |
+| Heavy Industry Protocol | 15 Advanced Resonance Circuit, 15 Heavy Astral Frame |
 | Entity Research Program | 30 Anomalous Essence, 10 Polymer Membrane |
 
 **Unlocks:** [[Advanced Production|Advanced Fabricator, Fabrication Plant]], Essence Extractor
@@ -89,8 +89,8 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Paranatural Convergence | 5 Hypercomputation Core, 5 Paranatural Composite, 10 Radiant Cell |
-| Entity Containment Mastery | 3 Anomaly Containment Module, 5 Anomalous Essence |
+| Paranatural Convergence | 10 Radiant Cell, 5 Paranatural Composite, 5 Hypercomputation Core |
+| Entity Containment Mastery | 5 Anomalous Essence, 3 Anomaly Containment Module |
 
 **Unlocks:** [[Endgame Buildings|Dimensional Stabilizer, Astral Projection Chamber]], [[Paranatural Synthesis|Paranatural Synthesizer]]
 
@@ -102,7 +102,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Dimensional Mastery | 3 Dimensional Core, 3 Astral Projection Lens |
+| Dimensional Mastery | 3 Astral Projection Lens, 3 Dimensional Core |
 | Board Resonance Protocol | 1 Board Resonator |
 
 **Unlocks:** [[The Board Interface]]
@@ -112,3 +112,4 @@ See [[Submitting Research]] for how the research system works.
 ---
 
 **Back to:** [[Home]]
+

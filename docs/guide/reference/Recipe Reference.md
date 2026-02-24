@@ -33,7 +33,7 @@ Complete production recipe tables for all buildings in Spheric.
 
 ## Fabricator (Assembler) — 15 ticks
 
-*Unlocked at Clearance 2. See [[The Fabricator]].*
+*Unlocked at Clearance 1. See [[The Fabricator]].*
 
 | Input A | Input B | Output |
 |---|---|---|
@@ -78,7 +78,7 @@ All standard Processor recipes, plus:
 
 | Input A | Input B | Input C | Output |
 |---|---|---|---|
-| Adv. Resonance Circuit | Adv. Resonance Circuit | Polymer Membrane | Computation Matrix |
+| Advanced Resonance Circuit | Advanced Resonance Circuit | Polymer Membrane | Computation Matrix |
 | Heavy Astral Frame | Kinetic Driver | Thermal Regulator | Armored Drive Assembly |
 | Reinforced Plate | Polymer Membrane | Astral Ingot | Structural Composite |
 
@@ -90,7 +90,7 @@ All standard Processor recipes, plus:
 
 | Input A | Input B | Output |
 |---|---|---|
-| Computation Matrix | Adv. Resonance Circuit | Hypercomputation Core |
+| Computation Matrix | Advanced Resonance Circuit | Hypercomputation Core |
 | Structural Composite | Refined Resonance Crystal | Paranatural Composite |
 | Enriched Radiant | Paranatural Composite | Radiant Cell |
 
@@ -119,3 +119,4 @@ All standard Processor recipes, plus:
 ---
 
 **Back to:** [[Home]]
+

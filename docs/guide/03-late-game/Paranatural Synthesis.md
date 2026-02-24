@@ -21,8 +21,8 @@ At **Clearance 7**, you unlock the **Paranatural Synthesizer** — the most comp
 
 | Material | Quantity |
 |---|---|
+| Paranatural Composite | 15 |
 | Hypercomputation Core | 3 |
-| Paranatural Composite | 3 |
 | Radiant Cell | 1 |
 
 ## Supply Chain

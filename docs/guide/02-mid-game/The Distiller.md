@@ -34,9 +34,9 @@ A more efficient fuel source for [[Power & Energy|Bio Generators]]. Made from [[
 
 | Material | Quantity |
 |---|---|
-| Ferric Standard | 10 |
-| Structural Plate | 3 |
-| Conductive Filament | 3 |
+| Structural Plate | 15 |
+| Conductive Filament | 6 |
+| Astral Ingot | 4 |
 
 ---
 

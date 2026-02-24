@@ -6,10 +6,10 @@ The **Board Interface** is the ultimate building in Spheric, unlocked at **Clear
 
 | Material | Quantity |
 |---|---|
-| Dimensional Core | 2 |
-| Hypercomputation Core | 5 |
+| Paranatural Composite | 80 |
+| Hypercomputation Core | 15 |
+| Dimensional Core | 4 |
 | Astral Projection Lens | 3 |
-| Paranatural Composite | 10 |
 
 This is the **most expensive building in the game**. Constructing it requires a mature, multi-tier production network producing the highest-end components from:
 - [[High-Tech Manufacturing|Particle Colliders]] (Hypercomputation Core, Paranatural Composite)
@@ -25,7 +25,7 @@ Before you can build the Board Interface, you must complete all Clearance 8 [[Re
 
 | Case File | Requirement |
 |---|---|
-| Dimensional Mastery | 3 Dimensional Core, 3 Astral Projection Lens |
+| Dimensional Mastery | 3 Astral Projection Lens, 3 Dimensional Core |
 | Board Resonance Protocol | 1 Board Resonator |
 
 This requires the full [[Paranatural Synthesis|Paranatural Synthesis]] chain to be operational.

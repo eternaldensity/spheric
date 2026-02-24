@@ -14,9 +14,9 @@ Reduces [[The Hiss & Corruption|corruption]] spread and stabilizes dimensional d
 
 | Material | Quantity |
 |---|---|
+| Paranatural Composite | 25 |
+| Anomaly Containment Module | 6 |
 | Hypercomputation Core | 2 |
-| Paranatural Composite | 5 |
-| Anomaly Containment Module | 1 |
 
 ## Astral Projection Chamber
 
@@ -30,8 +30,8 @@ Reveals **all [[Creatures & Containment|creature]] locations** across the entire
 
 | Material | Quantity |
 |---|---|
+| Anomaly Containment Module | 12 |
 | Hypercomputation Core | 2 |
-| Anomaly Containment Module | 2 |
 | Astral Projection Lens | 1 |
 
 > [!tip] Creature Scouting

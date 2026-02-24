@@ -17,30 +17,4 @@ A dual-input building that creates ultra-advanced components through high-energy
 | Structural Composite | Refined Resonance Crystal | Paranatural Composite |
 | Enriched Radiant | Paranatural Composite | Radiant Cell |
 
-**Cost:** 3 Computation Matrix, 5 Heavy Astral Frame, 5 Adv. Resonance Circuit, 1 Armored Drive Assembly
-
-> [!note] The Hypercomputation Core is the most important late-game component — it's needed for nearly every Clearance 7–8 building and the [[Board Contact Quest]].
-
-## Nuclear Distiller (Nuclear Refinery)
-
-Processes uranium into enriched fuel. An alternative to the [[Advanced Production#Advanced Processor (Advanced Smelter)|Advanced Processor]] for uranium enrichment.
-
-**Processing time:** 20 ticks
-
-| Input | Output |
-|---|---|
-| Threshold Radiant (Raw) | Enriched Radiant |
-
-**Cost:** 5 Structural Composite, 2 Computation Matrix, 3 Heavy Astral Frame
-
-## Production Dependencies
-
-Building a Particle Collider requires outputs from:
-- [[Advanced Production#Fabrication Plant|Fabrication Plant]] (Computation Matrix, Armored Drive Assembly)
-- [[Advanced Production#Advanced Fabricator (Advanced Assembler)|Advanced Fabricator]] (Heavy Astral Frame, Adv. Resonance Circuit)
-
-This means you need a complete Clearance 5 production chain operational before you can construct Clearance 6 buildings.
-
----
-
-**Previous:** [[Mid Game Tips]] | **Next:** [[Nuclear Processing]]
+**Cost:** 50 Heavy Astral Frame, 15 Advanced Resonance Circuit, 15 Computation Matrix, 1 Armored Drive Assembly
