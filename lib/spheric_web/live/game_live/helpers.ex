@@ -112,8 +112,8 @@ defmodule SphericWeb.GameLive.Helpers do
           %{
             mode: building.state[:mode] || :idle,
             selected_upgrade: building.state[:selected_upgrade],
-            delivered: building.state[:delivered] || %{},
-            required: building.state[:required] || %{},
+            delivered: atomize_item_keys(building.state[:delivered] || %{}),
+            required: atomize_item_keys(building.state[:required] || %{}),
             fuel_buffer_count: length(building.state[:fuel_buffer] || []),
             upgrade_costs: Behaviors.DroneBay.all_upgrade_costs(),
             player_upgrades: player_upgrades
@@ -524,5 +524,13 @@ defmodule SphericWeb.GameLive.Helpers do
     cost_map
     |> Enum.map(fn {item, qty} -> "#{qty} #{Lore.display_name(item)}" end)
     |> Enum.join(", ")
+  end
+
+  # Ensure item-type map keys are atoms (they may be strings after DB round-trip)
+  defp atomize_item_keys(map) when is_map(map) do
+    Map.new(map, fn
+      {k, v} when is_binary(k) -> {String.to_existing_atom(k), v}
+      {k, v} -> {k, v}
+    end)
   end
 end
