@@ -3,6 +3,9 @@
 # Calculates the total raw-resource cost of constructing endgame items/buildings.
 # Recursively resolves every intermediate recipe down to raw ores + creature_essence.
 #
+# All recipe, building cost, research, and display name data is loaded from the
+# actual game modules — no hardcoded copies.
+#
 # Usage:
 #   mix run scripts/calculate_costs.exs
 #   mix run scripts/calculate_costs.exs --item board_resonator
@@ -13,59 +16,33 @@
 #   mix run scripts/calculate_costs.exs --everything       # buildings + research combined
 #   mix run scripts/calculate_costs.exs --supply           # supply vs demand analysis
 
-# ── Recipe database ──────────────────────────────────────────────────────────
+alias Spheric.Game.{Behaviors, ConstructionCosts, Research, Lore}
+
+# ── Build recipe lookup from game behavior modules ─────────────────────────
 #
 # Format: output_atom => {[{input, qty}, ...], output_qty}
-# "To make output_qty of output, you need input_qty of each input."
+# Aggregates recipes from every production building.
 
-recipe_lookup = %{
-  # Smelter (all 1:1)
-  iron_ingot: {[iron_ore: 1], 1},
-  copper_ingot: {[copper_ore: 1], 1},
-  titanium_ingot: {[titanium_ore: 1], 1},
-  quartz_crystal: {[raw_quartz: 1], 1},
+recipe_modules = [
+  Behaviors.Smelter,
+  Behaviors.Refinery,
+  Behaviors.NuclearRefinery,
+  Behaviors.Assembler,
+  Behaviors.AdvancedAssembler,
+  Behaviors.AdvancedSmelter,
+  Behaviors.FabricationPlant,
+  Behaviors.ParticleCollider,
+  Behaviors.ParanaturalSynthesizer,
+  Behaviors.BoardInterface
+]
 
-  # Refinery
-  polycarbonate: {[crude_oil: 2], 1},
-  sulfur_compound: {[raw_sulfur: 1], 1},
-  refined_fuel: {[biofuel: 3], 2},
-
-  # Nuclear refinery
-  enriched_uranium: {[raw_uranium: 4], 1},
-
-  # Assembler
-  wire: {[copper_ingot: 1, copper_ingot: 1], 3},
-  plate: {[iron_ingot: 1, iron_ingot: 1], 2},
-  circuit: {[wire: 6, quartz_crystal: 1], 1},
-  frame: {[plate: 2, titanium_ingot: 4], 1},
-  motor: {[iron_ingot: 4, wire: 8], 1},
-  cable: {[wire: 5, polycarbonate: 3], 2},
-  reinforced_plate: {[plate: 2, iron_ingot: 4], 2},
-  heat_sink: {[copper_ingot: 4, sulfur_compound: 1], 1},
-
-  # Advanced assembler
-  heavy_frame: {[frame: 2, reinforced_plate: 6], 1},
-  advanced_circuit: {[circuit: 4, cable: 6], 1},
-  plastic_sheet: {[polycarbonate: 10, sulfur_compound: 15], 5},
-
-  # Fabrication plant
-  computer: {[advanced_circuit: 3, advanced_circuit: 3, plastic_sheet: 4], 1},
-  motor_housing: {[heavy_frame: 4, motor: 1, heat_sink: 2], 1},
-  composite: {[reinforced_plate: 3, plastic_sheet: 2, titanium_ingot: 1], 1},
-
-  # Particle collider
-  supercomputer: {[computer: 10, advanced_circuit: 20], 1},
-  advanced_composite: {[composite: 1, quartz_crystal: 2], 1},
-  nuclear_cell: {[enriched_uranium: 1, advanced_composite: 3], 1},
-
-  # Paranatural synthesizer
-  containment_module: {[supercomputer: 1, advanced_composite: 1, creature_essence: 1], 1},
-  dimensional_core: {[nuclear_cell: 1, containment_module: 1, creature_essence: 1], 1},
-  astral_lens: {[quartz_crystal: 1, quartz_crystal: 1, creature_essence: 1], 1},
-
-  # Board interface
-  board_resonator: {[dimensional_core: 4, supercomputer: 2, astral_lens: 6], 1}
-}
+recipe_lookup =
+  recipe_modules
+  |> Enum.flat_map(& &1.recipes())
+  |> Enum.reduce(%{}, fn %{inputs: inputs, output: {out_item, out_qty}}, acc ->
+    # Later recipes (higher-tier buildings) override earlier ones for the same output
+    Map.put(acc, out_item, {inputs, out_qty})
+  end)
 
 # Raw materials (no recipe to make them — they are mined or gathered)
 raw_materials = MapSet.new([
@@ -135,148 +112,25 @@ defmodule CostCalculator do
   end
 end
 
-# ── Display names ────────────────────────────────────────────────────────────
+# ── Display names (from game Lore module) ──────────────────────────────────
 
-display_names = %{
-  iron_ore: "Iron Ore",
-  copper_ore: "Copper Ore",
-  raw_quartz: "Raw Quartz",
-  titanium_ore: "Titanium Ore",
-  crude_oil: "Crude Oil",
-  raw_sulfur: "Raw Sulfur",
-  raw_uranium: "Raw Uranium",
-  creature_essence: "Creature Essence",
-  biofuel: "Biofuel",
-  iron_ingot: "Iron Ingot",
-  copper_ingot: "Copper Ingot",
-  titanium_ingot: "Titanium Ingot",
-  quartz_crystal: "Quartz Crystal",
-  polycarbonate: "Polycarbonate",
-  sulfur_compound: "Sulfur Compound",
-  enriched_uranium: "Enriched Uranium",
-  wire: "Wire",
-  plate: "Plate",
-  circuit: "Circuit",
-  frame: "Frame",
-  motor: "Motor",
-  cable: "Cable",
-  reinforced_plate: "Reinforced Plate",
-  heat_sink: "Heat Sink",
-  heavy_frame: "Heavy Frame",
-  advanced_circuit: "Advanced Circuit",
-  plastic_sheet: "Plastic Sheet",
-  computer: "Computer",
-  motor_housing: "Motor Housing",
-  composite: "Composite",
-  supercomputer: "Supercomputer",
-  advanced_composite: "Advanced Composite",
-  nuclear_cell: "Nuclear Cell",
-  containment_module: "Containment Module",
-  dimensional_core: "Dimensional Core",
-  astral_lens: "Astral Lens",
-  board_resonator: "Board Resonator",
-  refined_fuel: "Refined Fuel"
-}
+name = fn item -> Lore.display_name(item) end
 
-name = fn item ->
-  Map.get(display_names, item, item |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize())
-end
+# ── Building data (from game ConstructionCosts module) ─────────────────────
 
-# ── Building construction costs ──────────────────────────────────────────────
+building_costs = ConstructionCosts.all_costs()
+building_tiers = ConstructionCosts.all_tiers()
 
-building_costs = %{
-  conveyor: %{iron_ingot: 1},
-  miner: %{iron_ingot: 2, copper_ingot: 1},
-  smelter: %{iron_ingot: 3},
-  submission_terminal: %{iron_ingot: 2, copper_ingot: 2},
-  conveyor_mk2: %{iron_ingot: 2, copper_ingot: 1},
-  splitter: %{iron_ingot: 3, copper_ingot: 2},
-  merger: %{iron_ingot: 3, copper_ingot: 2},
-  claim_beacon: %{iron_ingot: 5, copper_ingot: 3},
-  trade_terminal: %{iron_ingot: 5, wire: 3},
-  storage_container: %{iron_ingot: 5, plate: 2},
-  crossover: %{iron_ingot: 4, copper_ingot: 2},
-  assembler: %{iron_ingot: 8, copper_ingot: 5, wire: 3},
-  refinery: %{iron_ingot: 10, plate: 3, wire: 3},
-  conveyor_mk3: %{iron_ingot: 3, wire: 2},
-  balancer: %{iron_ingot: 5, circuit: 1},
-  underground_conduit: %{iron_ingot: 8, copper_ingot: 5},
-  containment_trap: %{frame: 2, circuit: 2, wire: 5},
-  purification_beacon: %{frame: 3, circuit: 3, quartz_crystal: 5},
-  defense_turret: %{frame: 3, plate: 5, circuit: 2},
-  shadow_panel: %{frame: 2, quartz_crystal: 3, wire: 2},
-  lamp: %{copper_ingot: 3, wire: 2, circuit: 1},
-  bio_generator: %{frame: 3, motor: 2, cable: 3},
-  substation: %{cable: 5, copper_ingot: 10, plate: 3},
-  transfer_station: %{cable: 10, frame: 2, circuit: 3},
-  advanced_smelter: %{heavy_frame: 1, circuit: 5, heat_sink: 3},
-  advanced_assembler: %{heavy_frame: 2, advanced_circuit: 3, motor: 2},
-  fabrication_plant: %{heavy_frame: 3, advanced_circuit: 5, motor: 3, cable: 5},
-  essence_extractor: %{frame: 3, circuit: 5, quartz_crystal: 10},
-  particle_collider: %{computer: 3, heavy_frame: 5, advanced_circuit: 5, motor_housing: 1},
-  nuclear_refinery: %{composite: 5, computer: 2, heavy_frame: 3},
-  dimensional_stabilizer: %{supercomputer: 2, advanced_composite: 5, containment_module: 1},
-  paranatural_synthesizer: %{supercomputer: 3, advanced_composite: 3, nuclear_cell: 1},
-  astral_projection_chamber: %{supercomputer: 2, containment_module: 2, astral_lens: 1},
-  board_interface: %{dimensional_core: 2, supercomputer: 5, astral_lens: 3, advanced_composite: 10}
-}
+building_names =
+  Map.new(Map.keys(building_costs) ++ Map.keys(building_tiers), fn b ->
+    {b, Lore.display_name(b)}
+  end)
 
-building_tiers = %{
-  conveyor: 0, conveyor_mk2: 1, conveyor_mk3: 2,
-  miner: 0, smelter: 0, submission_terminal: 0, gathering_post: 0,
-  splitter: 1, merger: 1, claim_beacon: 1, trade_terminal: 1,
-  storage_container: 1, crossover: 1,
-  assembler: 2, refinery: 2, balancer: 2, underground_conduit: 2,
-  containment_trap: 3, purification_beacon: 3, defense_turret: 3,
-  shadow_panel: 3, lamp: 3,
-  bio_generator: 4, substation: 4, transfer_station: 4, advanced_smelter: 4,
-  advanced_assembler: 5, fabrication_plant: 5, essence_extractor: 5,
-  particle_collider: 6, nuclear_refinery: 6,
-  dimensional_stabilizer: 7, paranatural_synthesizer: 7, astral_projection_chamber: 7,
-  board_interface: 8
-}
+# ── Research case file costs (from game Research module) ───────────────────
 
-building_names = %{
-  conveyor: "Conveyor", conveyor_mk2: "Conveyor Mk2", conveyor_mk3: "Conveyor Mk3",
-  miner: "Miner", smelter: "Smelter", submission_terminal: "Submission Terminal",
-  gathering_post: "Gathering Post",
-  splitter: "Splitter", merger: "Merger", claim_beacon: "Claim Beacon",
-  trade_terminal: "Trade Terminal", storage_container: "Storage Container",
-  crossover: "Crossover",
-  assembler: "Assembler", refinery: "Refinery", balancer: "Balancer",
-  underground_conduit: "Underground Conduit",
-  containment_trap: "Containment Trap", purification_beacon: "Purification Beacon",
-  defense_turret: "Defense Turret", shadow_panel: "Shadow Panel", lamp: "Lamp",
-  bio_generator: "Bio Generator", substation: "Substation",
-  transfer_station: "Transfer Station", advanced_smelter: "Advanced Smelter",
-  advanced_assembler: "Advanced Assembler", fabrication_plant: "Fabrication Plant",
-  essence_extractor: "Essence Extractor",
-  particle_collider: "Particle Collider", nuclear_refinery: "Nuclear Refinery",
-  dimensional_stabilizer: "Dimensional Stabilizer",
-  paranatural_synthesizer: "Paranatural Synthesizer",
-  astral_projection_chamber: "Astral Projection Chamber",
-  board_interface: "Board Interface"
-}
-
-# ── Research case file costs ─────────────────────────────────────────────────
-
-research_costs = %{
-  "L1 Ferric Standardization" => %{iron_ingot: 50},
-  "L1 Paraelectric Requisition" => %{copper_ingot: 30},
-  "L2 Fabrication Protocol Alpha" => %{wire: 40, plate: 40},
-  "L2 Astral Ore Refinement" => %{titanium_ingot: 30},
-  "L3 Paranatural Engineering" => %{circuit: 30, frame: 20, polycarbonate: 20},
-  "L4 Industrial Requisition" => %{motor: 20, cable: 20, heat_sink: 30},
-  "L4 Organic Energy Mandate" => %{biofuel: 50, refined_fuel: 20},
-  "L5 Heavy Industry Protocol" => %{heavy_frame: 15, advanced_circuit: 15},
-  "L5 Entity Research Program" => %{creature_essence: 30, plastic_sheet: 10},
-  "L6 Computational Threshold" => %{computer: 10, motor_housing: 10},
-  "L6 Nuclear Clearance Protocol" => %{composite: 15, enriched_uranium: 5},
-  "L7 Paranatural Convergence" => %{supercomputer: 5, advanced_composite: 5, nuclear_cell: 10},
-  "L7 Entity Containment Mastery" => %{containment_module: 3, creature_essence: 5},
-  "L8 Dimensional Mastery" => %{dimensional_core: 3, astral_lens: 3},
-  "L8 Board Resonance Protocol" => %{board_resonator: 1}
-}
+research_costs =
+  Research.case_files()
+  |> Map.new(fn cf -> {"L#{cf.clearance} #{cf.name}", cf.requirements} end)
 
 # ── Output helpers ───────────────────────────────────────────────────────────
 

@@ -13,6 +13,6 @@ defmodule Spheric.Game.Behaviors.AdvancedSmelter do
       %{inputs: [copper_ore: 1], output: {:copper_ingot, 1}},
       %{inputs: [titanium_ore: 1], output: {:titanium_ingot, 1}},
       %{inputs: [raw_quartz: 1], output: {:quartz_crystal, 1}},
-      %{inputs: [raw_uranium: 1], output: {:enriched_uranium, 1}}
+      %{inputs: [raw_uranium: 4], output: {:enriched_uranium, 1}}
     ]
 end

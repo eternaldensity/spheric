@@ -9,7 +9,7 @@ defmodule Spheric.Game.Behaviors.BoardInterface do
   @default_rate 50
 
   @recipes [
-    %{inputs: [dimensional_core: 1, supercomputer: 1, astral_lens: 1], output: {:board_resonator, 1}}
+    %{inputs: [dimensional_core: 4, supercomputer: 2, astral_lens: 6], output: {:board_resonator, 1}}
   ]
 
   # Routing map: {slot_a_type, slot_b_type, slot_c_type} => output_atom
@@ -19,7 +19,7 @@ defmodule Spheric.Game.Behaviors.BoardInterface do
 
   # Quantity map: {slot_a_type, slot_b_type, slot_c_type} => {[qa, qb, qc], out_qty}
   @recipe_quantities %{
-    {:dimensional_core, :supercomputer, :astral_lens} => {[1, 1, 1], 1}
+    {:dimensional_core, :supercomputer, :astral_lens} => {[4, 2, 6], 1}
   }
 
   def initial_state do

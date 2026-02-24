@@ -15,11 +15,11 @@ defmodule Spheric.Game.Behaviors.Assembler do
     recipes: [
       %{inputs: [copper_ingot: 1, copper_ingot: 1], output: {:wire, 3}},
       %{inputs: [iron_ingot: 1, iron_ingot: 1], output: {:plate, 2}},
-      %{inputs: [wire: 1, quartz_crystal: 1], output: {:circuit, 1}},
-      %{inputs: [plate: 1, titanium_ingot: 1], output: {:frame, 1}},
-      %{inputs: [iron_ingot: 2, wire: 1], output: {:motor, 1}},
-      %{inputs: [wire: 1, polycarbonate: 1], output: {:cable, 1}},
-      %{inputs: [plate: 2, iron_ingot: 1], output: {:reinforced_plate, 1}},
-      %{inputs: [copper_ingot: 1, sulfur_compound: 1], output: {:heat_sink, 1}}
+      %{inputs: [wire: 6, quartz_crystal: 1], output: {:circuit, 1}},
+      %{inputs: [plate: 2, titanium_ingot: 4], output: {:frame, 1}},
+      %{inputs: [iron_ingot: 4, wire: 8], output: {:motor, 1}},
+      %{inputs: [wire: 5, polycarbonate: 3], output: {:cable, 2}},
+      %{inputs: [plate: 2, iron_ingot: 4], output: {:reinforced_plate, 2}},
+      %{inputs: [copper_ingot: 4, sulfur_compound: 1], output: {:heat_sink, 1}}
     ]
 end

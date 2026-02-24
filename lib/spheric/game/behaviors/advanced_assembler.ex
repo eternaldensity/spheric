@@ -8,8 +8,8 @@ defmodule Spheric.Game.Behaviors.AdvancedAssembler do
   use Spheric.Game.Behaviors.Production,
     rate: 12,
     recipes: [
-      %{inputs: [frame: 1, reinforced_plate: 1], output: {:heavy_frame, 1}},
-      %{inputs: [circuit: 2, cable: 1], output: {:advanced_circuit, 1}},
-      %{inputs: [polycarbonate: 1, sulfur_compound: 1], output: {:plastic_sheet, 1}}
+      %{inputs: [frame: 2, reinforced_plate: 6], output: {:heavy_frame, 1}},
+      %{inputs: [circuit: 4, cable: 6], output: {:advanced_circuit, 1}},
+      %{inputs: [polycarbonate: 10, sulfur_compound: 15], output: {:plastic_sheet, 5}}
     ]
 end
