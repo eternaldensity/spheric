@@ -1257,6 +1257,10 @@ defmodule SphericWeb.GameLive do
     do: BuildingEvents.handle_event("rotate_building", params, socket)
 
   @impl true
+  def handle_event("rotate_placed_building", params, socket),
+    do: BuildingEvents.handle_event("rotate_placed_building", params, socket)
+
+  @impl true
   def handle_event("toggle_line_mode", params, socket),
     do: BuildingEvents.handle_event("toggle_line_mode", params, socket)
 
