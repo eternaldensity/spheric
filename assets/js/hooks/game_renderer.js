@@ -663,7 +663,8 @@ const GameRenderer = {
           return;
         }
       }
-      if (event.key === "t" || event.key === "T") {
+      if (event.key === "F3") {
+        event.preventDefault();
         this.toggleBuildingRenderMode();
       }
       if ((event.key === "l" || event.key === "L") && !this.placementType) {
