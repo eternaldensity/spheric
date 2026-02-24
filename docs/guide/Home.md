@@ -18,7 +18,7 @@ Safe for all players. Covers the basics, controls, and first steps.
 5. [[Understanding the Sphere]]
 6. [[Your Starter Kit]]
 7. [[Placing Your First Buildings]]
-8. [[The Conveyor Network]]
+8. [[The Conduit Network]]
 9. [[Extraction & Processing]]
 10. [[Submitting Research]]
 11. [[Reaching Clearance 1]]

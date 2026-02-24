@@ -42,7 +42,7 @@ Complete production recipe tables for all buildings in Spheric.
 | Conductive Filament | Refined Resonance Crystal | Resonance Circuit |
 | Structural Plate | Astral Ingot | Astral Frame |
 | Ferric Standard | Conductive Filament | Kinetic Driver |
-| Conductive Filament | Stabilized Polymer | Shielded Conduit |
+| Conductive Filament | Stabilized Polymer | Shielded Conductor |
 | Structural Plate | Ferric Standard | Reinforced Plate |
 | Paraelectric Bar | Threshold Compound | Thermal Regulator |
 
@@ -67,7 +67,7 @@ All standard Processor recipes, plus:
 | Input A | Input B | Output |
 |---|---|---|
 | Astral Frame | Reinforced Plate | Heavy Astral Frame |
-| Resonance Circuit | Shielded Conduit | Advanced Resonance Circuit |
+| Resonance Circuit | Shielded Conductor | Advanced Resonance Circuit |
 | Stabilized Polymer | Threshold Compound | Polymer Membrane |
 
 ---

@@ -4,7 +4,7 @@ The **Exchange Terminal** (Trade Terminal), unlocked at [[Reaching Clearance 1|C
 
 ## Setting Up
 
-1. Place an Exchange Terminal and connect it to your [[The Conveyor Network|Conduit]] network
+1. Place an Exchange Terminal and connect it to your [[The Conduit Network|Conduit]] network
 2. Route the items you want to trade into the terminal
 
 ## Creating a Trade

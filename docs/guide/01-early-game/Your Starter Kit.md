@@ -17,7 +17,7 @@ This is enough to set up your very first production line: two extraction chains 
 ## What Each Building Does
 
 ### Conduit (Conveyor)
-The backbone of your factory. Pushes items one tile in its facing direction every tick. See [[The Conveyor Network]] for details.
+The backbone of your factory. Pushes items one tile in its facing direction every tick. See [[The Conduit Network]] for details.
 
 ### Extractor (Miner)
 Place on a resource tile to begin extracting raw ore. Can only be placed on tiles with deposits. See [[Extraction & Processing]].

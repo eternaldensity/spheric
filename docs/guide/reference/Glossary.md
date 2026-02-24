@@ -29,7 +29,7 @@ Bureau terminology and game concepts.
 
 | Bureau Name | Common Name | Guide Page |
 |---|---|---|
-| Conduit | Conveyor | [[The Conveyor Network]] |
+| Conduit | Conveyor | [[The Conduit Network]] |
 | Conduit Mk-II / Mk-III | Conveyor Mk2 / Mk3 | [[Advanced Logistics]] |
 | Extractor | Miner | [[Extraction & Processing]] |
 | Processor | Smelter | [[Extraction & Processing]] |
@@ -76,7 +76,7 @@ Bureau terminology and game concepts.
 | Resonance Circuit | Circuit |
 | Astral Frame | Frame |
 | Kinetic Driver | Motor |
-| Shielded Conduit | Cable |
+| Shielded Conductor | Cable |
 | Thermal Regulator | Heat sink |
 | Heavy Astral Frame | Heavy frame |
 | Advanced Resonance Circuit | Advanced circuit |

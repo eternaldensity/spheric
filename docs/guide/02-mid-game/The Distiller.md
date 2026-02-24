@@ -20,7 +20,7 @@ See [[Recipe Reference]] for the complete recipe list.
 
 ### Stabilized Polymer
 Used in [[The Fabricator|Fabricator]] recipes for:
-- **Shielded Conduit** — Conductive Filament + Stabilized Polymer
+- **Shielded Conductor** — Conductive Filament + Stabilized Polymer
 - And later in [[Advanced Production|Advanced Fabricator]] recipes
 
 ### Threshold Compound

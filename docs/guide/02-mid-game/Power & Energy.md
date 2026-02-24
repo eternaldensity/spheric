@@ -18,4 +18,4 @@ The primary power source. Consumes fuel to generate power.
 - Fuel is consumed every **5 ticks**
 - Powers nearby buildings via [[#Substation|Substations]]
 
-**Cost:** 3 Astral Frame, 3 Shielded Conduit, 2 Kinetic Driver
+**Cost:** 3 Astral Frame, 3 Shielded Conductor, 2 Kinetic Driver

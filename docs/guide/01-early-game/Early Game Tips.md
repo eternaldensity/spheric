@@ -5,7 +5,7 @@
 
 ## Location
 
-- **Find a cluster of Ferric Compound and Paraelectric Ore deposits** near each other before building. This minimizes [[The Conveyor Network|Conduit]] length.
+- **Find a cluster of Ferric Compound and Paraelectric Ore deposits** near each other before building. This minimizes [[The Conduit Network|Conduit]] length.
 - Click tiles to scout before committing to a layout.
 
 ## Building

@@ -16,7 +16,7 @@ See [[Altered Items]] for the gameplay guide.
 | Probability Fracture | Output duplication | 5% chance per output to produce 2 items |
 | Thermal Anomaly | 2x processing yield | [[Extraction & Processing|Processors]] and [[The Distiller|Distillers]] output 2 per 1 input |
 | Spatial Distortion | Triple capture radius | [[Creatures & Containment|Trap]] radius: 3 → 9 tiles |
-| Shifting Anchor | Skip downstream | Output items bypass the next [[The Conveyor Network|building in the chain]] |
+| Shifting Anchor | Skip downstream | Output items bypass the next [[The Conduit Network|building in the chain]] |
 
 ---
 

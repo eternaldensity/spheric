@@ -59,7 +59,7 @@ Structural Plate + Astral Ingot → Astral Frame
 ### Mechanical
 ```
 Ferric Standard + Conductive Filament → Kinetic Driver
-Conductive Filament + Stabilized Polymer → Shielded Conduit
+Conductive Filament + Stabilized Polymer → Shielded Conductor
 ```
 
 See [[Recipe Reference]] for complete recipe tables.

@@ -1,6 +1,6 @@
 # Advanced Logistics
 
-Clearance 1 and 2 unlock several logistics buildings that let you build complex routing networks beyond simple [[The Conveyor Network|Conduit]] chains.
+Clearance 1 and 2 unlock several logistics buildings that let you build complex routing networks beyond simple [[The Conduit Network|Conduit]] chains.
 
 ## Distributor (Splitter)
 

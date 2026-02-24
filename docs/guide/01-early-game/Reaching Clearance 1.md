@@ -19,7 +19,7 @@ Submit these via your [[Submitting Research|Terminal]].
 | Converger | Merger | Combines multiple inputs into one line |
 | Jurisdiction Beacon | Claim Beacon | [[Claiming Territory|Claims territory]] |
 | Exchange Terminal | Trade Terminal | [[Trading with Other Operators|Trade]] with other players |
-| Conduit Mk-II | Conveyor Mk2 | Faster [[The Conveyor Network|Conduit]] |
+| Conduit Mk-II | Conveyor Mk2 | Faster [[The Conduit Network|Conduit]] |
 | Containment Vault | Storage Container | Stores items (one type per container) |
 | [[The Fabricator\|Fabricator]] | Assembler | Dual-input production ([[The Fabricator\|details]]) |
 | [[Drone Fuel & the Drone Bay\|Drone Bay]] | Drone Bay | Permanent [[Drone Fuel & the Drone Bay#Upgrades\|drone upgrades]] |

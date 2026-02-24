@@ -25,7 +25,7 @@ Press **R** before placing to cycle through orientations. Plan your layout so it
 
 ## Step 4: Connect with Conduits
 
-Place [[The Conveyor Network|Conduits]] to create a path from your Extractor to a Processor. Each Conduit pushes items in its facing direction. Chain them together so items flow downstream.
+Place [[The Conduit Network|Conduits]] to create a path from your Extractor to a Processor. Each Conduit pushes items in its facing direction. Chain them together so items flow downstream.
 
 ```
 [Extractor] → [Conduit] → [Conduit] → [Processor] → [Conduit] → [Terminal]
@@ -115,4 +115,4 @@ This feeds both Ferric Standards and Paraelectric Bars into your Terminal, worki
 
 ---
 
-**Previous:** [[Your Starter Kit]] | **Next:** [[The Conveyor Network]]
+**Previous:** [[Your Starter Kit]] | **Next:** [[The Conduit Network]]

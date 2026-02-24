@@ -50,7 +50,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Industrial Requisition | 30 Thermal Regulator, 20 Shielded Conduit, 20 Kinetic Driver |
+| Industrial Requisition | 30 Thermal Regulator, 20 Shielded Conductor, 20 Kinetic Driver |
 | Organic Energy Mandate | 50 Entity Biofuel, 20 Refined Entity Fuel |
 
 **Unlocks:** [[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Production|Advanced Processor]]

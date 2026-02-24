@@ -465,7 +465,7 @@ defmodule SphericWeb.GameLive do
               Installing: {Helpers.upgrade_display_name(@tile_info.drone_bay_info.selected_upgrade)}
             </div>
             <div style="font-size: 10px; color: var(--fbc-text-dim); margin-bottom: 4px;">
-              Feed items via conveyor:
+              Feed items via conduit:
             </div>
             <div
               :for={{item, required_qty} <- @tile_info.drone_bay_info.required}

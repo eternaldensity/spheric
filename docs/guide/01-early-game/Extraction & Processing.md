@@ -10,11 +10,11 @@ The extraction-and-processing loop is the foundation of everything you build.
 - Stops producing when the deposit is depleted (100–500 units per tile)
 
 > [!tip] Deposit Scouting
-> Resources appear in **ore veins** — clusters of the same type radiating from a central point. When you find a resource tile, explore the surrounding area to find the full vein. Place Extractors on the densest part of the cluster to minimize [[The Conveyor Network|Conduit]] length.
+> Resources appear in **ore veins** — clusters of the same type radiating from a central point. When you find a resource tile, explore the surrounding area to find the full vein. Place Extractors on the densest part of the cluster to minimize [[The Conduit Network|Conduit]] length.
 
 ## The Processor (Smelter)
 
-- Accepts raw ore from an adjacent [[The Conveyor Network|Conduit]]
+- Accepts raw ore from an adjacent [[The Conduit Network|Conduit]]
 - Processes one ore every **10 ticks**
 - Outputs the corresponding ingot in its facing direction
 
@@ -54,4 +54,4 @@ Ingots produced by the Processor are pushed downstream. They can go to:
 
 ---
 
-**Previous:** [[The Conveyor Network]] | **Next:** [[Submitting Research]]
+**Previous:** [[The Conduit Network]] | **Next:** [[Submitting Research]]

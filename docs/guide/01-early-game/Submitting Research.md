@@ -4,7 +4,7 @@ The **Terminal** is how you advance through the Bureau's clearance levels.
 
 ## How It Works
 
-1. Place a Terminal at the end of a [[The Conveyor Network|Conduit]] chain
+1. Place a Terminal at the end of a [[The Conduit Network|Conduit]] chain
 2. Items delivered via Conduits are automatically accepted
 3. Open the **Case Files** panel (**F** key) to see current requirements
 4. Submitted items count toward completing case files

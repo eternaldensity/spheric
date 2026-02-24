@@ -72,7 +72,7 @@ defmodule Spheric.Game.Lore do
 
   # New processed items
   def display_name(:motor), do: "Kinetic Driver"
-  def display_name(:cable), do: "Shielded Conduit"
+  def display_name(:cable), do: "Shielded Conductor"
   def display_name(:reinforced_plate), do: "Reinforced Plate"
   def display_name(:heat_sink), do: "Thermal Regulator"
   def display_name(:heavy_frame), do: "Heavy Astral Frame"

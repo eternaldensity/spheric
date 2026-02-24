@@ -42,7 +42,7 @@ The leftmost pip is the active (draining) fuel unit.
 To refuel, **zoom close to the surface** (scroll down) near a tile that has Entity Biofuel or Refined Entity Fuel on the ground. When your drone is low enough (altitude below ~0.3), it automatically collects fuel items and adds them to the tank.
 
 Common fuel sources:
-- **[[Your Starter Kit#Gathering Post|Gathering Posts]]** produce Entity Biofuel as a byproduct and output it onto [[The Conveyor Network|Conduits]]
+- **[[Your Starter Kit#Gathering Post|Gathering Posts]]** produce Entity Biofuel as a byproduct and output it onto [[The Conduit Network|Conduits]]
 - Eject biofuel from a building's output buffer onto the ground, then fly low to pick it up
 - Route biofuel off your production line to a convenient pickup spot
 

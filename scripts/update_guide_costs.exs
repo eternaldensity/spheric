@@ -254,7 +254,7 @@ if building_ref do
 
   #{gen_table.(logistics, "Logistics")}
 
-  See [[Advanced Logistics]] and [[The Conveyor Network]] for usage guides.
+  See [[Advanced Logistics]] and [[The Conduit Network]] for usage guides.
 
   ---
 

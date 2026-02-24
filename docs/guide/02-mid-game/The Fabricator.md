@@ -13,7 +13,7 @@ The **Fabricator** (commonly: Assembler) is unlocked at [[Reaching Clearance 1|C
 | Conductive Filament | Refined Resonance Crystal | Resonance Circuit |
 | Structural Plate | Astral Ingot | Astral Frame |
 | Ferric Standard | Conductive Filament | Kinetic Driver |
-| Conductive Filament | Stabilized Polymer | Shielded Conduit |
+| Conductive Filament | Stabilized Polymer | Shielded Conductor |
 | Structural Plate | Ferric Standard | Reinforced Plate |
 | Paraelectric Bar | Threshold Compound | Thermal Regulator |
 
@@ -22,7 +22,7 @@ See [[Recipe Reference]] for the complete list across all buildings.
 ## Dual-Input Logistics
 
 > [!note] Layout Challenge
-> The Fabricator needs **two separate [[The Conveyor Network|Conduit]] lines** feeding it — one for each input. Plan your layouts carefully. You'll need to route two different material streams without crossing.
+> The Fabricator needs **two separate [[The Conduit Network|Conduit]] lines** feeding it — one for each input. Plan your layouts carefully. You'll need to route two different material streams without crossing.
 
 Use [[Advanced Logistics#Transit Interchange (Crossover)|Transit Interchanges]] or [[Advanced Logistics#Subsurface Link (Underground Conduit)|Subsurface Links]] to handle path crossings.
 
