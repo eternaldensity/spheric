@@ -107,7 +107,9 @@ defmodule SphericWeb.GameLive.Helpers do
 
       drone_bay_info =
         if building.type == :drone_bay && !under_construction do
-          player_upgrades = Persistence.get_drone_upgrades(building[:owner_id])
+          player_upgrades =
+            Persistence.get_drone_upgrades(building[:owner_id])
+            |> Map.new(fn {k, v} -> {String.to_existing_atom(k), v} end)
 
           %{
             mode: building.state[:mode] || :idle,

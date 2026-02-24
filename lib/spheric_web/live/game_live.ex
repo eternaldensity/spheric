@@ -474,6 +474,22 @@ defmodule SphericWeb.GameLive do
             </button>
           </div>
 
+          <%!-- Complete mode: upgrade ready to claim (stuck recovery) --%>
+          <div :if={@tile_info.drone_bay_info.mode == :complete}>
+            <div style="font-size: 11px; color: var(--fbc-success); margin-bottom: 4px;">
+              Upgrade ready: {Helpers.upgrade_display_name(@tile_info.drone_bay_info.selected_upgrade)}
+            </div>
+            <button
+              phx-click="claim_drone_upgrade"
+              phx-value-face={@tile_info.face}
+              phx-value-row={@tile_info.row}
+              phx-value-col={@tile_info.col}
+              style="padding: 3px 10px; border: 1px solid var(--fbc-success); background: rgba(102,136,68,0.15); color: var(--fbc-success); cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase;"
+            >
+              Claim
+            </button>
+          </div>
+
           <%!-- Fuel buffer info (when auto-refuel is active) --%>
           <div
             :if={@tile_info.drone_bay_info.mode == :idle && @tile_info.drone_bay_info.fuel_buffer_count > 0}
@@ -1311,6 +1327,10 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_event("cancel_drone_upgrade", params, socket),
     do: BuildingEvents.handle_event("cancel_drone_upgrade", params, socket)
+
+  @impl true
+  def handle_event("claim_drone_upgrade", params, socket),
+    do: BuildingEvents.handle_event("claim_drone_upgrade", params, socket)
 
   # Panel events
   @impl true

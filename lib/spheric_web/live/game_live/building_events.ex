@@ -461,6 +461,46 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     end
   end
 
+  # Drone bay: player claims a completed upgrade (recovery for stuck :complete state)
+  def handle_event(
+        "claim_drone_upgrade",
+        %{"face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+    building = WorldStore.get_building(key)
+
+    if building && building.type == :drone_bay &&
+         building.state[:mode] == :complete &&
+         building.state[:selected_upgrade] != nil &&
+         building.owner_id == socket.assigns.player_id do
+      upgrade = building.state.selected_upgrade
+
+      # Persist the upgrade to DB
+      Persistence.apply_drone_upgrade(socket.assigns.player_id, upgrade)
+
+      # Enable auto-refuel on the building if applicable
+      new_state = DroneBay.cancel_upgrade(building.state)
+
+      new_state =
+        if upgrade == :auto_refuel,
+          do: %{new_state | auto_refuel_enabled: true},
+          else: new_state
+
+      WorldStore.put_building(key, %{building | state: new_state})
+
+      # Notify client of the granted upgrade
+      socket =
+        socket
+        |> assign(:tile_info, Helpers.build_tile_info(key))
+        |> push_event("drone_upgrade_granted", %{upgrade: Atom.to_string(upgrade)})
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
   # Drone bay: player selects an upgrade to install
   def handle_event(
         "select_drone_upgrade",
