@@ -19,3 +19,38 @@ The primary power source. Consumes fuel to generate power.
 - Powers nearby buildings via [[#Substation|Substations]]
 
 **Cost:** 3 Astral Frame, 3 Shielded Conductor, 2 Kinetic Driver
+
+---
+
+## Substation
+
+Distributes power from generators to machines within its radius.
+
+- **Radius:** 4 tiles
+- Passive — no fuel or input needed
+- Chain substations together to extend power coverage
+- Generators must be within a substation's radius to contribute power
+
+> [!tip] Power Grid Layout
+> Place substations in a grid pattern with overlapping coverage. A single Bio Generator powers all machines within its connected substation network.
+
+**Cost:** 10 Paraelectric Bar, 6 Structural Plate, 5 Shielded Conductor
+
+---
+
+## Shadow Panel
+
+An alternative power source that generates power from darkness.
+
+- Produces power when its cell is in **shadow** (sun on the far side of the sphere)
+- Uses per-cell illumination for precise shadow boundaries
+- **Disabled** if a powered Lamp is within radius 3
+- No fuel required — completely passive
+
+Shadow Panels are useful on the dark side of the sphere where solar cycles provide long shadow periods. They complement Bio Generators for round-the-clock power.
+
+**Cost:** 3 Refined Resonance Crystal, 2 Astral Frame, 2 Conductive Filament
+
+---
+
+**Previous:** [[Advanced Logistics]] | **Next:** [[The Hiss & Corruption]]

@@ -641,10 +641,10 @@ if adv_prod do
   end
 
   new_content = adv_prod
-  |> re_cost.(~r/(## Advanced Processor.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(costs.advanced_smelter))
-  |> re_cost.(~r/(## Advanced Fabricator.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(costs.advanced_assembler))
-  |> re_cost.(~r/(## Fabrication Plant.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(costs.fabrication_plant))
-  |> re_cost.(~r/(## Essence Extractor.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(costs.essence_extractor))
+  |> re_cost.(~r/(## Advanced Processor.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.advanced_smelter))
+  |> re_cost.(~r/(## Advanced Fabricator.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.advanced_assembler))
+  |> re_cost.(~r/(## Fabrication Plant.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.fabrication_plant))
+  |> re_cost.(~r/(## Essence Extractor.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.essence_extractor))
 
   maybe_write.(adv_prod_path, adv_prod, new_content)
 end
@@ -660,13 +660,13 @@ if adv_log do
   end
 
   new_content = adv_log
-  |> re_cost.(~r/(## Distributor.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:splitter)))
-  |> re_cost.(~r/(## Converger.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:merger)))
-  |> re_cost.(~r/(## Load Equalizer.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:balancer)))
-  |> re_cost.(~r/(## Subsurface Link.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:underground_conduit)))
-  |> re_cost.(~r/(## Transit Interchange.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:crossover)))
-  |> re_cost.(~r/(## Containment Vault.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:storage_container)))
-  |> re_cost.(~r/(## Transfer Station.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:transfer_station)))
+  |> re_cost.(~r/(## Distributor.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:splitter)))
+  |> re_cost.(~r/(## Converger.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:merger)))
+  |> re_cost.(~r/(## Load Equalizer.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:balancer)))
+  |> re_cost.(~r/(## Subsurface Link.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:underground_conduit)))
+  |> re_cost.(~r/(## Transit Interchange.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:crossover)))
+  |> re_cost.(~r/(## Containment Vault.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:storage_container)))
+  |> re_cost.(~r/(## Transfer Station.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:transfer_station)))
 
   # Update conveyor tier table
   mk2_cost = GuideUpdater.format_cost(ConstructionCosts.cost(:conveyor_mk2))
@@ -697,9 +697,9 @@ if power do
   end
 
   new_content = power
-  |> re_cost.(~r/(## Bio Generator.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:bio_generator)))
-  |> re_cost.(~r/(## Substation.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:substation)))
-  |> re_cost.(~r/(## Shadow Panel.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:shadow_panel)))
+  |> re_cost.(~r/(## Bio Generator.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:bio_generator)))
+  |> re_cost.(~r/(## Substation.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:substation)))
+  |> re_cost.(~r/(## Shadow Panel.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:shadow_panel)))
 
   maybe_write.(power_path, power, new_content)
 end
@@ -715,8 +715,8 @@ if hitech do
   end
 
   new_content = hitech
-  |> re_cost.(~r/(## Particle Collider.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:particle_collider)))
-  |> re_cost.(~r/(## Nuclear Distiller.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:nuclear_refinery)))
+  |> re_cost.(~r/(## Particle Collider.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:particle_collider)))
+  |> re_cost.(~r/(## Nuclear Distiller.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:nuclear_refinery)))
 
   maybe_write.(hitech_path, hitech, new_content)
 end
@@ -732,8 +732,8 @@ if hiss do
   end
 
   new_content = hiss
-  |> re_cost.(~r/(### Defense Array.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:defense_turret)))
-  |> re_cost.(~r/(### Purification Beacon.*?)\*\*Cost:\*\* .+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:purification_beacon)))
+  |> re_cost.(~r/(### Defense Array.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:defense_turret)))
+  |> re_cost.(~r/(### Purification Beacon.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:purification_beacon)))
 
   maybe_write.(hiss_path, hiss, new_content)
 end

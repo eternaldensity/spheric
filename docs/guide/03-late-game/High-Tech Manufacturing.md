@@ -18,3 +18,24 @@ A dual-input building that creates ultra-advanced components through high-energy
 | Enriched Radiant | Paranatural Composite | Radiant Cell |
 
 **Cost:** 50 Heavy Astral Frame, 15 Advanced Resonance Circuit, 15 Computation Matrix, 1 Armored Drive Assembly
+
+---
+
+## Nuclear Distiller (Nuclear Refinery)
+
+Processes radioactive materials that standard refineries cannot handle.
+
+**Processing time:** 20 ticks
+
+| Input | Output |
+|---|---|
+| Threshold Radiant (Raw) | Enriched Radiant |
+
+> [!warning] Uranium Handling
+> Enriched Radiant is used in the Particle Collider to produce Radiant Cells — one of the most advanced materials in the game. Make sure your uranium supply chain is reliable before committing to nuclear production.
+
+**Cost:** 50 Structural Composite, 30 Heavy Astral Frame, 12 Computation Matrix
+
+---
+
+**Previous:** [[Advanced Production]] | **Next:** [[Paranatural Synthesis]]

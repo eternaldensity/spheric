@@ -41,3 +41,19 @@ Both unlocked at **Clearance 3**:
 - Place at the perimeter of your factory facing corruption zones
 
 **Cost:** 5 Structural Plate, 3 Astral Frame, 2 Resonance Circuit
+
+### Purification Beacon
+
+- Creates a corruption-immune zone with **radius 5**
+- Slowly pushes back corruption within its range
+- Passive — no fuel or power required
+- Place proactively to protect critical infrastructure
+
+> [!tip] Defensive Strategy
+> Use Defense Arrays to fight entities and collect Hiss Residue, and Purification Beacons to hold ground and prevent re-corruption. A perimeter of both is the most effective defense.
+
+**Cost:** 5 Refined Resonance Crystal, 3 Astral Frame, 3 Resonance Circuit
+
+---
+
+**Previous:** [[Power & Energy]] | **Next:** [[High-Tech Manufacturing]]
