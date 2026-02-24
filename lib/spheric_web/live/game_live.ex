@@ -1266,6 +1266,10 @@ defmodule SphericWeb.GameLive do
     do: BuildingEvents.handle_event("eject_output", params, socket)
 
   @impl true
+  def handle_event("flush_inputs", params, socket),
+    do: BuildingEvents.handle_event("flush_inputs", params, socket)
+
+  @impl true
   def handle_event("toggle_power", params, socket),
     do: BuildingEvents.handle_event("toggle_power", params, socket)
 

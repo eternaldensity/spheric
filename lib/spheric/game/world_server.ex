@@ -474,17 +474,7 @@ defmodule Spheric.Game.WorldServer do
           {:reply, {:error, :no_inputs}, state}
         else
           # Clear all input fields and reset progress
-          new_bs =
-            bs
-            |> clear_if_key(:input_buffer)
-            |> clear_if_key(:input_count)
-            |> clear_if_key(:input_a)
-            |> clear_if_key(:input_a_count)
-            |> clear_if_key(:input_b)
-            |> clear_if_key(:input_b_count)
-            |> clear_if_key(:input_c)
-            |> clear_if_key(:input_c_count)
-            |> reset_progress_if_present()
+          new_bs = flush_input_state(bs)
 
           WorldStore.put_building(key, %{building | state: new_bs})
 
@@ -511,18 +501,31 @@ defmodule Spheric.Game.WorldServer do
   defp collect_input(acc, type, nil), do: [{type, 1} | acc]
   defp collect_input(acc, type, count), do: [{type, count} | acc]
 
-  defp clear_if_key(state, key) do
-    if Map.has_key?(state, key) do
-      # Set buffer keys to nil, count keys to 0
-      val = if key |> Atom.to_string() |> String.ends_with?("_count"), do: 0, else: nil
-      Map.put(state, key, val)
-    else
-      state
-    end
-  end
-
-  defp reset_progress_if_present(state) do
-    if Map.has_key?(state, :progress), do: Map.put(state, :progress, 0), else: state
+  defp flush_input_state(bs) do
+    bs
+    |> then(fn s ->
+      if Map.has_key?(s, :input_buffer),
+        do: %{s | input_buffer: nil, input_count: 0},
+        else: s
+    end)
+    |> then(fn s ->
+      if Map.has_key?(s, :input_a),
+        do: %{s | input_a: nil, input_a_count: 0},
+        else: s
+    end)
+    |> then(fn s ->
+      if Map.has_key?(s, :input_b),
+        do: %{s | input_b: nil, input_b_count: 0},
+        else: s
+    end)
+    |> then(fn s ->
+      if Map.has_key?(s, :input_c),
+        do: %{s | input_c: nil, input_c_count: 0},
+        else: s
+    end)
+    |> then(fn s ->
+      if Map.has_key?(s, :progress), do: %{s | progress: 0}, else: s
+    end)
   end
 
   @impl true

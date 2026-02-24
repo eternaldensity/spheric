@@ -55,7 +55,7 @@ defmodule Spheric.Game.TickProcessor do
         if building.state[:powered] == false do
           {key, building}
         else
-          updated = Behaviors.Miner.tick(key, apply_creature_boost(key, building))
+          updated = tick_with_boost(key, building, &Behaviors.Miner.tick/2)
           record_production_stats(key, building, updated)
           {key, updated}
         end
@@ -67,7 +67,7 @@ defmodule Spheric.Game.TickProcessor do
         if building.state[:powered] == false do
           {key, building}
         else
-          updated = Behaviors.Smelter.tick(key, apply_creature_boost(key, building))
+          updated = tick_with_boost(key, building, &Behaviors.Smelter.tick/2)
           record_production_stats(key, building, updated)
           {key, updated}
         end
@@ -79,7 +79,7 @@ defmodule Spheric.Game.TickProcessor do
         if building.state[:powered] == false do
           {key, building}
         else
-          updated = Behaviors.Refinery.tick(key, apply_creature_boost(key, building))
+          updated = tick_with_boost(key, building, &Behaviors.Refinery.tick/2)
           record_production_stats(key, building, updated)
           {key, updated}
         end
@@ -91,7 +91,7 @@ defmodule Spheric.Game.TickProcessor do
         if building.state[:powered] == false do
           {key, building}
         else
-          updated = Behaviors.Assembler.tick(key, apply_creature_boost(key, building))
+          updated = tick_with_boost(key, building, &Behaviors.Assembler.tick/2)
           record_production_stats(key, building, updated)
           {key, updated}
         end
@@ -103,7 +103,7 @@ defmodule Spheric.Game.TickProcessor do
         if building.state[:powered] == false do
           {key, building}
         else
-          updated = Behaviors.AdvancedSmelter.tick(key, apply_creature_boost(key, building))
+          updated = tick_with_boost(key, building, &Behaviors.AdvancedSmelter.tick/2)
           record_production_stats(key, building, updated)
           {key, updated}
         end
@@ -115,7 +115,7 @@ defmodule Spheric.Game.TickProcessor do
         if building.state[:powered] == false do
           {key, building}
         else
-          updated = Behaviors.AdvancedAssembler.tick(key, apply_creature_boost(key, building))
+          updated = tick_with_boost(key, building, &Behaviors.AdvancedAssembler.tick/2)
           record_production_stats(key, building, updated)
           {key, updated}
         end
@@ -127,7 +127,7 @@ defmodule Spheric.Game.TickProcessor do
         if building.state[:powered] == false do
           {key, building}
         else
-          updated = Behaviors.FabricationPlant.tick(key, apply_creature_boost(key, building))
+          updated = tick_with_boost(key, building, &Behaviors.FabricationPlant.tick/2)
           record_production_stats(key, building, updated)
           {key, updated}
         end
@@ -139,7 +139,7 @@ defmodule Spheric.Game.TickProcessor do
         if building.state[:powered] == false do
           {key, building}
         else
-          updated = Behaviors.ParticleCollider.tick(key, apply_creature_boost(key, building))
+          updated = tick_with_boost(key, building, &Behaviors.ParticleCollider.tick/2)
           record_production_stats(key, building, updated)
           {key, updated}
         end
@@ -151,7 +151,7 @@ defmodule Spheric.Game.TickProcessor do
         if building.state[:powered] == false do
           {key, building}
         else
-          updated = Behaviors.NuclearRefinery.tick(key, apply_creature_boost(key, building))
+          updated = tick_with_boost(key, building, &Behaviors.NuclearRefinery.tick/2)
           record_production_stats(key, building, updated)
           {key, updated}
         end
@@ -163,7 +163,7 @@ defmodule Spheric.Game.TickProcessor do
         if building.state[:powered] == false do
           {key, building}
         else
-          updated = Behaviors.ParanaturalSynthesizer.tick(key, apply_creature_boost(key, building))
+          updated = tick_with_boost(key, building, &Behaviors.ParanaturalSynthesizer.tick/2)
           record_production_stats(key, building, updated)
           {key, updated}
         end
@@ -175,7 +175,7 @@ defmodule Spheric.Game.TickProcessor do
         if building.state[:powered] == false do
           {key, building}
         else
-          updated = Behaviors.BoardInterface.tick(key, apply_creature_boost(key, building))
+          updated = tick_with_boost(key, building, &Behaviors.BoardInterface.tick/2)
           record_production_stats(key, building, updated)
           {key, updated}
         end
@@ -187,7 +187,7 @@ defmodule Spheric.Game.TickProcessor do
         if building.state[:powered] == false do
           {key, building}
         else
-          updated = Behaviors.BioGenerator.tick(key, apply_creature_boost(key, building))
+          updated = tick_with_boost(key, building, &Behaviors.BioGenerator.tick/2)
           {key, updated}
         end
       end)
@@ -1796,10 +1796,26 @@ defmodule Spheric.Game.TickProcessor do
     end)
   end
 
-  # Apply creature boost and altered item effects to a building's tick rate.
-  # Temporarily adjusts the rate in the building state so the behavior
-  # module uses the boosted rate for its progress check.
-  defp apply_creature_boost(key, building) do
+  # Run a behavior tick with the boosted rate, then restore the original
+  # base rate so it never gets persisted with a modified value.
+  defp tick_with_boost(key, building, tick_fn) do
+    case apply_creature_boost(key, building) do
+      {boosted_building, base_rate} ->
+        updated = tick_fn.(key, boosted_building)
+        # Restore the original base rate
+        %{updated | state: %{updated.state | rate: base_rate}}
+
+      building ->
+        tick_fn.(key, building)
+    end
+  end
+
+  # Compute effective tick rate for a building, applying creature boost,
+  # altered item effects, power penalties, and object-of-power bonuses.
+  # Returns the building's base rate (from initial_state) adjusted for
+  # all active modifiers. The result is used temporarily for the tick
+  # and must NOT be persisted back to the building state.
+  defp compute_effective_rate(key, building) do
     case building.state do
       %{rate: base_rate} ->
         boosted = Creatures.boosted_rate(key, base_rate)
@@ -1855,14 +1871,31 @@ defmodule Spheric.Game.TickProcessor do
             boosted
           end
 
-        if boosted != base_rate do
-          %{building | state: %{building.state | rate: boosted}}
-        else
-          building
-        end
+        boosted
 
       _ ->
+        nil
+    end
+  end
+
+  # Apply the effective rate temporarily for a tick, then restore the
+  # original base rate so it never gets persisted with a boosted value.
+  defp apply_creature_boost(key, building) do
+    case compute_effective_rate(key, building) do
+      nil ->
         building
+
+      effective_rate ->
+        base_rate = building.state.rate
+
+        boosted_building =
+          if effective_rate != base_rate do
+            %{building | state: %{building.state | rate: effective_rate}}
+          else
+            building
+          end
+
+        {boosted_building, base_rate}
     end
   end
 end

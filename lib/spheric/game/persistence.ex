@@ -225,7 +225,7 @@ defmodule Spheric.Game.Persistence do
     |> Enum.each(fn b ->
       key = {b.face_id, b.row, b.col}
       type = String.to_atom(b.type)
-      state = atomize_state_keys(b.state)
+      state = atomize_state_keys(b.state) |> repair_rate(type)
 
       building_data = %{
         type: type,
@@ -239,6 +239,34 @@ defmodule Spheric.Game.Persistence do
 
     # Clear dirty markers created by put_building during load
     WorldStore.drain_dirty()
+  end
+
+  # Repair corrupted rate values from the boost-accumulation bug.
+  # Resets the rate to the building type's default if the state has a rate field.
+  @default_rates %{
+    miner: 5,
+    smelter: 10,
+    refinery: 12,
+    assembler: 15,
+    advanced_smelter: 8,
+    advanced_assembler: 12,
+    fabrication_plant: 20,
+    particle_collider: 25,
+    nuclear_refinery: 20,
+    paranatural_synthesizer: 30,
+    board_interface: 50,
+    bio_generator: 1,
+    gathering_post: 20,
+    defense_turret: 1,
+    essence_extractor: 30,
+    shadow_panel: 1
+  }
+
+  defp repair_rate(state, type) when is_map(state) do
+    case {Map.has_key?(state, :rate), Map.get(@default_rates, type)} do
+      {true, default} when is_integer(default) -> %{state | rate: default}
+      _ -> state
+    end
   end
 
   # Convert string-keyed JSONB map to atom-keyed map, also converting
