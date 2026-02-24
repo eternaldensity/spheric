@@ -530,7 +530,7 @@ defmodule SphericWeb.GameLive do
         </span>
       </div>
       <div
-        :for={cf <- @research_summary}
+        :for={cf <- Enum.filter(@research_summary, fn cf -> cf.clearance <= @clearance_level + 2 end)}
         style={"margin-bottom: 10px; padding: 8px; border: 1px solid #{if cf.completed, do: "var(--fbc-success)", else: "var(--fbc-border)"}; background: #{if cf.completed, do: "rgba(102,136,68,0.08)", else: "rgba(255,255,255,0.02)"};"}
       >
         <div style="display: flex; justify-content: space-between; align-items: center;">
