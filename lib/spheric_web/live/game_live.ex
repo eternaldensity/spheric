@@ -335,8 +335,19 @@ defmodule SphericWeb.GameLive do
           </span>
           <span style="color: var(--fbc-highlight);">{@tile_info.building_name}</span>
         </div>
-        <div style="color: var(--fbc-text-dim); font-size: 11px;">
-          Facing: {direction_label(@tile_info.building_orientation)}
+        <div style="display: flex; align-items: center; gap: 6px; color: var(--fbc-text-dim); font-size: 11px;">
+          <span>Facing: {direction_label(@tile_info.building_orientation)}</span>
+          <button
+            :if={@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id}
+            phx-click="rotate_placed_building"
+            phx-value-face={@tile_info.face}
+            phx-value-row={@tile_info.row}
+            phx-value-col={@tile_info.col}
+            style="padding: 2px 8px; border: 1px solid var(--fbc-border-light); background: rgba(255,255,255,0.06); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;"
+            title="Rotate 90°"
+          >
+            Rotate
+          </button>
         </div>
         <div :if={@tile_info.building_status} style="color: var(--fbc-text-dim); font-size: 11px;">
           {@tile_info.building_status}

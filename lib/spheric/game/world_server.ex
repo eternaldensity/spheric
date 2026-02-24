@@ -77,6 +77,11 @@ defmodule Spheric.Game.WorldServer do
     GenServer.call(__MODULE__, {:flush_inputs, key, player_id})
   end
 
+  @doc "Rotate a placed building 90° counter-clockwise. Returns :ok or {:error, reason}."
+  def rotate_building({_face_id, _row, _col} = key, player_id \\ nil) do
+    GenServer.call(__MODULE__, {:rotate_building, key, player_id})
+  end
+
   @doc "Toggle the powered state of a building. Returns :ok or {:error, reason}."
   def toggle_power({_face_id, _row, _col} = key, player_id \\ nil) do
     GenServer.call(__MODULE__, {:toggle_power, key, player_id})
@@ -526,6 +531,24 @@ defmodule Spheric.Game.WorldServer do
     |> then(fn s ->
       if Map.has_key?(s, :progress), do: %{s | progress: 0}, else: s
     end)
+  end
+
+  @impl true
+  def handle_call({:rotate_building, key, player_id}, _from, state) do
+    building = WorldStore.get_building(key)
+
+    cond do
+      building == nil ->
+        {:reply, {:error, :no_building}, state}
+
+      building.owner_id != nil and player_id != nil and building.owner_id != player_id ->
+        {:reply, {:error, :not_owner}, state}
+
+      true ->
+        new_orientation = rem(building.orientation + 1, 4)
+        WorldStore.put_building(key, %{building | orientation: new_orientation})
+        {:reply, :ok, state}
+    end
   end
 
   @impl true

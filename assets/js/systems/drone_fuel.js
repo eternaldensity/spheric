@@ -215,6 +215,26 @@ export class DroneFuelSystem {
   }
 
   /**
+   * Instantly drain the given number of seconds from current fuel.
+   * Spills over into reserve tank if the active cell is exhausted.
+   */
+  drain(seconds) {
+    let remaining = seconds;
+    while (remaining > 0 && this._currentFuel) {
+      if (this._currentFuel.remaining > remaining) {
+        this._currentFuel.remaining -= remaining;
+        remaining = 0;
+      } else {
+        remaining -= this._currentFuel.remaining;
+        this._currentFuel = null;
+        this._loadNextFuel();
+      }
+    }
+    this._dirtySave();
+    this._notifyFuelChange();
+  }
+
+  /**
    * Initialize from localStorage. On first visit, fill tank with biofuel.
    */
   initFromStorage() {

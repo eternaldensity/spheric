@@ -239,6 +239,35 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     end
   end
 
+  def handle_event("rotate_placed_building", %{"face" => face, "row" => row, "col" => col}, socket) do
+    face = Helpers.to_int(face)
+    row = Helpers.to_int(row)
+    col = Helpers.to_int(col)
+    key = {face, row, col}
+
+    case WorldServer.rotate_building(key, socket.assigns.player_id) do
+      :ok ->
+        building = WorldStore.get_building(key)
+        tile_info = Helpers.build_tile_info(key)
+
+        socket =
+          socket
+          |> assign(:tile_info, tile_info)
+          |> push_event("building_rotated", %{
+            face: face,
+            row: row,
+            col: col,
+            type: Atom.to_string(building.type),
+            orientation: building.orientation
+          })
+
+        {:noreply, socket}
+
+      {:error, _reason} ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_event("toggle_power", %{"face" => face, "row" => row, "col" => col}, socket) do
     face = Helpers.to_int(face)
     row = Helpers.to_int(row)

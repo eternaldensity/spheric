@@ -354,6 +354,11 @@ const GameRenderer = {
       this.addBuildingToScene(face, row, col, type, orientation, !!under_construction);
     });
 
+    this.handleEvent("building_rotated", ({ face, row, col, type, orientation }) => {
+      this.addBuildingToScene(face, row, col, type, orientation, false);
+      this.droneFuel.drain(20);
+    });
+
     this.handleEvent("building_removed", ({ face, row, col }) => {
       this.removeBuildingFromScene(face, row, col);
     });
