@@ -72,6 +72,11 @@ defmodule Spheric.Game.WorldServer do
     GenServer.call(__MODULE__, {:eject_output, key, player_id})
   end
 
+  @doc "Flush a building's input buffers to the ground. Returns {:ok, items} or {:error, reason}."
+  def flush_inputs({_face_id, _row, _col} = key, player_id \\ nil) do
+    GenServer.call(__MODULE__, {:flush_inputs, key, player_id})
+  end
+
   @doc "Toggle the powered state of a building. Returns :ok or {:error, reason}."
   def toggle_power({_face_id, _row, _col} = key, player_id \\ nil) do
     GenServer.call(__MODULE__, {:toggle_power, key, player_id})
@@ -441,6 +446,83 @@ defmodule Spheric.Game.WorldServer do
         GroundItems.add(drop_key, item)
         {:reply, {:ok, item}, state}
     end
+  end
+
+  @impl true
+  def handle_call({:flush_inputs, key, player_id}, _from, state) do
+    building = WorldStore.get_building(key)
+
+    cond do
+      building == nil ->
+        {:reply, {:error, :no_building}, state}
+
+      building.owner_id != nil and player_id != nil and building.owner_id != player_id ->
+        {:reply, {:error, :not_owner}, state}
+
+      true ->
+        bs = building.state
+
+        # Collect input items from all possible input slot patterns
+        items =
+          []
+          |> collect_input(bs[:input_buffer], bs[:input_count])
+          |> collect_input(bs[:input_a], bs[:input_a_count])
+          |> collect_input(bs[:input_b], bs[:input_b_count])
+          |> collect_input(bs[:input_c], bs[:input_c_count])
+
+        if items == [] do
+          {:reply, {:error, :no_inputs}, state}
+        else
+          # Clear all input fields and reset progress
+          new_bs =
+            bs
+            |> clear_if_key(:input_buffer)
+            |> clear_if_key(:input_count)
+            |> clear_if_key(:input_a)
+            |> clear_if_key(:input_a_count)
+            |> clear_if_key(:input_b)
+            |> clear_if_key(:input_b_count)
+            |> clear_if_key(:input_c)
+            |> clear_if_key(:input_c_count)
+            |> reset_progress_if_present()
+
+          WorldStore.put_building(key, %{building | state: new_bs})
+
+          # Drop items on the rear tile (input side = opposite of orientation)
+          rear_dir = rem(building.orientation + 2, 4)
+
+          drop_key =
+            case Spheric.Geometry.TileNeighbors.neighbor(key, rear_dir) do
+              {:ok, neighbor_key} -> neighbor_key
+              :boundary -> key
+            end
+
+          Enum.each(items, fn {item_type, count} ->
+            GroundItems.add(drop_key, item_type, count)
+          end)
+
+          {:reply, {:ok, items}, state}
+        end
+    end
+  end
+
+  defp collect_input(acc, nil, _count), do: acc
+  defp collect_input(acc, _type, 0), do: acc
+  defp collect_input(acc, type, nil), do: [{type, 1} | acc]
+  defp collect_input(acc, type, count), do: [{type, count} | acc]
+
+  defp clear_if_key(state, key) do
+    if Map.has_key?(state, key) do
+      # Set buffer keys to nil, count keys to 0
+      val = if key |> Atom.to_string() |> String.ends_with?("_count"), do: 0, else: nil
+      Map.put(state, key, val)
+    else
+      state
+    end
+  end
+
+  defp reset_progress_if_present(state) do
+    if Map.has_key?(state, :progress), do: Map.put(state, :progress, 0), else: state
   end
 
   @impl true

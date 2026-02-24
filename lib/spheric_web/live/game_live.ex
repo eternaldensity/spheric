@@ -368,6 +368,20 @@ defmodule SphericWeb.GameLive do
             Eject
           </button>
           <button
+            :if={((@tile_info.building.state[:input_buffer] != nil) or
+              (@tile_info.building.state[:input_a] != nil) or
+              (@tile_info.building.state[:input_b] != nil) or
+              (@tile_info.building.state[:input_c] != nil)) and
+              (@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id)}
+            phx-click="flush_inputs"
+            phx-value-face={@tile_info.face}
+            phx-value-row={@tile_info.row}
+            phx-value-col={@tile_info.col}
+            style="padding: 4px 10px; border: 1px solid var(--fbc-border-light); background: rgba(255,255,255,0.06); color: var(--fbc-highlight); cursor: pointer; font-family: 'Courier New', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;"
+          >
+            Flush
+          </button>
+          <button
             :if={@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id}
             phx-click="remove_building"
             phx-value-face={@tile_info.face}
