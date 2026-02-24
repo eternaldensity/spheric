@@ -31,32 +31,32 @@ recipe_lookup = %{
   refined_fuel: {[biofuel: 3], 2},
 
   # Nuclear refinery
-  enriched_uranium: {[raw_uranium: 1], 1},
+  enriched_uranium: {[raw_uranium: 4], 1},
 
   # Assembler
   wire: {[copper_ingot: 1, copper_ingot: 1], 3},
   plate: {[iron_ingot: 1, iron_ingot: 1], 2},
-  circuit: {[wire: 1, quartz_crystal: 1], 1},
-  frame: {[plate: 1, titanium_ingot: 1], 1},
-  motor: {[iron_ingot: 2, wire: 1], 1},
-  cable: {[wire: 1, polycarbonate: 1], 1},
-  reinforced_plate: {[plate: 2, iron_ingot: 1], 1},
-  heat_sink: {[copper_ingot: 1, sulfur_compound: 1], 1},
+  circuit: {[wire: 6, quartz_crystal: 1], 1},
+  frame: {[plate: 2, titanium_ingot: 4], 1},
+  motor: {[iron_ingot: 4, wire: 8], 1},
+  cable: {[wire: 5, polycarbonate: 3], 2},
+  reinforced_plate: {[plate: 2, iron_ingot: 4], 2},
+  heat_sink: {[copper_ingot: 4, sulfur_compound: 1], 1},
 
   # Advanced assembler
-  heavy_frame: {[frame: 1, reinforced_plate: 1], 1},
-  advanced_circuit: {[circuit: 2, cable: 1], 1},
-  plastic_sheet: {[polycarbonate: 1, sulfur_compound: 1], 1},
+  heavy_frame: {[frame: 2, reinforced_plate: 6], 1},
+  advanced_circuit: {[circuit: 4, cable: 6], 1},
+  plastic_sheet: {[polycarbonate: 10, sulfur_compound: 15], 5},
 
   # Fabrication plant
-  computer: {[advanced_circuit: 2, advanced_circuit: 1, plastic_sheet: 1], 1},
-  motor_housing: {[heavy_frame: 1, motor: 1, heat_sink: 1], 1},
-  composite: {[reinforced_plate: 1, plastic_sheet: 1, titanium_ingot: 1], 1},
+  computer: {[advanced_circuit: 3, advanced_circuit: 3, plastic_sheet: 4], 1},
+  motor_housing: {[heavy_frame: 4, motor: 1, heat_sink: 2], 1},
+  composite: {[reinforced_plate: 3, plastic_sheet: 2, titanium_ingot: 1], 1},
 
   # Particle collider
-  supercomputer: {[computer: 1, advanced_circuit: 2], 1},
-  advanced_composite: {[composite: 1, quartz_crystal: 1], 1},
-  nuclear_cell: {[enriched_uranium: 1, advanced_composite: 1], 1},
+  supercomputer: {[computer: 10, advanced_circuit: 20], 1},
+  advanced_composite: {[composite: 1, quartz_crystal: 2], 1},
+  nuclear_cell: {[enriched_uranium: 1, advanced_composite: 3], 1},
 
   # Paranatural synthesizer
   containment_module: {[supercomputer: 1, advanced_composite: 1, creature_essence: 1], 1},
@@ -64,7 +64,7 @@ recipe_lookup = %{
   astral_lens: {[quartz_crystal: 1, quartz_crystal: 1, creature_essence: 1], 1},
 
   # Board interface
-  board_resonator: {[dimensional_core: 1, supercomputer: 1, astral_lens: 1], 1}
+  board_resonator: {[dimensional_core: 4, supercomputer: 2, astral_lens: 6], 1}
 }
 
 # Raw materials (no recipe to make them — they are mined or gathered)

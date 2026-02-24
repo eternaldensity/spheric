@@ -16,7 +16,7 @@ defmodule Spheric.Game.ConstructionCosts do
 
     # Tier 1
     drone_bay: %{iron_ingot: 15, copper_ingot: 10},
-    conveyor_mk2: %{iron_ingot: 2, copper_ingot: 1},
+    conveyor_mk2: %{iron_ingot: 2, wire: 1},
     splitter: %{iron_ingot: 3, copper_ingot: 2},
     merger: %{iron_ingot: 3, copper_ingot: 2},
     claim_beacon: %{iron_ingot: 5, copper_ingot: 3},
@@ -25,11 +25,11 @@ defmodule Spheric.Game.ConstructionCosts do
     assembler: %{iron_ingot: 8, copper_ingot: 5, titanium_ingot: 2},
 
     # Tier 2
-    crossover: %{iron_ingot: 4, wire: 2},
-    refinery: %{iron_ingot: 10, plate: 3, wire: 3},
-    conveyor_mk3: %{iron_ingot: 3, wire: 2},
-    balancer: %{iron_ingot: 5, circuit: 1},
-    underground_conduit: %{iron_ingot: 8, copper_ingot: 5},
+    crossover: %{plate: 4, wire: 1},
+    refinery: %{plate: 15, wire: 6, titanium_ingot: 4},
+    conveyor_mk3: %{plate: 3, wire: 2},
+    balancer: %{plate: 5, circuit: 1},
+    underground_conduit: %{plate: 8, wire: 5},
 
     # Tier 3
     containment_trap: %{frame: 2, circuit: 2, wire: 5},
@@ -40,26 +40,26 @@ defmodule Spheric.Game.ConstructionCosts do
 
     # Tier 4
     bio_generator: %{frame: 3, motor: 2, cable: 3},
-    substation: %{cable: 5, copper_ingot: 10, plate: 3},
-    transfer_station: %{cable: 10, frame: 2, circuit: 3},
-    advanced_smelter: %{heavy_frame: 1, circuit: 5, heat_sink: 3},
+    substation: %{cable: 5, copper_ingot: 10, plate: 6},
+    transfer_station: %{cable: 10, frame: 2, circuit: 6},
+    advanced_smelter: %{heavy_frame: 12, circuit: 5, heat_sink: 8},
 
     # Tier 5
-    advanced_assembler: %{heavy_frame: 2, advanced_circuit: 3, motor: 2},
-    fabrication_plant: %{heavy_frame: 3, advanced_circuit: 5, motor: 3, cable: 5},
-    essence_extractor: %{frame: 3, circuit: 5, quartz_crystal: 10},
+    advanced_assembler: %{heavy_frame: 20, advanced_circuit: 3, motor: 4},
+    fabrication_plant: %{heavy_frame: 30, advanced_circuit: 5, motor: 9, cable: 15},
+    essence_extractor: %{frame: 30, circuit: 5, quartz_crystal: 10},
 
     # Tier 6
-    particle_collider: %{computer: 3, heavy_frame: 5, advanced_circuit: 5, motor_housing: 1},
-    nuclear_refinery: %{composite: 5, computer: 2, heavy_frame: 3},
+    particle_collider: %{computer: 15, heavy_frame: 50, advanced_circuit: 15, motor_housing: 1},
+    nuclear_refinery: %{composite: 50, computer: 12, heavy_frame: 30},
 
     # Tier 7
-    dimensional_stabilizer: %{supercomputer: 2, advanced_composite: 5, containment_module: 1},
-    paranatural_synthesizer: %{supercomputer: 3, advanced_composite: 3, nuclear_cell: 1},
-    astral_projection_chamber: %{supercomputer: 2, containment_module: 2, astral_lens: 1},
+    dimensional_stabilizer: %{supercomputer: 2, advanced_composite: 25, containment_module: 6},
+    paranatural_synthesizer: %{supercomputer: 3, advanced_composite: 15, nuclear_cell: 1},
+    astral_projection_chamber: %{supercomputer: 2, containment_module: 12, astral_lens: 1},
 
     # Tier 8
-    board_interface: %{dimensional_core: 2, supercomputer: 5, astral_lens: 3, advanced_composite: 10}
+    board_interface: %{dimensional_core: 4, supercomputer: 15, astral_lens: 3, advanced_composite: 80}
   }
 
   @tiers %{
