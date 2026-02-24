@@ -139,7 +139,7 @@ defmodule SphericWeb.GameLive do
       |> assign(:trade_form, %{offered: %{}, requested: %{}})
       |> assign(:show_recipes, false)
       |> assign(:recipe_search, "")
-      |> assign(:recipes, RecipeBrowser.all_recipes())
+      |> assign(:recipes, RecipeBrowser.all_recipes() |> Enum.filter(fn r -> r.building in unlocked end))
       |> assign(:recipe_filter_building, nil)
       |> assign(:recipe_filter_name, nil)
       |> assign(:show_stats, false)

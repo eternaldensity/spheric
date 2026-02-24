@@ -8,6 +8,7 @@ defmodule SphericWeb.GameLive.Helpers do
     Buildings,
     Behaviors,
     Research,
+    RecipeBrowser,
     Creatures,
     Lore,
     AlteredItems,
@@ -45,11 +46,19 @@ defmodule SphericWeb.GameLive.Helpers do
       clearance = Research.clearance_level(player_id)
       unlocked = Research.unlocked_buildings(player_id)
 
+      recipes =
+        RecipeBrowser.all_recipes()
+        |> Enum.filter(fn r -> r.building in unlocked end)
+
       socket =
         socket
         |> assign(:research_summary, research_summary)
         |> assign(:clearance_level, clearance)
         |> assign(:building_types, unlocked)
+        |> assign(:recipes, recipes)
+        |> assign(:recipe_filter_building, nil)
+        |> assign(:recipe_filter_name, nil)
+        |> assign(:recipe_search, "")
 
       {:noreply, socket}
     else

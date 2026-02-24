@@ -80,14 +80,18 @@ defmodule SphericWeb.GameLive.PanelEvents do
     # Auto-filter to the selected building's recipes when opening
     {recipes, filter_building, filter_name} =
       if opening do
+        all = unlocked_recipes(socket)
+
         case get_selected_building_type(socket) do
           nil ->
-            {RecipeBrowser.all_recipes(), nil, nil}
+            {all, nil, nil}
 
           building_type ->
-            case RecipeBrowser.for_building(building_type) do
-              [] -> {RecipeBrowser.all_recipes(), nil, nil}
-              filtered -> {filtered, building_type, Lore.display_name(building_type)}
+            filtered = Enum.filter(all, fn r -> r.building == building_type end)
+
+            case filtered do
+              [] -> {all, nil, nil}
+              _ -> {filtered, building_type, Lore.display_name(building_type)}
             end
         end
       else
@@ -117,14 +121,15 @@ defmodule SphericWeb.GameLive.PanelEvents do
      |> assign(:recipe_filter_building, nil)
      |> assign(:recipe_filter_name, nil)
      |> assign(:recipe_search, "")
-     |> assign(:recipes, RecipeBrowser.all_recipes())}
+     |> assign(:recipes, unlocked_recipes(socket))}
   end
 
   def handle_event("recipe_search", %{"query" => query}, socket) do
     filter = socket.assigns.recipe_filter_building
+    all = unlocked_recipes(socket)
 
     base_recipes =
-      if filter, do: RecipeBrowser.for_building(filter), else: RecipeBrowser.all_recipes()
+      if filter, do: Enum.filter(all, fn r -> r.building == filter end), else: all
 
     recipes =
       if query == "" do
@@ -287,5 +292,12 @@ defmodule SphericWeb.GameLive.PanelEvents do
       %{tile_info: %{building: %{type: type}}} when not is_nil(type) -> type
       _ -> nil
     end
+  end
+
+  defp unlocked_recipes(socket) do
+    unlocked = socket.assigns.building_types
+
+    RecipeBrowser.all_recipes()
+    |> Enum.filter(fn recipe -> recipe.building in unlocked end)
   end
 end
