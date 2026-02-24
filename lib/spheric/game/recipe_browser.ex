@@ -49,6 +49,12 @@ defmodule Spheric.Game.RecipeBrowser do
 
   def search(_), do: all_recipes()
 
+  @doc "Returns recipes for a specific building type atom."
+  def for_building(building_type) when is_atom(building_type) do
+    all_recipes()
+    |> Enum.filter(fn recipe -> recipe.building == building_type end)
+  end
+
   defp matches_query?(recipe, q) do
     fields = [
       recipe.building_name,

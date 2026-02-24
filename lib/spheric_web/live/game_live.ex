@@ -140,6 +140,8 @@ defmodule SphericWeb.GameLive do
       |> assign(:show_recipes, false)
       |> assign(:recipe_search, "")
       |> assign(:recipes, RecipeBrowser.all_recipes())
+      |> assign(:recipe_filter_building, nil)
+      |> assign(:recipe_filter_name, nil)
       |> assign(:show_stats, false)
       |> assign(:stats_summary, [])
       |> assign(:blueprint_mode, nil)
@@ -771,6 +773,20 @@ defmodule SphericWeb.GameLive do
           style="width: 100%; padding: 6px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--fbc-border); color: var(--fbc-text); font-family: 'Courier New', monospace; font-size: 11px; box-sizing: border-box;"
         />
       </form>
+      <div
+        :if={@recipe_filter_building}
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 5px 8px; background: rgba(200,170,110,0.1); border: 1px solid var(--fbc-highlight); font-size: 10px;"
+      >
+        <span style="color: var(--fbc-highlight);">
+          Filtered: {@recipe_filter_name}
+        </span>
+        <button
+          phx-click="clear_recipe_filter"
+          style="padding: 2px 6px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.05); color: var(--fbc-text-dim); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"
+        >
+          Show All
+        </button>
+      </div>
       <div
         :for={recipe <- @recipes}
         style="margin-bottom: 8px; padding: 8px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.02);"
