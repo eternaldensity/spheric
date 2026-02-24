@@ -1120,6 +1120,9 @@ const GameRenderer = {
     // Atmosphere: drift dust motes
     this.atmosphere.update();
 
+    // Smooth interpolation for other player drones
+    this.playerPresence.tick(deltaTime);
+
     // Altered items: pulse and rotate
     this.alteredItemRenderer.update();
 

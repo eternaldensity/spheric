@@ -24,34 +24,36 @@ _rotorMat._shared = true;
 const _cameraMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
 _cameraMat._shared = true;
 
+// Interpolation speed — higher = snappier, lower = smoother
+const LERP_SPEED = 5;
+
 /**
  * PlayerPresence renders other players as quadcopter drones on the sphere.
  */
 export class PlayerPresence {
   constructor(scene) {
     this.scene = scene;
-    this.markers = new Map(); // name -> { group, parts, label }
+    this.markers = new Map(); // name -> { group, parts, label, target }
   }
 
+  /** Called when server sends new player positions (every ~500ms). */
   update(players) {
     const activeNames = new Set();
 
     for (const p of players) {
       activeNames.add(p.name);
-      const cameraPos = new THREE.Vector3(p.x, p.y, p.z);
-      const surfacePoint = cameraPos.clone().normalize();
+      const target = new THREE.Vector3(p.x, p.y, p.z);
 
       let marker = this.markers.get(p.name);
       if (!marker) {
         marker = this._createMarker(p.name, p.color);
         this.markers.set(p.name, marker);
         this.scene.add(marker.group);
+        // First appearance — snap to position immediately
+        this._applyPosition(marker, target);
       }
 
-      // Place at actual camera altitude (magnitude of position vector)
-      const altitude = cameraPos.length();
-      marker.group.position.copy(surfacePoint).multiplyScalar(altitude);
-      marker.group.lookAt(surfacePoint.clone().multiplyScalar(altitude + 1));
+      marker.target = target;
     }
 
     // Remove markers for players who left
@@ -61,6 +63,26 @@ export class PlayerPresence {
         this.markers.delete(name);
       }
     }
+  }
+
+  /** Called every frame from the render loop to smoothly interpolate positions. */
+  tick(dt) {
+    const alpha = 1 - Math.exp(-LERP_SPEED * dt);
+    for (const [, marker] of this.markers) {
+      if (!marker.target) continue;
+      marker.group.position.lerp(marker.target, alpha);
+      // Re-orient to face outward from sphere at current (interpolated) position
+      const outward = marker.group.position.clone().normalize();
+      marker.group.lookAt(
+        outward.multiplyScalar(marker.group.position.length() + 1),
+      );
+    }
+  }
+
+  _applyPosition(marker, pos) {
+    const surfaceDir = pos.clone().normalize();
+    marker.group.position.copy(pos);
+    marker.group.lookAt(surfaceDir.multiplyScalar(pos.length() + 1));
   }
 
   _createMarker(name, color) {
