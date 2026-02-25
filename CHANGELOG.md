@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Add deep production chains: Assembler activation, Refinery, 4 new resources, multi-tier recipes (#40)
 
 ### Fixed
+- Storage vault: separate stored vs inserted items for arm transfer fairness (#154)
 - Add DB fallback when Research ETS cache misses player unlocks (#130)
 - Fix assembler building not creating construction site (#129)
 - Fix drone bay mode not atomized after persistence load (#123)

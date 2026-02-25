@@ -298,6 +298,9 @@ defmodule Spheric.Game.TickProcessor do
     # Phase 2q: Arm transfers (loaders and unloaders)
     all_buildings = resolve_arm_transfers(all_buildings, classified.arms)
 
+    # Phase 2r: Consolidate storage vault inserted items into stored
+    all_buildings = consolidate_storage_vaults(all_buildings)
+
     # Phase 3: Push resolution — move items between buildings
     {final_buildings, movements} = resolve_pushes(all_buildings)
 
@@ -575,10 +578,11 @@ defmodule Spheric.Game.TickProcessor do
       when type in [:conveyor, :conveyor_mk2, :conveyor_mk3] and not is_nil(item) ->
         {item, Map.put(buildings, source_key, %{b | state: %{b.state | item: nil}})}
 
-      %{type: :storage_container, state: %{item_type: item_type, count: count}} = b
+      %{type: :storage_container, state: %{item_type: item_type, count: count} = state} = b
       when not is_nil(item_type) and count > 0 ->
         new_count = count - 1
-        new_type = if new_count == 0, do: nil, else: item_type
+        inserted = state[:inserted_count] || 0
+        new_type = if new_count == 0 and inserted == 0, do: nil, else: item_type
 
         {item_type,
          Map.put(buildings, source_key, %{
@@ -595,10 +599,11 @@ defmodule Spheric.Game.TickProcessor do
   # Loader: can only grab from storage container
   defp arm_extract(buildings, :loader, source_key) do
     case Map.get(buildings, source_key) do
-      %{type: :storage_container, state: %{item_type: item_type, count: count}} = b
+      %{type: :storage_container, state: %{item_type: item_type, count: count} = state} = b
       when not is_nil(item_type) and count > 0 ->
         new_count = count - 1
-        new_type = if new_count == 0, do: nil, else: item_type
+        inserted = state[:inserted_count] || 0
+        new_type = if new_count == 0 and inserted == 0, do: nil, else: item_type
 
         {item_type,
          Map.put(buildings, source_key, %{
@@ -725,7 +730,8 @@ defmodule Spheric.Game.TickProcessor do
   defp arm_return(buildings, :loader, source_key, item) do
     case Map.get(buildings, source_key) do
       %{type: :storage_container, state: state} = b ->
-        case Behaviors.StorageContainer.try_accept_item(state, item) do
+        # Return to stored (not inserted) since this was already extracted from stored
+        case Behaviors.StorageContainer.try_accept_stored(state, item) do
           nil ->
             GroundItems.add(source_key, item)
             buildings
@@ -738,6 +744,23 @@ defmodule Spheric.Game.TickProcessor do
         GroundItems.add(source_key, item)
         buildings
     end
+  end
+
+  # Consolidate inserted items into stored for all storage vaults.
+  # Called after arm transfers so items deposited this tick become
+  # extractable next tick, preventing same-tick teleportation.
+  defp consolidate_storage_vaults(buildings) do
+    Enum.reduce(buildings, buildings, fn
+      {key, %{type: :storage_container, state: state} = b}, acc ->
+        if (state[:inserted_count] || 0) > 0 do
+          Map.put(acc, key, %{b | state: Behaviors.StorageContainer.consolidate(state)})
+        else
+          acc
+        end
+
+      _, acc ->
+        acc
+    end)
   end
 
   defp production_behavior(:smelter), do: Behaviors.Smelter
@@ -1086,7 +1109,7 @@ defmodule Spheric.Game.TickProcessor do
         state.horizontal != nil and state.vertical != nil
 
       %{type: :storage_container, state: state} ->
-        state.count >= state.capacity
+        Behaviors.StorageContainer.total_count(state) >= state.capacity
 
       %{type: :assembler, state: state} ->
         Behaviors.Assembler.full?(state)
@@ -1210,7 +1233,7 @@ defmodule Spheric.Game.TickProcessor do
     case TileNeighbors.neighbor(dest_key, rear_dir, n) do
       {:ok, valid_src} ->
         Enum.find(requests, fn {src, _dest, item} ->
-          src == valid_src and Behaviors.StorageContainer.try_accept_item(state, item) != nil
+          src == valid_src and Behaviors.StorageContainer.try_accept_stored(state, item) != nil
         end)
 
       :boundary ->
@@ -1603,7 +1626,8 @@ defmodule Spheric.Game.TickProcessor do
 
             :storage_container ->
               new_count = max(0, b.state.count - 1)
-              new_type = if new_count == 0, do: nil, else: b.state.item_type
+              inserted = b.state[:inserted_count] || 0
+              new_type = if new_count == 0 and inserted == 0, do: nil, else: b.state.item_type
               %{b | state: %{b.state | count: new_count, item_type: new_type}}
 
             _ ->
@@ -1687,7 +1711,7 @@ defmodule Spheric.Game.TickProcessor do
             %{b | state: %{b.state | item: item}}
 
           :storage_container ->
-            case Behaviors.StorageContainer.try_accept_item(b.state, item) do
+            case Behaviors.StorageContainer.try_accept_stored(b.state, item) do
               nil -> b
               new_state -> %{b | state: new_state}
             end

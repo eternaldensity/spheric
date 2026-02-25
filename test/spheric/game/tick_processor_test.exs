@@ -10,9 +10,19 @@ defmodule Spheric.Game.TickProcessorTest do
   @conveyor2_key {15, 1, 3}
   @smelter_key {15, 1, 4}
 
+  # Keys for arm/vault tests (same face, nearby tiles)
+  @vault_key {15, 3, 3}
+  @unloader_key {15, 3, 2}
+  @loader_key {15, 3, 4}
+  @source_machine_key {15, 3, 1}
+  @loader_dest_key {15, 3, 5}
+
   setup do
     # Ensure clean building state
-    cleanup_keys = [@miner_key, @conveyor1_key, @conveyor2_key, @smelter_key]
+    cleanup_keys = [
+      @miner_key, @conveyor1_key, @conveyor2_key, @smelter_key,
+      @vault_key, @unloader_key, @loader_key, @source_machine_key, @loader_dest_key
+    ]
     Enum.each(cleanup_keys, &WorldStore.remove_building/1)
 
     # Use grassland (neutral in all shift phases) so ShiftCycle doesn't affect rates
@@ -489,6 +499,138 @@ defmodule Spheric.Game.TickProcessorTest do
       assert item != nil
       assert item.item == :iron_ore
       assert item.from_face == nil
+    end
+  end
+
+  describe "storage vault arm isolation" do
+    test "unloader deposits go to inserted_count, not extractable by loader same tick" do
+      # Source smelter with output at {15,3,1}
+      WorldStore.put_building(@source_machine_key, %{
+        type: :smelter,
+        orientation: 0,
+        state: Map.merge(Behaviors.Smelter.initial_state(), %{output_buffer: :iron_ingot})
+      })
+
+      # Unloader at {15,3,2}: grabs from smelter, deposits into vault
+      WorldStore.put_building(@unloader_key, %{
+        type: :unloader,
+        orientation: 0,
+        state: %{
+          source: @source_machine_key,
+          destination: @vault_key,
+          stack_upgrade: false,
+          last_transferred: nil,
+          powered: true
+        }
+      })
+
+      # Empty vault at {15,3,3}
+      WorldStore.put_building(@vault_key, %{
+        type: :storage_container,
+        orientation: 0,
+        state: Behaviors.StorageContainer.initial_state()
+      })
+
+      # Loader at {15,3,4}: grabs from vault, deposits into nearby conveyor
+      WorldStore.put_building(@loader_key, %{
+        type: :loader,
+        orientation: 0,
+        state: %{
+          source: @vault_key,
+          destination: @loader_dest_key,
+          stack_upgrade: false,
+          last_transferred: nil,
+          powered: true
+        }
+      })
+
+      WorldStore.put_building(@loader_dest_key, %{
+        type: :conveyor_mk3,
+        orientation: 0,
+        state: Behaviors.ConveyorMk3.initial_state()
+      })
+
+      # Tick 1: unloader grabs ingot from smelter, deposits into vault's inserted_count.
+      # Loader tries to extract from vault's count (0) -> nothing to grab.
+      # After consolidation, vault has count=1.
+      TickProcessor.process_tick(1)
+
+      vault = WorldStore.get_building(@vault_key)
+      smelter = WorldStore.get_building(@source_machine_key)
+      conveyor = WorldStore.get_building(@loader_dest_key)
+
+      # Smelter output was taken by unloader
+      assert smelter.state.output_buffer == nil
+      # Vault has the item (consolidated after arm phase)
+      assert vault.state.item_type == :iron_ingot
+      assert vault.state.count == 1
+      assert (vault.state[:inserted_count] || 0) == 0
+      # Loader could NOT extract it this tick — conveyor should be empty
+      assert conveyor.state.item == nil
+    end
+
+    test "loader can extract from vault on tick after unloader deposited" do
+      # Vault already has 1 stored item
+      WorldStore.put_building(@vault_key, %{
+        type: :storage_container,
+        orientation: 0,
+        state: %{item_type: :iron_ingot, count: 1, inserted_count: 0, capacity: 100}
+      })
+
+      # Loader grabs from vault, deposits into conveyor (within range 2)
+      WorldStore.put_building(@loader_key, %{
+        type: :loader,
+        orientation: 0,
+        state: %{
+          source: @vault_key,
+          destination: @loader_dest_key,
+          stack_upgrade: false,
+          last_transferred: nil,
+          powered: true
+        }
+      })
+
+      WorldStore.put_building(@loader_dest_key, %{
+        type: :conveyor_mk3,
+        orientation: 0,
+        state: Behaviors.ConveyorMk3.initial_state()
+      })
+
+      TickProcessor.process_tick(1)
+
+      vault = WorldStore.get_building(@vault_key)
+      conveyor = WorldStore.get_building(@loader_dest_key)
+
+      # Loader extracted from stored count
+      assert vault.state.count == 0
+      assert vault.state.item_type == nil
+      # Conveyor received the item
+      assert conveyor.state.item == :iron_ingot
+    end
+
+    test "conveyor push goes directly to stored count" do
+      # Conveyor pushing into vault from the rear
+      # Vault orientation 0 (pushes east), so rear is west (direction 2)
+      # Place conveyor at {15,3,2} pushing east (orientation 0) into vault at {15,3,3}
+      WorldStore.put_building(@unloader_key, %{
+        type: :conveyor_mk3,
+        orientation: 0,
+        state: %{item: :iron_ingot, buffer1: nil, buffer2: nil}
+      })
+
+      WorldStore.put_building(@vault_key, %{
+        type: :storage_container,
+        orientation: 0,
+        state: Behaviors.StorageContainer.initial_state()
+      })
+
+      TickProcessor.process_tick(1)
+
+      vault = WorldStore.get_building(@vault_key)
+      # Conveyor push goes to count (stored), not inserted_count
+      assert vault.state.count == 1
+      assert vault.state.inserted_count == 0
+      assert vault.state.item_type == :iron_ingot
     end
   end
 end
