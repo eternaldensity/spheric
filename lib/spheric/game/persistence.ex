@@ -297,7 +297,9 @@ defmodule Spheric.Game.Persistence do
     :mode,
     :selected_upgrade,
     :last_transferred,
-    :filter_item
+    :filter_item,
+    :filter_item_right,
+    :next_output
   ]
 
   @tuple_key_fields [:source, :destination, :linked_to]

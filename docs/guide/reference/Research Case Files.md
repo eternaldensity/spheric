@@ -25,7 +25,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Fabrication Protocol Alpha | 40 Conductive Filament, 40 Structural Plate |
+| Fabrication Protocol Alpha | 40 Structural Plate, 40 Conductive Filament |
 | Astral Ore Refinement | 30 Astral Ingot |
 
 **Unlocks:** [[The Distiller|Distiller]], Conduit Mk-III, Load Equalizer, Subsurface Link, Transit Interchange

@@ -15,7 +15,7 @@
 #   mix run scripts/update_guide_costs.exs --dry-run  # preview changes only
 
 alias Spheric.Game.{ConstructionCosts, Lore, Research}
-alias Spheric.Game.Behaviors.{DroneBay, Loader, Unloader}
+alias Spheric.Game.Behaviors.{DroneBay, Loader, Unloader, FilteredSplitter, OverflowGate, PriorityMerger}
 
 dry_run? = "--dry-run" in System.argv()
 
@@ -717,6 +717,35 @@ if adv_log do
     ~r/(## Extraction Arm.*?)\*\*Bulk Transfer Upgrade:\*\* [^\n]+/s,
     new_content,
     "\\1**Bulk Transfer Upgrade:** #{unloader_upgrade}#{upgrade_suffix}"
+  )
+
+  # Update Mirror Mode / Dual Filter upgrade costs
+  upgrade_suffix = " — drop materials on the building's tile, then click **Enable** in the tile info panel."
+
+  fs_mirror = GuideUpdater.format_cost(FilteredSplitter.upgrade_cost(:mirror_mode))
+  fs_dual = GuideUpdater.format_cost(FilteredSplitter.upgrade_cost(:dual_filter))
+  og_mirror = GuideUpdater.format_cost(OverflowGate.upgrade_cost(:mirror_mode))
+  pm_mirror = GuideUpdater.format_cost(PriorityMerger.upgrade_cost(:mirror_mode))
+
+  new_content = Regex.replace(
+    ~r/(## Selective Distributor.*?)\*\*Mirror Mode Upgrade:\*\* [^\n]+/s,
+    new_content,
+    "\\1**Mirror Mode Upgrade:** #{fs_mirror}#{upgrade_suffix} Swaps left/right routing (matching items go right, non-matching go left)."
+  )
+  new_content = Regex.replace(
+    ~r/(## Selective Distributor.*?)\*\*Dual Filter Upgrade:\*\* [^\n]+/s,
+    new_content,
+    "\\1**Dual Filter Upgrade:** #{fs_dual}#{upgrade_suffix} Adds a second filter: left filter matches go left, right filter matches go right, non-matching items pass straight through."
+  )
+  new_content = Regex.replace(
+    ~r/(## Surplus Router.*?)\*\*Mirror Mode Upgrade:\*\* [^\n]+/s,
+    new_content,
+    "\\1**Mirror Mode Upgrade:** #{og_mirror}#{upgrade_suffix} Overflow routes to the **right** side instead of the left."
+  )
+  new_content = Regex.replace(
+    ~r/(## Priority Converger.*?)\*\*Mirror Mode Upgrade:\*\* [^\n]+/s,
+    new_content,
+    "\\1**Mirror Mode Upgrade:** #{pm_mirror}#{upgrade_suffix} The **right** input becomes the priority side instead of the left."
   )
 
   # Update conveyor tier table

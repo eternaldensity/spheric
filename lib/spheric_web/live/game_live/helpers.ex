@@ -184,11 +184,34 @@ defmodule SphericWeb.GameLive.Helpers do
       filter_info =
         if building.type == :filtered_splitter && !under_construction do
           filter = building.state[:filter_item]
+          filter_right = building.state[:filter_item_right]
 
           %{
             filter_item: filter,
             filter_name: if(filter, do: Lore.display_name(filter), else: nil),
-            items: filterable_items()
+            filter_item_right: filter_right,
+            filter_right_name: if(filter_right, do: Lore.display_name(filter_right), else: nil),
+            items: filterable_items(),
+            mirrored: building.state[:mirrored] || false,
+            mirror_cost: Behaviors.FilteredSplitter.upgrade_cost(:mirror_mode),
+            dual_filter: building.state[:dual_filter] || false,
+            dual_filter_cost: Behaviors.FilteredSplitter.upgrade_cost(:dual_filter)
+          }
+        else
+          nil
+        end
+
+      logistics_upgrade_info =
+        if building.type in [:overflow_gate, :priority_merger] && !under_construction do
+          behavior = case building.type do
+            :overflow_gate -> Behaviors.OverflowGate
+            :priority_merger -> Behaviors.PriorityMerger
+          end
+
+          %{
+            mirrored: building.state[:mirrored] || false,
+            mirror_cost: behavior.upgrade_cost(:mirror_mode),
+            building_type: building.type
           }
         else
           nil
@@ -203,7 +226,8 @@ defmodule SphericWeb.GameLive.Helpers do
         drone_bay_info: drone_bay_info,
         arm_info: arm_info,
         conduit_info: conduit_info,
-        filter_info: filter_info
+        filter_info: filter_info,
+        logistics_upgrade_info: logistics_upgrade_info
       })
     else
       Map.merge(base, %{
@@ -215,7 +239,8 @@ defmodule SphericWeb.GameLive.Helpers do
         drone_bay_info: nil,
         arm_info: nil,
         conduit_info: nil,
-        filter_info: nil
+        filter_info: nil,
+        logistics_upgrade_info: nil
       })
     end
   end

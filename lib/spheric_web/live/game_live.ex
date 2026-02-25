@@ -668,8 +668,53 @@ defmodule SphericWeb.GameLive do
           :if={@tile_info.filter_info && (@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id)}
           style="margin-top: 8px; border-top: 1px solid var(--fbc-border); padding-top: 8px;"
         >
+          <%!-- Mirror Mode upgrade --%>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 10px; color: var(--fbc-text-dim);">
+              Mirror Mode: <span style={"color: #{if @tile_info.filter_info.mirrored, do: "var(--fbc-success)", else: "var(--fbc-text-dim)"}"}>
+                {if @tile_info.filter_info.mirrored, do: "Active", else: "Inactive"}
+              </span>
+            </span>
+            <button
+              phx-click="toggle_mirror"
+              phx-value-face={@tile_info.face}
+              phx-value-row={@tile_info.row}
+              phx-value-col={@tile_info.col}
+              style={"padding: 2px 8px; border: 1px solid #{if @tile_info.filter_info.mirrored, do: "var(--fbc-success)", else: "var(--fbc-border)"}; background: #{if @tile_info.filter_info.mirrored, do: "rgba(102,136,68,0.15)", else: "rgba(255,255,255,0.06)"}; color: #{if @tile_info.filter_info.mirrored, do: "var(--fbc-success)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"}
+            >
+              {if @tile_info.filter_info.mirrored, do: "Disable", else: "Enable"}
+            </button>
+          </div>
+          <div :if={!@tile_info.filter_info.mirrored} style="margin-top: -3px; margin-bottom: 6px; font-size: 9px; color: var(--fbc-text-dim);">
+            Cost: {Enum.map_join(@tile_info.filter_info.mirror_cost, ", ", fn {item, qty} -> "#{qty}x #{Spheric.Game.Lore.display_name(item)}" end)}
+            <span style="font-size: 8px; opacity: 0.6;">(drop on tile)</span>
+          </div>
+
+          <%!-- Dual Filter upgrade --%>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 10px; color: var(--fbc-text-dim);">
+              Dual Filter: <span style={"color: #{if @tile_info.filter_info.dual_filter, do: "var(--fbc-success)", else: "var(--fbc-text-dim)"}"}>
+                {if @tile_info.filter_info.dual_filter, do: "Active", else: "Inactive"}
+              </span>
+            </span>
+            <button
+              phx-click="toggle_dual_filter"
+              phx-value-face={@tile_info.face}
+              phx-value-row={@tile_info.row}
+              phx-value-col={@tile_info.col}
+              style={"padding: 2px 8px; border: 1px solid #{if @tile_info.filter_info.dual_filter, do: "var(--fbc-success)", else: "var(--fbc-border)"}; background: #{if @tile_info.filter_info.dual_filter, do: "rgba(102,136,68,0.15)", else: "rgba(255,255,255,0.06)"}; color: #{if @tile_info.filter_info.dual_filter, do: "var(--fbc-success)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"}
+            >
+              {if @tile_info.filter_info.dual_filter, do: "Disable", else: "Enable"}
+            </button>
+          </div>
+          <div :if={!@tile_info.filter_info.dual_filter} style="margin-top: -3px; margin-bottom: 6px; font-size: 9px; color: var(--fbc-text-dim);">
+            Cost: {Enum.map_join(@tile_info.filter_info.dual_filter_cost, ", ", fn {item, qty} -> "#{qty}x #{Spheric.Game.Lore.display_name(item)}" end)}
+            <span style="font-size: 8px; opacity: 0.6;">(drop on tile)</span>
+          </div>
+
+          <%!-- Left filter (or "Item Filter" when dual_filter is off) --%>
           <div style="font-size: 10px; color: var(--fbc-info); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">
-            Item Filter
+            {if @tile_info.filter_info.dual_filter, do: "Left Filter", else: "Item Filter"}
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <span style="font-size: 10px; color: var(--fbc-text-dim);">
@@ -700,6 +745,70 @@ defmodule SphericWeb.GameLive do
             >
               {fi.name}
             </div>
+          </div>
+
+          <%!-- Right filter (only when dual_filter is active) --%>
+          <div :if={@tile_info.filter_info.dual_filter} style="margin-top: 8px;">
+            <div style="font-size: 10px; color: var(--fbc-info); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">
+              Right Filter
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 10px; color: var(--fbc-text-dim);">
+                Filter: <span style={"color: #{if @tile_info.filter_info.filter_item_right, do: "var(--fbc-text)", else: "var(--fbc-text-dim)"}"}>
+                  {if @tile_info.filter_info.filter_item_right, do: @tile_info.filter_info.filter_right_name, else: "None"}
+                </span>
+              </span>
+              <button
+                :if={@tile_info.filter_info.filter_item_right}
+                phx-click="clear_filter_item_right"
+                phx-value-face={@tile_info.face}
+                phx-value-row={@tile_info.row}
+                phx-value-col={@tile_info.col}
+                style="padding: 2px 8px; border: 1px solid var(--fbc-accent-dim); background: rgba(136,34,34,0.15); color: var(--fbc-accent); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"
+              >
+                Clear
+              </button>
+            </div>
+            <div style="max-height: 120px; overflow-y: auto; border: 1px solid var(--fbc-border); background: rgba(0,0,0,0.15);">
+              <div
+                :for={fi <- @tile_info.filter_info.items}
+                phx-click="set_filter_item_right"
+                phx-value-face={@tile_info.face}
+                phx-value-row={@tile_info.row}
+                phx-value-col={@tile_info.col}
+                phx-value-item={fi.item}
+                style={"padding: 3px 8px; font-size: 9px; cursor: pointer; font-family: 'Courier New', monospace; border-bottom: 1px solid rgba(136,153,170,0.1); #{if fi.item == @tile_info.filter_info.filter_item_right, do: "background: rgba(136,153,170,0.2); color: var(--fbc-text);", else: "color: var(--fbc-text-dim);"}"}
+              >
+                {fi.name}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Overflow Gate / Priority Merger upgrade panel --%>
+        <div
+          :if={@tile_info.logistics_upgrade_info && (@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id)}
+          style="margin-top: 8px; border-top: 1px solid var(--fbc-border); padding-top: 8px;"
+        >
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 10px; color: var(--fbc-text-dim);">
+              Mirror Mode: <span style={"color: #{if @tile_info.logistics_upgrade_info.mirrored, do: "var(--fbc-success)", else: "var(--fbc-text-dim)"}"}>
+                {if @tile_info.logistics_upgrade_info.mirrored, do: "Active", else: "Inactive"}
+              </span>
+            </span>
+            <button
+              phx-click="toggle_mirror"
+              phx-value-face={@tile_info.face}
+              phx-value-row={@tile_info.row}
+              phx-value-col={@tile_info.col}
+              style={"padding: 2px 8px; border: 1px solid #{if @tile_info.logistics_upgrade_info.mirrored, do: "var(--fbc-success)", else: "var(--fbc-border)"}; background: #{if @tile_info.logistics_upgrade_info.mirrored, do: "rgba(102,136,68,0.15)", else: "rgba(255,255,255,0.06)"}; color: #{if @tile_info.logistics_upgrade_info.mirrored, do: "var(--fbc-success)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"}
+            >
+              {if @tile_info.logistics_upgrade_info.mirrored, do: "Disable", else: "Enable"}
+            </button>
+          </div>
+          <div :if={!@tile_info.logistics_upgrade_info.mirrored} style="margin-top: -3px; font-size: 9px; color: var(--fbc-text-dim);">
+            Cost: {Enum.map_join(@tile_info.logistics_upgrade_info.mirror_cost, ", ", fn {item, qty} -> "#{qty}x #{Spheric.Game.Lore.display_name(item)}" end)}
+            <span style="font-size: 8px; opacity: 0.6;">(drop on tile)</span>
           </div>
         </div>
 
@@ -1591,6 +1700,22 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_event("clear_filter_item", params, socket),
     do: BuildingEvents.handle_event("clear_filter_item", params, socket)
+
+  @impl true
+  def handle_event("toggle_mirror", params, socket),
+    do: BuildingEvents.handle_event("toggle_mirror", params, socket)
+
+  @impl true
+  def handle_event("toggle_dual_filter", params, socket),
+    do: BuildingEvents.handle_event("toggle_dual_filter", params, socket)
+
+  @impl true
+  def handle_event("set_filter_item_right", params, socket),
+    do: BuildingEvents.handle_event("set_filter_item_right", params, socket)
+
+  @impl true
+  def handle_event("clear_filter_item_right", params, socket),
+    do: BuildingEvents.handle_event("clear_filter_item_right", params, socket)
 
   # Panel events
   @impl true

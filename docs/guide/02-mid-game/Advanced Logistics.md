@@ -79,6 +79,10 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 
 **Cost:** 3 Structural Plate, 2 Resonance Circuit, 1 Astral Frame
 
+**Mirror Mode Upgrade:** 1 Resonance Circuit, 1 Structural Plate — drop materials on the building's tile, then click **Enable** in the tile info panel. Swaps left/right routing (matching items go right, non-matching go left).
+
+**Dual Filter Upgrade:** 3 Resonance Circuit, 2 Astral Frame — drop materials on the building's tile, then click **Enable** in the tile info panel. Adds a second filter: left filter matches go left, right filter matches go right, non-matching items pass straight through.
+
 > [!tip] Sort mixed production lines
 > Place a Selective Distributor after a machine that produces mixed outputs. Set the filter to the item you want separated — matching items route left to one line, everything else continues right to another.
 
@@ -95,6 +99,8 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 
 **Cost:** 4 Structural Plate, 1 Resonance Circuit, 1 Astral Frame
 
+**Mirror Mode Upgrade:** 1 Resonance Circuit, 1 Structural Plate — drop materials on the building's tile, then click **Enable** in the tile info panel. Overflow routes to the **right** side instead of the left.
+
 > [!tip] Handle excess production
 > Place a Surplus Router inline on a conduit feeding a machine. When the machine backs up, excess items automatically route to the side — into a Containment Vault, a secondary production line, or an Exchange Terminal.
 
@@ -110,6 +116,8 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 - Use to create a "main line with supplement" pattern
 
 **Cost:** 4 Paraelectric Bar, 1 Resonance Circuit, 1 Astral Frame
+
+**Mirror Mode Upgrade:** 1 Resonance Circuit, 1 Structural Plate — drop materials on the building's tile, then click **Enable** in the tile info panel. The **right** input becomes the priority side instead of the left.
 
 > [!tip] Supplement a primary supply
 > Feed your main production output into the priority (left) side and a backup source into the right. The right side only activates when the main line can't keep up, ensuring smooth throughput without waste.

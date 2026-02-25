@@ -1028,7 +1028,7 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   # Filtered splitter: route by item type. Matching filter → left, non-matching → right.
-  # When no filter is set, alternate like a regular splitter.
+  # Mirror mode swaps left/right. Dual filter adds a right filter + forward output.
   defp get_push_request(
          key,
          %{type: :filtered_splitter, orientation: dir, state: %{item: item} = state},
@@ -1036,18 +1036,32 @@ defmodule Spheric.Game.TickProcessor do
        )
        when not is_nil(item) do
     {left, right} = Behaviors.FilteredSplitter.output_directions(dir)
+    {left, right} = if state[:mirrored] == true, do: {right, left}, else: {left, right}
 
     output_dir =
-      case state[:filter_item] do
-        nil ->
-          # No filter set — alternate like a regular splitter
-          if state[:next_output] == :left, do: left, else: right
+      if state[:dual_filter] == true do
+        cond do
+          state[:filter_item] != nil and item == state[:filter_item] -> left
+          state[:filter_item_right] != nil and item == state[:filter_item_right] -> right
+          state[:filter_item] == nil and state[:filter_item_right] == nil ->
+            case state[:next_output] do
+              :right -> right
+              :forward -> dir
+              _ -> left
+            end
+          true -> dir
+        end
+      else
+        case state[:filter_item] do
+          nil ->
+            if state[:next_output] == :left, do: left, else: right
 
-        filter when filter == item ->
-          left
+          filter when filter == item ->
+            left
 
-        _non_matching ->
-          right
+          _non_matching ->
+            right
+        end
       end
 
     case TileNeighbors.neighbor(key, output_dir, n) do
@@ -1056,10 +1070,11 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
-  # Overflow gate: try forward first; if downstream is full, overflow to left.
+  # Overflow gate: try forward first; if downstream is full, overflow to side.
+  # Mirror mode overflows to right instead of left.
   defp get_push_request(
          key,
-         %{type: :overflow_gate, orientation: dir, state: %{item: item}},
+         %{type: :overflow_gate, orientation: dir, state: %{item: item} = state},
          n
        )
        when not is_nil(item) do
@@ -1072,8 +1087,11 @@ defmodule Spheric.Game.TickProcessor do
     if forward_key != nil and not downstream_full?(forward_key) do
       {key, forward_key, item}
     else
-      # Forward is full or boundary — overflow to left
-      overflow_dir = Behaviors.OverflowGate.overflow_direction(dir)
+      # Forward is full or boundary — overflow to side
+      overflow_dir =
+        if state[:mirrored] == true,
+          do: rem(dir + 1, 4),
+          else: Behaviors.OverflowGate.overflow_direction(dir)
 
       case TileNeighbors.neighbor(key, overflow_dir, n) do
         {:ok, dest_key} -> {key, dest_key, item}
@@ -1475,19 +1493,23 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   # Priority merger: accepts from left (priority) and right side inputs.
-  # Left always takes priority over right.
+  # Left always takes priority over right. Mirror mode reverses priority.
   defp try_accept(
          dest_key,
-         %{type: :priority_merger, orientation: dir, state: %{item: nil}},
+         %{type: :priority_merger, orientation: dir, state: %{item: nil} = state},
          requests,
          n
        ) do
     left_dir = rem(dir + 3, 4)
     right_dir = rem(dir + 1, 4)
 
-    # Try left (priority) first, then right
-    case accept_from_direction(dest_key, left_dir, requests, n) do
-      nil -> accept_from_direction(dest_key, right_dir, requests, n)
+    {first, second} =
+      if state[:mirrored] == true,
+        do: {right_dir, left_dir},
+        else: {left_dir, right_dir}
+
+    case accept_from_direction(dest_key, first, requests, n) do
+      nil -> accept_from_direction(dest_key, second, requests, n)
       winner -> winner
     end
   end
@@ -1788,12 +1810,24 @@ defmodule Spheric.Game.TickProcessor do
               %{b | state: %{b.state | item: nil}}
 
             :filtered_splitter ->
-              # When no filter is set, alternate like a regular splitter
-              if b.state[:filter_item] == nil do
-                next = if b.state[:next_output] == :left, do: :right, else: :left
-                %{b | state: %{b.state | item: nil, next_output: next}}
-              else
-                %{b | state: %{b.state | item: nil}}
+              cond do
+                # Dual filter with both filters nil: cycle through three outputs
+                b.state[:dual_filter] == true and b.state[:filter_item] == nil and b.state[:filter_item_right] == nil ->
+                  next = case b.state[:next_output] do
+                    :left -> :right
+                    :right -> :forward
+                    _ -> :left
+                  end
+                  %{b | state: %{b.state | item: nil, next_output: next}}
+
+                # Standard mode with no filter: alternate left/right
+                b.state[:filter_item] == nil and b.state[:dual_filter] != true ->
+                  next = if b.state[:next_output] == :left, do: :right, else: :left
+                  %{b | state: %{b.state | item: nil, next_output: next}}
+
+                # Filter(s) set: no alternation needed
+                true ->
+                  %{b | state: %{b.state | item: nil}}
               end
 
             :overflow_gate ->

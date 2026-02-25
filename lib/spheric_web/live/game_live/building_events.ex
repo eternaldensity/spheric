@@ -5,7 +5,7 @@ defmodule SphericWeb.GameLive.BuildingEvents do
   import Phoenix.LiveView, only: [push_event: 3]
 
   alias Spheric.Game.{WorldServer, WorldStore, Buildings, StarterKit, GroundItems, Research}
-  alias Spheric.Game.Behaviors.{DroneBay, Loader, Unloader}
+  alias Spheric.Game.Behaviors.{DroneBay, Loader, Unloader, FilteredSplitter, OverflowGate, PriorityMerger}
   alias Spheric.Game.Persistence
   alias SphericWeb.GameLive.Helpers
 
@@ -847,6 +847,155 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     if building && building.type == :filtered_splitter &&
          (building.owner_id == nil or building.owner_id == socket.assigns.player_id) do
       new_state = Map.put(building.state, :filter_item, nil)
+      WorldStore.put_building(key, %{building | state: new_state})
+      tile_info = Helpers.build_tile_info(key)
+      {:noreply, assign(socket, :tile_info, tile_info)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Mirror mode toggle for filtered_splitter, overflow_gate, priority_merger
+  def handle_event(
+        "toggle_mirror",
+        %{"face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+    building = WorldStore.get_building(key)
+
+    if building && building.type in [:filtered_splitter, :overflow_gate, :priority_merger] &&
+         (building.owner_id == nil or building.owner_id == socket.assigns.player_id) do
+      enabling = !building.state[:mirrored]
+
+      if enabling do
+        behavior = case building.type do
+          :filtered_splitter -> FilteredSplitter
+          :overflow_gate -> OverflowGate
+          :priority_merger -> PriorityMerger
+        end
+
+        cost = behavior.upgrade_cost(:mirror_mode)
+        ground = GroundItems.get(key)
+
+        has_all =
+          Enum.all?(cost, fn {item, needed} ->
+            Map.get(ground, item, 0) >= needed
+          end)
+
+        if has_all do
+          Enum.each(cost, fn {item, needed} ->
+            Enum.each(1..needed, fn _ -> GroundItems.take(key, item) end)
+          end)
+
+          new_state = Map.put(building.state, :mirrored, true)
+          WorldStore.put_building(key, %{building | state: new_state})
+          tile_info = Helpers.build_tile_info(key)
+          {:noreply, assign(socket, :tile_info, tile_info)}
+        else
+          {:noreply, socket}
+        end
+      else
+        new_state = Map.put(building.state, :mirrored, false)
+        WorldStore.put_building(key, %{building | state: new_state})
+        tile_info = Helpers.build_tile_info(key)
+        {:noreply, assign(socket, :tile_info, tile_info)}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Dual filter toggle for filtered_splitter
+  def handle_event(
+        "toggle_dual_filter",
+        %{"face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+    building = WorldStore.get_building(key)
+
+    if building && building.type == :filtered_splitter &&
+         (building.owner_id == nil or building.owner_id == socket.assigns.player_id) do
+      enabling = !building.state[:dual_filter]
+
+      if enabling do
+        cost = FilteredSplitter.upgrade_cost(:dual_filter)
+        ground = GroundItems.get(key)
+
+        has_all =
+          Enum.all?(cost, fn {item, needed} ->
+            Map.get(ground, item, 0) >= needed
+          end)
+
+        if has_all do
+          Enum.each(cost, fn {item, needed} ->
+            Enum.each(1..needed, fn _ -> GroundItems.take(key, item) end)
+          end)
+
+          new_state = Map.put(building.state, :dual_filter, true)
+          WorldStore.put_building(key, %{building | state: new_state})
+          tile_info = Helpers.build_tile_info(key)
+          {:noreply, assign(socket, :tile_info, tile_info)}
+        else
+          {:noreply, socket}
+        end
+      else
+        new_state = building.state |> Map.put(:dual_filter, false) |> Map.put(:filter_item_right, nil)
+        WorldStore.put_building(key, %{building | state: new_state})
+        tile_info = Helpers.build_tile_info(key)
+        {:noreply, assign(socket, :tile_info, tile_info)}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Filtered splitter: set the RIGHT-side item filter (dual filter mode)
+  def handle_event(
+        "set_filter_item_right",
+        %{"face" => face, "row" => row, "col" => col, "item" => item_str},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+    building = WorldStore.get_building(key)
+
+    if building && building.type == :filtered_splitter &&
+         building.state[:dual_filter] == true &&
+         (building.owner_id == nil or building.owner_id == socket.assigns.player_id) do
+      item =
+        try do
+          String.to_existing_atom(item_str)
+        rescue
+          ArgumentError -> nil
+        end
+
+      if item do
+        new_state = Map.put(building.state, :filter_item_right, item)
+        WorldStore.put_building(key, %{building | state: new_state})
+        tile_info = Helpers.build_tile_info(key)
+        {:noreply, assign(socket, :tile_info, tile_info)}
+      else
+        {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Filtered splitter: clear the RIGHT-side item filter
+  def handle_event(
+        "clear_filter_item_right",
+        %{"face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+    building = WorldStore.get_building(key)
+
+    if building && building.type == :filtered_splitter &&
+         building.state[:dual_filter] == true &&
+         (building.owner_id == nil or building.owner_id == socket.assigns.player_id) do
+      new_state = Map.put(building.state, :filter_item_right, nil)
       WorldStore.put_building(key, %{building | state: new_state})
       tile_info = Helpers.build_tile_info(key)
       {:noreply, assign(socket, :tile_info, tile_info)}
