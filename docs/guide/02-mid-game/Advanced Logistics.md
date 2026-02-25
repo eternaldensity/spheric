@@ -102,3 +102,41 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 - Use to move items across longer distances without conduit chains
 
 **Cost:** 10 Shielded Conductor, 6 Resonance Circuit, 2 Astral Frame
+
+---
+
+## Insertion Arm (Loader)
+
+*Unlocked at Clearance 4*
+
+- Transfers items **from a Containment Vault** to a target tile (machine input, conduit, or ground)
+- Range 2 tiles (Manhattan distance, same face)
+- Transfers bypass the normal conduit push system — items move directly in a dedicated phase each tick
+- Can be upgraded to **Bulk Transfer** mode (moves up to 10 stacked items per tick)
+- Requires [[Power & Energy|power]] to operate
+
+**Configuration:** Select the arm in the tile info panel, then use the **Set** buttons to link a source (must be a Containment Vault) and destination (any tile in range). Click a tile on the map to confirm each link.
+
+**Cost:** 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver
+
+> [!tip] Use arms to solve throughput bottlenecks
+> Some recipes consume inputs faster than a single conduit can deliver (1 item/tick). An Insertion Arm pulling from a Containment Vault provides a parallel feed channel, keeping machines running at full speed.
+
+---
+
+## Extraction Arm (Unloader)
+
+*Unlocked at Clearance 4*
+
+- Transfers items **from a source tile** (machine output, conduit, or ground) **into a Containment Vault**
+- Range 2 tiles (Manhattan distance, same face)
+- Grabs items before the conduit push phase — prevents output buffer congestion
+- Can be upgraded to **Bulk Transfer** mode (moves up to 10 stacked items per tick)
+- Requires [[Power & Energy|power]] to operate
+
+**Configuration:** Same as the Insertion Arm — use the tile info panel to set source (any tile) and destination (must be a Containment Vault).
+
+**Cost:** 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver
+
+> [!tip] Pair arms with Containment Vaults
+> The typical pattern is: **Extraction Arm → Vault → Insertion Arm**. The unloader grabs output from a machine, the vault buffers it, and the loader feeds it into the next machine. This decouples production stages and smooths throughput.

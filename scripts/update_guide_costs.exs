@@ -72,7 +72,8 @@ defmodule GuideUpdater do
       dimensional_stabilizer: "Dimensional Stabilizer",
       paranatural_synthesizer: "Paranatural Synthesizer",
       astral_projection_chamber: "Astral Projection Chamber",
-      board_interface: "Board Interface"
+      board_interface: "Board Interface",
+      loader: "Loader", unloader: "Unloader"
     }
     Map.get(names, type, type |> Atom.to_string() |> String.replace("_", " ") |> String.split() |> Enum.map(&String.capitalize/1) |> Enum.join(" "))
   end
@@ -187,7 +188,9 @@ if building_ref do
     {:balancer, "1 in → 4 even out"},
     {:underground_conduit, "Tunnel under 1 tile"},
     {:crossover, "Cross paths"},
-    {:transfer_station, "Bridge substations"}
+    {:transfer_station, "Bridge substations"},
+    {:loader, "Vault → target (range 2)"},
+    {:unloader, "Source → vault (range 2)"}
   ]
 
   production = [
@@ -502,7 +505,7 @@ if research_content do
     1 => "Distributor, Converger, Jurisdiction Beacon, Exchange Terminal, Conduit Mk-II, Containment Vault, [[The Fabricator|Fabricator]], Drone Bay",
     2 => "[[The Distiller|Distiller]], Conduit Mk-III, Load Equalizer, Subsurface Link, Transit Interchange",
     3 => "[[Creatures & Containment|Trap]], Purification Beacon, Defense Array, Shadow Panel, Lamp",
-    4 => "[[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Production|Advanced Processor]]",
+    4 => "[[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Logistics|Insertion Arm, Extraction Arm]], [[Advanced Production|Advanced Processor]]",
     5 => "[[Advanced Production|Advanced Fabricator, Fabrication Plant]], Essence Extractor",
     6 => "[[High-Tech Manufacturing|Particle Collider, Nuclear Distiller]]",
     7 => "[[Endgame Buildings|Dimensional Stabilizer, Astral Projection Chamber]], [[Paranatural Synthesis|Paranatural Synthesizer]]",
@@ -667,6 +670,8 @@ if adv_log do
   |> re_cost.(~r/(## Transit Interchange.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:crossover)))
   |> re_cost.(~r/(## Containment Vault.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:storage_container)))
   |> re_cost.(~r/(## Transfer Station.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:transfer_station)))
+  |> re_cost.(~r/(## Insertion Arm.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:loader)))
+  |> re_cost.(~r/(## Extraction Arm.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:unloader)))
 
   # Update conveyor tier table
   mk2_cost = GuideUpdater.format_cost(ConstructionCosts.cost(:conveyor_mk2))

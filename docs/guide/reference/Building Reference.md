@@ -21,6 +21,8 @@ Construction costs are the resources you must deliver to a building's constructi
 | Subsurface Link | Underground Conduit | 2 | 8 Structural Plate, 5 Conductive Filament | Tunnel under 1 tile |
 | Transit Interchange | Crossover | 2 | 4 Structural Plate, 1 Conductive Filament | Cross paths |
 | Transfer Station | Transfer Station | 4 | 10 Shielded Conductor, 6 Resonance Circuit, 2 Astral Frame | Bridge substations |
+| Insertion Arm | Loader | 4 | 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver | Vault → target (range 2) |
+| Extraction Arm | Unloader | 4 | 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver | Source → vault (range 2) |
 
 See [[Advanced Logistics]] and [[The Conduit Network]] for usage guides.
 
