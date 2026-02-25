@@ -804,4 +804,55 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     end
   end
 
+  # Filtered splitter: set the item filter
+  def handle_event(
+        "set_filter_item",
+        %{"face" => face, "row" => row, "col" => col, "item" => item_str},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+    building = WorldStore.get_building(key)
+
+    if building && building.type == :filtered_splitter &&
+         (building.owner_id == nil or building.owner_id == socket.assigns.player_id) do
+      item =
+        try do
+          String.to_existing_atom(item_str)
+        rescue
+          ArgumentError -> nil
+        end
+
+      if item do
+        new_state = Map.put(building.state, :filter_item, item)
+        WorldStore.put_building(key, %{building | state: new_state})
+        tile_info = Helpers.build_tile_info(key)
+        {:noreply, assign(socket, :tile_info, tile_info)}
+      else
+        {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Filtered splitter: clear the item filter
+  def handle_event(
+        "clear_filter_item",
+        %{"face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+    building = WorldStore.get_building(key)
+
+    if building && building.type == :filtered_splitter &&
+         (building.owner_id == nil or building.owner_id == socket.assigns.player_id) do
+      new_state = Map.put(building.state, :filter_item, nil)
+      WorldStore.put_building(key, %{building | state: new_state})
+      tile_info = Helpers.build_tile_info(key)
+      {:noreply, assign(socket, :tile_info, tile_info)}
+    else
+      {:noreply, socket}
+    end
+  end
+
 end

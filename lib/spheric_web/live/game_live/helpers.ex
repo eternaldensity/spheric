@@ -181,6 +181,19 @@ defmodule SphericWeb.GameLive.Helpers do
           nil
         end
 
+      filter_info =
+        if building.type == :filtered_splitter && !under_construction do
+          filter = building.state[:filter_item]
+
+          %{
+            filter_item: filter,
+            filter_name: if(filter, do: Lore.display_name(filter), else: nil),
+            items: filterable_items()
+          }
+        else
+          nil
+        end
+
       Map.merge(base, %{
         building_name: Lore.display_name(building.type),
         building_orientation: building.orientation,
@@ -189,7 +202,8 @@ defmodule SphericWeb.GameLive.Helpers do
         building_owner_name: owner_name,
         drone_bay_info: drone_bay_info,
         arm_info: arm_info,
-        conduit_info: conduit_info
+        conduit_info: conduit_info,
+        filter_info: filter_info
       })
     else
       Map.merge(base, %{
@@ -200,7 +214,8 @@ defmodule SphericWeb.GameLive.Helpers do
         building_owner_name: nil,
         drone_bay_info: nil,
         arm_info: nil,
-        conduit_info: nil
+        conduit_info: nil,
+        filter_info: nil
       })
     end
   end
@@ -623,5 +638,21 @@ defmodule SphericWeb.GameLive.Helpers do
       {k, v} when is_binary(k) -> {String.to_existing_atom(k), v}
       {k, v} -> {k, v}
     end)
+  end
+
+  defp filterable_items do
+    [
+      :iron_ore, :copper_ore, :raw_quartz, :titanium_ore, :crude_oil, :raw_sulfur, :raw_uranium,
+      :iron_ingot, :copper_ingot, :titanium_ingot, :whispering_ingot,
+      :polycarbonate, :sulfur_compound, :quartz_crystal, :enriched_uranium,
+      :wire, :plate, :circuit, :frame, :hiss_residue, :whispering_powder,
+      :motor, :cable, :reinforced_plate, :heat_sink, :heavy_frame,
+      :advanced_circuit, :plastic_sheet, :computer, :motor_housing, :composite,
+      :supercomputer, :advanced_composite, :nuclear_cell,
+      :containment_module, :dimensional_core, :astral_lens, :board_resonator,
+      :refined_fuel, :catalysed_fuel, :unstable_fuel, :stable_fuel,
+      :biofuel, :creature_essence
+    ]
+    |> Enum.map(fn item -> %{item: item, name: Lore.display_name(item)} end)
   end
 end

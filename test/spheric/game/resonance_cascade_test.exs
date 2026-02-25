@@ -21,6 +21,7 @@ defmodule Spheric.Game.ResonanceCascadeTest do
     WorldEvents.clear()
     WorldEvents.init()
     Creatures.init()
+    Creatures.clear_all()
 
     Enum.each(@all_keys, &WorldStore.remove_building/1)
 

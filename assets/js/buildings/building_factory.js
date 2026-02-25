@@ -29,6 +29,9 @@ const COLORS = {
   loader: 0x55aa77,
   unloader: 0x77aa55,
   mixer: 0x8855aa,
+  filtered_splitter: 0x22aa66,
+  overflow_gate: 0xaa7722,
+  priority_merger: 0x6644bb,
 };
 
 // Shared material cache — reuse materials across all buildings of the same color
@@ -140,6 +143,13 @@ const _SHARED_GEOMETRIES_RAW = {
   arm_pillar: new THREE.CylinderGeometry(s * 0.12, s * 0.15, s * 1.0, 6),
   arm_boom: new THREE.BoxGeometry(s * 1.2, s * 0.08, s * 0.08),
   arm_claw: new THREE.BoxGeometry(s * 0.15, s * 0.4, s * 0.15),
+  // Filtered splitter
+  filter_marker: new THREE.BoxGeometry(s * 0.25, s * 0.35, s * 0.25),
+  // Overflow gate
+  overflow_chute: new THREE.BoxGeometry(s * 0.6, s * 0.3, s * 0.4),
+  overflow_side: new THREE.BoxGeometry(s * 0.3, s * 0.25, s * 0.5),
+  // Priority merger
+  priority_arrow: new THREE.ConeGeometry(s * 0.2, s * 0.3, 4),
 };
 // Mark all shared geometries so they won't be disposed when individual buildings are removed
 const SHARED_GEOMETRIES = Object.fromEntries(
@@ -777,6 +787,80 @@ function createMixer() {
   return group;
 }
 
+function createFilteredSplitter() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.filtered_splitter);
+
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.logistics_base, mat);
+  base.position.y = s * 0.2;
+  group.add(base);
+
+  // Two output chutes like a splitter
+  const left = new THREE.Mesh(SHARED_GEOMETRIES.splitter_chute, mat);
+  left.position.set(s * 0.5, s * 0.55, -s * 0.35);
+  group.add(left);
+
+  const right = new THREE.Mesh(SHARED_GEOMETRIES.splitter_chute, mat);
+  right.position.set(s * 0.5, s * 0.55, s * 0.35);
+  group.add(right);
+
+  // Filter marker on top — distinguishes from regular splitter
+  const markerMat = makeMaterial(0x11cc55);
+  const marker = new THREE.Mesh(SHARED_GEOMETRIES.filter_marker, markerMat);
+  marker.position.set(0, s * 0.65, 0);
+  group.add(marker);
+
+  return group;
+}
+
+function createOverflowGate() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.overflow_gate);
+
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.logistics_base, mat);
+  base.position.y = s * 0.2;
+  group.add(base);
+
+  // Forward output chute (primary)
+  const forward = new THREE.Mesh(SHARED_GEOMETRIES.overflow_chute, mat);
+  forward.position.set(s * 0.5, s * 0.55, 0);
+  group.add(forward);
+
+  // Side overflow output (left)
+  const sideMat = makeMaterial(0xcc8822);
+  const side = new THREE.Mesh(SHARED_GEOMETRIES.overflow_side, sideMat);
+  side.position.set(0, s * 0.5, -s * 0.55);
+  group.add(side);
+
+  return group;
+}
+
+function createPriorityMerger() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.priority_merger);
+
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.logistics_base, mat);
+  base.position.y = s * 0.2;
+  group.add(base);
+
+  // Forward output
+  const output = new THREE.Mesh(SHARED_GEOMETRIES.merger_output, mat);
+  output.position.set(s * 0.5, s * 0.55, 0);
+  group.add(output);
+
+  // Priority arrow on the left side
+  const arrowMat = makeMaterial(0x9966ee);
+  const arrow = new THREE.Mesh(SHARED_GEOMETRIES.priority_arrow, arrowMat);
+  arrow.rotation.z = -Math.PI / 2;
+  arrow.position.set(-s * 0.1, s * 0.65, -s * 0.4);
+  group.add(arrow);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
@@ -804,6 +888,9 @@ const BUILDERS = {
   loader: createLoader,
   unloader: createUnloader,
   mixer: createMixer,
+  filtered_splitter: createFilteredSplitter,
+  overflow_gate: createOverflowGate,
+  priority_merger: createPriorityMerger,
 };
 
 /**

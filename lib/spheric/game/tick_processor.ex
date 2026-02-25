@@ -1027,6 +1027,70 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
+  # Filtered splitter: route by item type. Matching filter → left, non-matching → right.
+  # When no filter is set, alternate like a regular splitter.
+  defp get_push_request(
+         key,
+         %{type: :filtered_splitter, orientation: dir, state: %{item: item} = state},
+         n
+       )
+       when not is_nil(item) do
+    {left, right} = Behaviors.FilteredSplitter.output_directions(dir)
+
+    output_dir =
+      case state[:filter_item] do
+        nil ->
+          # No filter set — alternate like a regular splitter
+          if state[:next_output] == :left, do: left, else: right
+
+        filter when filter == item ->
+          left
+
+        _non_matching ->
+          right
+      end
+
+    case TileNeighbors.neighbor(key, output_dir, n) do
+      {:ok, dest_key} -> {key, dest_key, item}
+      :boundary -> nil
+    end
+  end
+
+  # Overflow gate: try forward first; if downstream is full, overflow to left.
+  defp get_push_request(
+         key,
+         %{type: :overflow_gate, orientation: dir, state: %{item: item}},
+         n
+       )
+       when not is_nil(item) do
+    forward_key =
+      case TileNeighbors.neighbor(key, dir, n) do
+        {:ok, k} -> k
+        :boundary -> nil
+      end
+
+    if forward_key != nil and not downstream_full?(forward_key) do
+      {key, forward_key, item}
+    else
+      # Forward is full or boundary — overflow to left
+      overflow_dir = Behaviors.OverflowGate.overflow_direction(dir)
+
+      case TileNeighbors.neighbor(key, overflow_dir, n) do
+        {:ok, dest_key} -> {key, dest_key, item}
+        :boundary -> nil
+      end
+    end
+  end
+
+  # Priority merger: output forward (same as regular merger)
+  defp get_push_request(key, %{type: :priority_merger, orientation: dir, state: %{item: item}}, n)
+       when not is_nil(item) do
+    case TileNeighbors.neighbor(key, dir, n) do
+      {:ok, dest_key} -> {key, dest_key, item}
+      :boundary -> nil
+    end
+  end
+
   defp get_push_request(key, %{type: :merger, orientation: dir, state: %{item: item}}, n)
        when not is_nil(item) do
     case TileNeighbors.neighbor(key, dir, n) do
@@ -1167,6 +1231,15 @@ defmodule Spheric.Game.TickProcessor do
         item != nil
 
       %{type: :balancer, state: %{item: item}} ->
+        item != nil
+
+      %{type: :filtered_splitter, state: %{item: item}} ->
+        item != nil
+
+      %{type: :overflow_gate, state: %{item: item}} ->
+        item != nil
+
+      %{type: :priority_merger, state: %{item: item}} ->
         item != nil
 
       %{type: :crossover, state: state} ->
@@ -1377,6 +1450,46 @@ defmodule Spheric.Game.TickProcessor do
        ) do
     rear_dir = rem(dir + 2, 4)
     accept_from_direction(dest_key, rear_dir, requests, n)
+  end
+
+  # Filtered splitter: accepts from rear when empty (like splitter)
+  defp try_accept(
+         dest_key,
+         %{type: :filtered_splitter, orientation: dir, state: %{item: nil}},
+         requests,
+         n
+       ) do
+    rear_dir = rem(dir + 2, 4)
+    accept_from_direction(dest_key, rear_dir, requests, n)
+  end
+
+  # Overflow gate: accepts from rear when empty (like splitter)
+  defp try_accept(
+         dest_key,
+         %{type: :overflow_gate, orientation: dir, state: %{item: nil}},
+         requests,
+         n
+       ) do
+    rear_dir = rem(dir + 2, 4)
+    accept_from_direction(dest_key, rear_dir, requests, n)
+  end
+
+  # Priority merger: accepts from left (priority) and right side inputs.
+  # Left always takes priority over right.
+  defp try_accept(
+         dest_key,
+         %{type: :priority_merger, orientation: dir, state: %{item: nil}},
+         requests,
+         n
+       ) do
+    left_dir = rem(dir + 3, 4)
+    right_dir = rem(dir + 1, 4)
+
+    # Try left (priority) first, then right
+    case accept_from_direction(dest_key, left_dir, requests, n) do
+      nil -> accept_from_direction(dest_key, right_dir, requests, n)
+      winner -> winner
+    end
   end
 
   # Crossover: accepts from any direction into the correct axis slot
@@ -1674,6 +1787,21 @@ defmodule Spheric.Game.TickProcessor do
             :merger ->
               %{b | state: %{b.state | item: nil}}
 
+            :filtered_splitter ->
+              # When no filter is set, alternate like a regular splitter
+              if b.state[:filter_item] == nil do
+                next = if b.state[:next_output] == :left, do: :right, else: :left
+                %{b | state: %{b.state | item: nil, next_output: next}}
+              else
+                %{b | state: %{b.state | item: nil}}
+              end
+
+            :overflow_gate ->
+              %{b | state: %{b.state | item: nil}}
+
+            :priority_merger ->
+              %{b | state: %{b.state | item: nil}}
+
             :crossover ->
               # Determine which slot pushed to this dest by checking h_dir
               sub_n = Application.get_env(:spheric, :subdivisions, 64)
@@ -1772,6 +1900,15 @@ defmodule Spheric.Game.TickProcessor do
             %{b | state: %{b.state | item: item}}
 
           :merger ->
+            %{b | state: %{b.state | item: item}}
+
+          :filtered_splitter ->
+            %{b | state: %{b.state | item: item}}
+
+          :overflow_gate ->
+            %{b | state: %{b.state | item: item}}
+
+          :priority_merger ->
             %{b | state: %{b.state | item: item}}
 
           :storage_container ->

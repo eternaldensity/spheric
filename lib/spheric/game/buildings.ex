@@ -46,7 +46,10 @@ defmodule Spheric.Game.Buildings do
     :drone_bay,
     :loader,
     :unloader,
-    :mixer
+    :mixer,
+    :filtered_splitter,
+    :overflow_gate,
+    :priority_merger
   ]
 
   @doc "Returns the list of all building type atoms."
@@ -95,6 +98,9 @@ defmodule Spheric.Game.Buildings do
   def display_name(:loader), do: "Loader"
   def display_name(:unloader), do: "Unloader"
   def display_name(:mixer), do: "Mixer"
+  def display_name(:filtered_splitter), do: "Filtered Splitter"
+  def display_name(:overflow_gate), do: "Overflow Gate"
+  def display_name(:priority_merger), do: "Priority Merger"
 
   @categories [
     :logistics,
@@ -128,6 +134,9 @@ defmodule Spheric.Game.Buildings do
   def category(:transfer_station), do: :logistics
   def category(:loader), do: :logistics
   def category(:unloader), do: :logistics
+  def category(:filtered_splitter), do: :logistics
+  def category(:overflow_gate), do: :logistics
+  def category(:priority_merger), do: :logistics
   def category(:miner), do: :production
   def category(:smelter), do: :production
   def category(:assembler), do: :production
@@ -283,6 +292,15 @@ defmodule Spheric.Game.Buildings do
 
   def initial_state(:mixer),
     do: Spheric.Game.Behaviors.Mixer.initial_state()
+
+  def initial_state(:filtered_splitter),
+    do: Spheric.Game.Behaviors.FilteredSplitter.initial_state()
+
+  def initial_state(:overflow_gate),
+    do: Spheric.Game.Behaviors.OverflowGate.initial_state()
+
+  def initial_state(:priority_merger),
+    do: Spheric.Game.Behaviors.PriorityMerger.initial_state()
 
   def initial_state(_type), do: %{}
 end

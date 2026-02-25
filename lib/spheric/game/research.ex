@@ -202,7 +202,16 @@ defmodule Spheric.Game.Research do
       :drone_bay
     ],
     2 => [:refinery, :conveyor_mk3, :balancer, :underground_conduit, :crossover],
-    3 => [:containment_trap, :purification_beacon, :defense_turret, :shadow_panel, :lamp],
+    3 => [
+      :containment_trap,
+      :purification_beacon,
+      :defense_turret,
+      :shadow_panel,
+      :lamp,
+      :filtered_splitter,
+      :overflow_gate,
+      :priority_merger
+    ],
     4 => [:bio_generator, :substation, :transfer_station, :advanced_smelter, :loader, :unloader],
     5 => [:mixer, :advanced_assembler, :fabrication_plant, :essence_extractor],
     6 => [:particle_collider, :nuclear_refinery],
