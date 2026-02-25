@@ -68,6 +68,54 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 
 ---
 
+## Selective Distributor (Filtered Splitter)
+
+*Unlocked at Clearance 3*
+
+- **1 input → 2 outputs** (left and right)
+- Routes items by type: items matching the **filter** go left, everything else goes right
+- When no filter is set, alternates left/right like a regular Distributor
+- Select the building in the tile info panel to choose a filter item or clear it
+
+**Cost:** 3 Structural Plate, 2 Resonance Circuit, 1 Astral Frame
+
+> [!tip] Sort mixed production lines
+> Place a Selective Distributor after a machine that produces mixed outputs. Set the filter to the item you want separated — matching items route left to one line, everything else continues right to another.
+
+---
+
+## Surplus Router (Overflow Gate)
+
+*Unlocked at Clearance 3*
+
+- **1 input → 2 outputs** (forward primary, left overflow)
+- Items enter from the rear and pass **straight through** to the forward output
+- When the forward destination is full or blocked, items overflow to the **left** side instead
+- If both outputs are full, the item is held
+
+**Cost:** 4 Structural Plate, 1 Resonance Circuit, 1 Astral Frame
+
+> [!tip] Handle excess production
+> Place a Surplus Router inline on a conduit feeding a machine. When the machine backs up, excess items automatically route to the side — into a Containment Vault, a secondary production line, or an Exchange Terminal.
+
+---
+
+## Priority Converger (Priority Merger)
+
+*Unlocked at Clearance 3*
+
+- **2 inputs → 1 output** (forward)
+- The **left** input has priority — items from the left side are always accepted first
+- The right input only feeds when no item is pending from the left
+- Use to create a "main line with supplement" pattern
+
+**Cost:** 4 Paraelectric Bar, 1 Resonance Circuit, 1 Astral Frame
+
+> [!tip] Supplement a primary supply
+> Feed your main production output into the priority (left) side and a backup source into the right. The right side only activates when the main line can't keep up, ensuring smooth throughput without waste.
+
+---
+
 ## Subsurface Link (Underground Conduit)
 
 *Unlocked at Clearance 2*
@@ -119,7 +167,7 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 
 **Cost:** 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver
 
-**Bulk Transfer Upgrade:** 2 Shielded Conductor, 1 Resonance Circuit, 1 Kinetic Driver, 1 Whispering Ingot — drop materials on the arm's tile, then click **Enable** in the tile info panel.
+**Bulk Transfer Upgrade:** 2 Shielded Conductor, 1 Resonance Circuit, 1 Whispering Ingot, 1 Kinetic Driver — drop materials on the arm's tile, then click **Enable** in the tile info panel.
 
 > [!tip] Use arms to solve throughput bottlenecks
 > Some recipes consume inputs faster than a single conduit can deliver. Even a Mk-III conduit maxes out at 1 item/tick (5/sec). An Insertion Arm pulling from a Containment Vault provides a parallel feed channel, keeping machines running at full speed.
@@ -140,7 +188,7 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 
 **Cost:** 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver
 
-**Bulk Transfer Upgrade:** 2 Shielded Conductor, 1 Resonance Circuit, 1 Kinetic Driver, 1 Whispering Ingot — drop materials on the arm's tile, then click **Enable** in the tile info panel.
+**Bulk Transfer Upgrade:** 2 Shielded Conductor, 1 Resonance Circuit, 1 Whispering Ingot, 1 Kinetic Driver — drop materials on the arm's tile, then click **Enable** in the tile info panel.
 
 > [!tip] Pair arms with Containment Vaults
 > The typical pattern is: **Extraction Arm → Vault → Insertion Arm**. The unloader grabs output from a machine, the vault buffers it, and the loader feeds it into the next machine. This decouples production stages and smooths throughput.

@@ -25,7 +25,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Fabrication Protocol Alpha | 40 Structural Plate, 40 Conductive Filament |
+| Fabrication Protocol Alpha | 40 Conductive Filament, 40 Structural Plate |
 | Astral Ore Refinement | 30 Astral Ingot |
 
 **Unlocks:** [[The Distiller|Distiller]], Conduit Mk-III, Load Equalizer, Subsurface Link, Transit Interchange
@@ -40,7 +40,7 @@ See [[Submitting Research]] for how the research system works.
 |---|---|
 | Paranatural Engineering | 30 Resonance Circuit, 20 Astral Frame, 20 Stabilized Polymer |
 
-**Unlocks:** [[Creatures & Containment|Trap]], Purification Beacon, Defense Array, Shadow Panel, Lamp
+**Unlocks:** [[Creatures & Containment|Trap]], Purification Beacon, Defense Array, Shadow Panel, Lamp, [[Advanced Logistics|Selective Distributor, Surplus Router, Priority Converger]]
 
 **Object of Power:** Astral Projection — see all creature locations
 
@@ -50,7 +50,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Industrial Requisition | 30 Thermal Regulator, 20 Shielded Conductor, 20 Kinetic Driver |
+| Industrial Requisition | 30 Thermal Regulator, 20 Kinetic Driver, 20 Shielded Conductor |
 | Organic Energy Mandate | 50 Entity Biofuel, 20 Refined Entity Fuel |
 
 **Unlocks:** [[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Logistics|Insertion Arm, Extraction Arm]], [[Advanced Production|Advanced Processor]]
@@ -63,7 +63,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Heavy Industry Protocol | 15 Advanced Resonance Circuit, 15 Heavy Astral Frame |
+| Heavy Industry Protocol | 15 Heavy Astral Frame, 15 Advanced Resonance Circuit |
 | Entity Research Program | 30 Anomalous Essence, 10 Polymer Membrane |
 
 **Unlocks:** [[Advanced Production|Compound Mixer, Advanced Fabricator, Fabrication Plant]], Essence Extractor
@@ -89,7 +89,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Paranatural Convergence | 10 Radiant Cell, 5 Paranatural Composite, 5 Hypercomputation Core |
+| Paranatural Convergence | 10 Radiant Cell, 5 Hypercomputation Core, 5 Paranatural Composite |
 | Entity Containment Mastery | 5 Anomalous Essence, 3 Anomaly Containment Module |
 
 **Unlocks:** [[Endgame Buildings|Dimensional Stabilizer, Astral Projection Chamber]], [[Paranatural Synthesis|Paranatural Synthesizer]]
@@ -102,7 +102,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Dimensional Mastery | 3 Astral Projection Lens, 3 Dimensional Core |
+| Dimensional Mastery | 3 Dimensional Core, 3 Astral Projection Lens |
 | Board Resonance Protocol | 1 Board Resonator |
 
 **Unlocks:** [[The Board Interface]]

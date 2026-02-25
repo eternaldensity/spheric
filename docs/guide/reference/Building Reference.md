@@ -23,6 +23,9 @@ Construction costs are the resources you must deliver to a building's constructi
 | Transfer Station | Transfer Station | 4 | 10 Shielded Conductor, 6 Resonance Circuit, 2 Astral Frame | Bridge substations |
 | Insertion Arm | Loader | 4 | 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver | Vault → target (range 2) |
 | Extraction Arm | Unloader | 4 | 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver | Source → vault (range 2) |
+| Selective Distributor | Filtered Splitter | 3 | 3 Structural Plate, 2 Resonance Circuit, 1 Astral Frame | Filter-based routing |
+| Surplus Router | Overflow Gate | 3 | 4 Structural Plate, 1 Resonance Circuit, 1 Astral Frame | Forward primary, side overflow |
+| Priority Converger | Priority Merger | 3 | 4 Paraelectric Bar, 1 Resonance Circuit, 1 Astral Frame | Priority-side input merging |
 
 See [[Advanced Logistics]] and [[The Conduit Network]] for usage guides.
 
@@ -63,7 +66,7 @@ See [[High-Tech Manufacturing]], [[Paranatural Synthesis]], [[The Board Interfac
 | Bureau Name | Common Name | Tier | Construction Cost | Notes |
 |---|---|---|---|---|
 | Bio Generator | Bio Generator | 4 | 3 Astral Frame, 3 Shielded Conductor, 2 Kinetic Driver | Burns fuel items |
-| Shadow panel | Shadow Panel | 3 | 3 Refined Resonance Crystal, 2 Astral Frame, 2 Conductive Filament | Alt. power |
+| Shadow panel | Shadow Panel | 3 | 3 Refined Resonance Crystal, 2 Conductive Filament, 2 Astral Frame | Alt. power |
 | Substation | Substation | 4 | 10 Paraelectric Bar, 6 Structural Plate, 5 Shielded Conductor | Radius 10 power |
 | Lamp | Lamp | 3 | 3 Paraelectric Bar, 2 Conductive Filament, 1 Resonance Circuit | Decorative |
 | Essence Extractor | Essence Extractor | 5 | 30 Astral Frame, 10 Refined Resonance Crystal, 5 Resonance Circuit | Creature essence |
@@ -91,9 +94,9 @@ See [[Submitting Research]], [[Trading with Other Operators]], [[Creatures & Con
 | Bureau Name | Common Name | Tier | Construction Cost | Notes |
 |---|---|---|---|---|
 | Jurisdiction Beacon | Claim Beacon | 1 | 5 Ferric Standard, 3 Paraelectric Bar | Radius 8 territory |
-| Trap | Containment Trap | 3 | 5 Conductive Filament, 2 Astral Frame, 2 Resonance Circuit | Capture creatures (r3) |
+| Trap | Containment Trap | 3 | 5 Conductive Filament, 2 Resonance Circuit, 2 Astral Frame | Capture creatures (r3) |
 | Defense Array | Defense Turret | 3 | 5 Structural Plate, 3 Astral Frame, 2 Resonance Circuit | Auto-attacks Hiss (r3) |
-| Purification Beacon | Purification Beacon | 3 | 5 Refined Resonance Crystal, 3 Astral Frame, 3 Resonance Circuit | Radius 5 anti-corruption |
+| Purification Beacon | Purification Beacon | 3 | 5 Refined Resonance Crystal, 3 Resonance Circuit, 3 Astral Frame | Radius 5 anti-corruption |
 | Dimensional Stabilizer | Dimensional Stabilizer | 7 | 25 Paranatural Composite, 6 Anomaly Containment Module, 2 Hypercomputation Core | Wide-area stability |
 | Astral Projection Chamber | Astral Projection Chamber | 7 | 12 Anomaly Containment Module, 2 Hypercomputation Core, 1 Astral Projection Lens | Reveal creatures |
 

@@ -74,7 +74,9 @@ defmodule GuideUpdater do
       astral_projection_chamber: "Astral Projection Chamber",
       board_interface: "Board Interface",
       loader: "Loader", unloader: "Unloader",
-      mixer: "Mixer"
+      mixer: "Mixer",
+      filtered_splitter: "Filtered Splitter", overflow_gate: "Overflow Gate",
+      priority_merger: "Priority Merger"
     }
     Map.get(names, type, type |> Atom.to_string() |> String.replace("_", " ") |> String.split() |> Enum.map(&String.capitalize/1) |> Enum.join(" "))
   end
@@ -191,7 +193,10 @@ if building_ref do
     {:crossover, "Cross paths"},
     {:transfer_station, "Bridge substations"},
     {:loader, "Vault → target (range 2)"},
-    {:unloader, "Source → vault (range 2)"}
+    {:unloader, "Source → vault (range 2)"},
+    {:filtered_splitter, "Filter-based routing"},
+    {:overflow_gate, "Forward primary, side overflow"},
+    {:priority_merger, "Priority-side input merging"}
   ]
 
   production = [
@@ -524,7 +529,7 @@ if research_content do
   clearance_unlocks = %{
     1 => "Distributor, Converger, Jurisdiction Beacon, Exchange Terminal, Conduit Mk-II, Containment Vault, [[The Fabricator|Fabricator]], Drone Bay",
     2 => "[[The Distiller|Distiller]], Conduit Mk-III, Load Equalizer, Subsurface Link, Transit Interchange",
-    3 => "[[Creatures & Containment|Trap]], Purification Beacon, Defense Array, Shadow Panel, Lamp",
+    3 => "[[Creatures & Containment|Trap]], Purification Beacon, Defense Array, Shadow Panel, Lamp, [[Advanced Logistics|Selective Distributor, Surplus Router, Priority Converger]]",
     4 => "[[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Logistics|Insertion Arm, Extraction Arm]], [[Advanced Production|Advanced Processor]]",
     5 => "[[Advanced Production|Compound Mixer, Advanced Fabricator, Fabrication Plant]], Essence Extractor",
     6 => "[[High-Tech Manufacturing|Particle Collider, Nuclear Distiller]]",
@@ -694,6 +699,9 @@ if adv_log do
   |> re_cost.(~r/(## Transfer Station.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:transfer_station)))
   |> re_cost.(~r/(## Insertion Arm.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:loader)))
   |> re_cost.(~r/(## Extraction Arm.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:unloader)))
+  |> re_cost.(~r/(## Selective Distributor.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:filtered_splitter)))
+  |> re_cost.(~r/(## Surplus Router.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:overflow_gate)))
+  |> re_cost.(~r/(## Priority Converger.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:priority_merger)))
 
   # Update arm Bulk Transfer upgrade costs
   loader_upgrade = GuideUpdater.format_cost(Loader.upgrade_cost(:stack_upgrade))

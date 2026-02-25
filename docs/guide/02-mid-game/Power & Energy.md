@@ -59,7 +59,7 @@ An alternative power source that generates power from darkness.
 
 Shadow Panels are useful on the dark side of the sphere where solar cycles provide long shadow periods. They complement Bio Generators for round-the-clock power.
 
-**Cost:** 3 Refined Resonance Crystal, 2 Astral Frame, 2 Conductive Filament
+**Cost:** 3 Refined Resonance Crystal, 2 Conductive Filament, 2 Astral Frame
 
 ---
 
