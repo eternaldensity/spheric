@@ -2,6 +2,27 @@
 
 At Clearance 4–5, you unlock higher-tier production buildings that process more complex materials.
 
+## Compound Mixer (Mixer)
+
+*Unlocked at Clearance 5*
+
+- **Dual-input** building that combines two different materials
+- Processing time: **15 ticks**
+- Produces fuel blends for [[Power & Energy|Bio Generators]] and the drone
+
+| Input A | Input B | Output |
+|---|---|---|
+| Black Rock Ichor (Crude) | Astral Ingot | Catalysed Ichor Fuel |
+| Catalysed Ichor Fuel ×8 | Refined Entity Fuel ×8 | Unstable Mixed Fuel ×16 |
+| Unstable Mixed Fuel ×5 | Threshold Compound | Stable Mixed Fuel ×2 |
+
+> [!note] Fuel Blending Chain
+> The Mixer enables a multi-step fuel chain: crude oil + titanium → catalysed fuel → unstable fuel → stable fuel. **Stable Mixed Fuel** burns for **325 ticks** in a Bio Generator, over 6× longer than biofuel. However, the chain requires Distiller output (Refined Entity Fuel, Threshold Compound) alongside Mixer processing.
+
+**Cost:** 15 Heavy Astral Frame, 8 Shielded Conductor, 2 Advanced Resonance Circuit
+
+---
+
 ## Advanced Processor (Advanced Smelter)
 
 *Unlocked at Clearance 4*

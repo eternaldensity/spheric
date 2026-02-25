@@ -66,7 +66,7 @@ See [[Submitting Research]] for how the research system works.
 | Heavy Industry Protocol | 15 Advanced Resonance Circuit, 15 Heavy Astral Frame |
 | Entity Research Program | 30 Anomalous Essence, 10 Polymer Membrane |
 
-**Unlocks:** [[Advanced Production|Advanced Fabricator, Fabrication Plant]], Essence Extractor
+**Unlocks:** [[Advanced Production|Compound Mixer, Advanced Fabricator, Fabrication Plant]], Essence Extractor
 
 **Object of Power:** Logistics Mastery — all Conduits 20% faster
 
@@ -77,7 +77,7 @@ See [[Submitting Research]] for how the research system works.
 | Case File | Requirements |
 |---|---|
 | Computational Threshold | 10 Computation Matrix, 10 Armored Drive Assembly |
-| Nuclear Clearance Protocol | 15 Structural Composite, 5 Enriched Radiant |
+| Nuclear Clearance Protocol | 50 Enriched Radiant, 15 Structural Composite |
 
 **Unlocks:** [[High-Tech Manufacturing|Particle Collider, Nuclear Distiller]]
 

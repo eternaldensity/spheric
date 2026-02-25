@@ -28,7 +28,7 @@ Used in Fabricator recipes for:
 - **Thermal Regulator** — Paraelectric Bar + Threshold Compound
 
 ### Refined Entity Fuel
-A more efficient fuel source for [[Power & Energy|Bio Generators]]. Made from [[Creatures & Containment|creature]] biofuel.
+A more efficient fuel source for [[Power & Energy|Bio Generators]]. Made from [[Creatures & Containment|creature]] biofuel. Also used in the [[Advanced Production#Compound Mixer|Compound Mixer]] to produce advanced fuel blends.
 
 ## Construction Cost
 

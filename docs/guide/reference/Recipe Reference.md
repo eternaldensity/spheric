@@ -48,6 +48,18 @@ Complete production recipe tables for all buildings in Spheric.
 
 ---
 
+## Compound Mixer (Mixer) — 15 ticks
+
+*Unlocked at Clearance 5. See [[Advanced Production]].*
+
+| Input A | Input B | Output |
+|---|---|---|
+| Black Rock Ichor (Crude) | Astral Ingot | Catalysed Ichor Fuel |
+| Catalysed Ichor Fuel | Refined Entity Fuel | Unstable Mixed Fuel |
+| Unstable Mixed Fuel | Threshold Compound | Stable Mixed Fuel |
+
+---
+
 ## Advanced Processor (Advanced Smelter) — 8 ticks
 
 *Unlocked at Clearance 4. See [[Advanced Production]].*

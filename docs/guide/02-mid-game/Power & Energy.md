@@ -14,9 +14,19 @@ At **Clearance 4**, you unlock the power system. Many advanced buildings require
 
 The primary power source. Consumes fuel to generate power.
 
-- Burns **Entity Biofuel** or **Refined Entity Fuel**
-- Fuel is consumed every **5 ticks**
 - Powers nearby buildings via [[#Substation|Substations]]
+- Accepts five fuel types with different burn durations:
+
+| Fuel | Duration (ticks) | Source |
+|---|---|---|
+| Entity Biofuel | 50 | [[Creatures & Containment\|Gathering Post]] |
+| Catalysed Ichor Fuel | 75 | [[Advanced Production#Compound Mixer\|Compound Mixer]] |
+| Refined Entity Fuel | 100 | [[The Distiller]] |
+| Unstable Mixed Fuel | 20 | [[Advanced Production#Compound Mixer\|Compound Mixer]] |
+| Stable Mixed Fuel | 325 | [[Advanced Production#Compound Mixer\|Compound Mixer]] |
+
+> [!tip] Fuel Efficiency
+> **Stable Mixed Fuel** is the most efficient fuel by far (325 ticks), but requires the Compound Mixer and a multi-step blending chain. Early on, stick with Entity Biofuel or Refined Entity Fuel from the Distiller.
 
 **Cost:** 3 Astral Frame, 3 Shielded Conductor, 2 Kinetic Driver
 

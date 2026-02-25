@@ -73,7 +73,8 @@ defmodule GuideUpdater do
       paranatural_synthesizer: "Paranatural Synthesizer",
       astral_projection_chamber: "Astral Projection Chamber",
       board_interface: "Board Interface",
-      loader: "Loader", unloader: "Unloader"
+      loader: "Loader", unloader: "Unloader",
+      mixer: "Mixer"
     }
     Map.get(names, type, type |> Atom.to_string() |> String.replace("_", " ") |> String.split() |> Enum.map(&String.capitalize/1) |> Enum.join(" "))
   end
@@ -198,6 +199,7 @@ if building_ref do
     {:smelter, "Ore → ingot"},
     {:assembler, "Dual-input"},
     {:refinery, "Liquids/volatiles"},
+    {:mixer, "Dual-input mixing"},
     {:advanced_smelter, "Fast + uranium"},
     {:advanced_assembler, "Advanced recipes"},
     {:fabrication_plant, "Triple-input"}
@@ -211,7 +213,7 @@ if building_ref do
   ]
 
   power_energy = [
-    {:bio_generator, "Burns biofuel"},
+    {:bio_generator, "Burns fuel items"},
     {:shadow_panel, "Alt. power"},
     {:substation, "Radius 10 power"},
     {:lamp, "Decorative"},
@@ -337,6 +339,7 @@ if recipe_ref do
   ]
 
   assembler_recipes = Spheric.Game.Behaviors.Assembler.recipes()
+  mixer_recipes = Spheric.Game.Behaviors.Mixer.recipes()
   advanced_assembler_recipes = Spheric.Game.Behaviors.AdvancedAssembler.recipes()
   fabrication_plant_recipes = Spheric.Game.Behaviors.FabricationPlant.recipes()
   particle_collider_recipes = Spheric.Game.Behaviors.ParticleCollider.recipes()
@@ -431,6 +434,14 @@ if recipe_ref do
 
   ---
 
+  ## Compound Mixer (Mixer) — 15 ticks
+
+  *Unlocked at Clearance 5. See [[Advanced Production]].*
+
+  #{dual_table.(mixer_recipes)}
+
+  ---
+
   ## Advanced Processor (Advanced Smelter) — 8 ticks
 
   *Unlocked at Clearance 4. See [[Advanced Production]].*
@@ -506,7 +517,7 @@ if research_content do
     2 => "[[The Distiller|Distiller]], Conduit Mk-III, Load Equalizer, Subsurface Link, Transit Interchange",
     3 => "[[Creatures & Containment|Trap]], Purification Beacon, Defense Array, Shadow Panel, Lamp",
     4 => "[[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Logistics|Insertion Arm, Extraction Arm]], [[Advanced Production|Advanced Processor]]",
-    5 => "[[Advanced Production|Advanced Fabricator, Fabrication Plant]], Essence Extractor",
+    5 => "[[Advanced Production|Compound Mixer, Advanced Fabricator, Fabrication Plant]], Essence Extractor",
     6 => "[[High-Tech Manufacturing|Particle Collider, Nuclear Distiller]]",
     7 => "[[Endgame Buildings|Dimensional Stabilizer, Astral Projection Chamber]], [[Paranatural Synthesis|Paranatural Synthesizer]]",
     8 => "[[The Board Interface]]"
@@ -632,6 +643,7 @@ if adv_prod do
   # This file has multiple **Cost:** lines for different buildings.
   # We need to replace each one contextually.
   costs = %{
+    mixer: ConstructionCosts.cost(:mixer),
     advanced_smelter: ConstructionCosts.cost(:advanced_smelter),
     advanced_assembler: ConstructionCosts.cost(:advanced_assembler),
     fabrication_plant: ConstructionCosts.cost(:fabrication_plant),
@@ -644,6 +656,7 @@ if adv_prod do
   end
 
   new_content = adv_prod
+  |> re_cost.(~r/(## Compound Mixer.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.mixer))
   |> re_cost.(~r/(## Advanced Processor.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.advanced_smelter))
   |> re_cost.(~r/(## Advanced Fabricator.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.advanced_assembler))
   |> re_cost.(~r/(## Fabrication Plant.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.fabrication_plant))
