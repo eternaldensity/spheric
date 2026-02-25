@@ -4,7 +4,7 @@ defmodule SphericWeb.GameLive.BuildingEvents do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
 
-  alias Spheric.Game.{WorldServer, WorldStore, Buildings, StarterKit, GroundItems}
+  alias Spheric.Game.{WorldServer, WorldStore, Buildings, StarterKit, GroundItems, Research}
   alias Spheric.Game.Behaviors.DroneBay
   alias Spheric.Game.Persistence
   alias SphericWeb.GameLive.Helpers
@@ -657,13 +657,16 @@ defmodule SphericWeb.GameLive.BuildingEvents do
       # Persist the upgrade to DB
       Persistence.apply_drone_upgrade(socket.assigns.player_id, upgrade)
 
-      # Enable auto-refuel on the building if applicable
+      # Apply upgrade-specific effects on the building
       new_state = DroneBay.cancel_upgrade(building.state)
 
       new_state =
-        if upgrade == :auto_refuel,
-          do: %{new_state | auto_refuel_enabled: true},
-          else: new_state
+        case upgrade do
+          :auto_refuel -> %{new_state | auto_refuel_enabled: true}
+          :delivery_drone -> %{new_state | delivery_drone_enabled: true}
+          :delivery_cargo -> %{new_state | delivery_cargo_capacity: 4}
+          _ -> new_state
+        end
 
       WorldStore.put_building(key, %{building | state: new_state})
 
@@ -699,7 +702,8 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     if upgrade && building && building.type == :drone_bay &&
          building.owner_id == socket.assigns.player_id do
       player_upgrades = Persistence.get_drone_upgrades(socket.assigns.player_id)
-      new_state = DroneBay.select_upgrade(building.state, upgrade, player_upgrades)
+      clearance_level = Research.clearance_level(socket.assigns.player_id)
+      new_state = DroneBay.select_upgrade(building.state, upgrade, player_upgrades, clearance_level)
       WorldStore.put_building(key, %{building | state: new_state})
       tile_info = Helpers.build_tile_info(key)
       {:noreply, assign(socket, :tile_info, tile_info)}

@@ -664,7 +664,7 @@ defmodule Spheric.Game.WorldServer do
   def handle_info(:tick, state) do
     new_tick = state.tick + 1
 
-    {_tick, items_by_face, submissions, newly_completed, drone_completions} =
+    {_tick, items_by_face, submissions, newly_completed, drone_completions, delivery_drone_updates} =
       TickProcessor.process_tick(new_tick)
 
     current_item_faces = items_by_face |> Map.keys() |> MapSet.new()
@@ -679,6 +679,24 @@ defmodule Spheric.Game.WorldServer do
 
         if bay do
           WorldStore.put_building(key, %{bay | state: %{bay.state | auto_refuel_enabled: true}})
+        end
+      end
+
+      # Enable delivery drone on the building
+      if upgrade == :delivery_drone do
+        bay = WorldStore.get_building(key)
+
+        if bay do
+          WorldStore.put_building(key, %{bay | state: %{bay.state | delivery_drone_enabled: true}})
+        end
+      end
+
+      # Upgrade delivery cargo capacity
+      if upgrade == :delivery_cargo do
+        bay = WorldStore.get_building(key)
+
+        if bay do
+          WorldStore.put_building(key, %{bay | state: %{bay.state | delivery_cargo_capacity: 4}})
         end
       end
 
@@ -700,6 +718,15 @@ defmodule Spheric.Game.WorldServer do
           {:construction_complete, key, building}
         )
       end
+    end
+
+    # Broadcast delivery drone position updates
+    for {face_id, drones} <- delivery_drone_updates do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:face:#{face_id}",
+        {:delivery_drone_update, face_id, drones}
+      )
     end
 
     # Broadcast item updates for faces that have items

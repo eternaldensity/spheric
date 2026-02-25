@@ -443,8 +443,14 @@ defmodule SphericWeb.GameLive do
                 >
                   Installed
                 </span>
+                <span
+                  :if={!Map.get(@tile_info.drone_bay_info.player_upgrades || %{}, upgrade) && Spheric.Game.Behaviors.DroneBay.upgrade_clearance(upgrade) > (@tile_info.drone_bay_info.player_clearance || 0)}
+                  style="font-size: 9px; color: var(--fbc-warning, #cc8844); text-transform: uppercase;"
+                >
+                  Clearance {Spheric.Game.Behaviors.DroneBay.upgrade_clearance(upgrade)}
+                </span>
                 <button
-                  :if={!Map.get(@tile_info.drone_bay_info.player_upgrades || %{}, upgrade)}
+                  :if={!Map.get(@tile_info.drone_bay_info.player_upgrades || %{}, upgrade) && Spheric.Game.Behaviors.DroneBay.upgrade_clearance(upgrade) <= (@tile_info.drone_bay_info.player_clearance || 0)}
                   phx-click="select_drone_upgrade"
                   phx-value-face={@tile_info.face}
                   phx-value-row={@tile_info.row}
@@ -510,6 +516,37 @@ defmodule SphericWeb.GameLive do
             style="margin-top: 4px; font-size: 10px; color: var(--fbc-text-dim);"
           >
             Fuel buffer: {@tile_info.drone_bay_info.fuel_buffer_count}/5
+          </div>
+
+          <%!-- Delivery drone status (when enabled) --%>
+          <div
+            :if={@tile_info.drone_bay_info.delivery_drone_enabled}
+            style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--fbc-border);"
+          >
+            <div style="font-size: 10px; color: var(--fbc-info); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">
+              Delivery Drone
+            </div>
+            <div style="font-size: 10px; color: var(--fbc-text-dim);">
+              Status: <span style={"color: #{case @tile_info.drone_bay_info.delivery_state do; :idle -> "var(--fbc-text-dim)"; :flying_to_storage -> "var(--fbc-highlight)"; :flying_to_site -> "var(--fbc-success)"; :returning -> "var(--fbc-info)"; _ -> "var(--fbc-text-dim)"; end}"}>
+                {case @tile_info.drone_bay_info.delivery_state do
+                  :idle -> "Idle"
+                  :flying_to_storage -> "Picking up"
+                  :flying_to_site -> "Delivering"
+                  :returning -> "Returning"
+                  _ -> "Idle"
+                end}
+              </span>
+            </div>
+            <div style="font-size: 10px; color: var(--fbc-text-dim);">
+              Fuel: {if @tile_info.drone_bay_info.delivery_fuel, do: "#{elem(@tile_info.drone_bay_info.delivery_fuel, 0)} (#{Float.round(elem(@tile_info.drone_bay_info.delivery_fuel, 1), 0)}s)", else: "Empty"}
+              {if @tile_info.drone_bay_info.delivery_fuel_tank_count > 0, do: " +#{@tile_info.drone_bay_info.delivery_fuel_tank_count} reserve", else: ""}
+            </div>
+            <div :if={@tile_info.drone_bay_info.delivery_cargo != []} style="font-size: 10px; color: var(--fbc-text-dim);">
+              Cargo: {Enum.map_join(@tile_info.drone_bay_info.delivery_cargo, ", ", &Lore.display_name/1)}
+            </div>
+            <div style="font-size: 9px; color: var(--fbc-text-dim); margin-top: 2px;">
+              Capacity: {@tile_info.drone_bay_info.delivery_cargo_capacity} items
+            </div>
           </div>
         </div>
 
@@ -1669,6 +1706,10 @@ defmodule SphericWeb.GameLive do
 
   @impl true
   def handle_info({:drone_upgrade_complete, _, _, _} = msg, socket),
+    do: ServerSync.handle_info(msg, socket)
+
+  @impl true
+  def handle_info({:delivery_drone_update, _, _} = msg, socket),
     do: ServerSync.handle_info(msg, socket)
 
   @impl true

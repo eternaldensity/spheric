@@ -153,6 +153,35 @@ defmodule SphericWeb.GameLive.ServerSync do
     {:noreply, socket}
   end
 
+  def handle_info({:delivery_drone_update, face_id, drones}, socket) do
+    if MapSet.member?(socket.assigns.visible_faces, face_id) do
+      serialized =
+        Enum.map(drones, fn drone ->
+          {pf, pr, pc} = drone.pos
+          {bf, br, bc} = drone.bay_key
+
+          %{
+            bay_face: bf,
+            bay_row: br,
+            bay_col: bc,
+            face: pf,
+            row: pr,
+            col: pc,
+            state: Atom.to_string(drone.state),
+            cargo:
+              Enum.map(drone.cargo, fn item ->
+                if is_atom(item), do: Atom.to_string(item), else: item
+              end)
+          }
+        end)
+
+      socket = push_event(socket, "delivery_drone_update", %{face: face_id, drones: serialized})
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_info({:creature_captured, creature_id, _creature, _trap_key}, socket) do
     socket = push_event(socket, "creature_captured", %{id: creature_id})
     roster = Creatures.get_player_roster(socket.assigns.player_id)

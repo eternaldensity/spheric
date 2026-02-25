@@ -301,6 +301,9 @@ defmodule Spheric.Game.TickProcessor do
     # Phase 2r: Consolidate storage vault inserted items into stored
     all_buildings = consolidate_storage_vaults(all_buildings)
 
+    # Phase 2r2: Delivery drone — transfer items from storage to construction sites
+    {all_buildings, delivery_drone_updates} = process_delivery_drones(all_buildings)
+
     # Phase 3: Push resolution — move items between buildings
     {final_buildings, movements} = resolve_pushes(all_buildings)
 
@@ -368,7 +371,7 @@ defmodule Spheric.Game.TickProcessor do
     # Build per-face item state for broadcasting
     items_by_face = build_item_snapshot(final_buildings, movements)
 
-    {tick, items_by_face, submissions, newly_completed, drone_completions}
+    {tick, items_by_face, submissions, newly_completed, drone_completions, delivery_drone_updates}
   end
 
   defp gather_all_buildings do
@@ -761,6 +764,38 @@ defmodule Spheric.Game.TickProcessor do
       _, acc ->
         acc
     end)
+  end
+
+  # Process delivery drones: for each drone bay with delivery_drone_enabled,
+  # run the delivery state machine. Returns {updated_buildings, updates_by_face}.
+  defp process_delivery_drones(buildings) do
+    delivery_bays =
+      Enum.filter(buildings, fn {_key, b} ->
+        b.type == :drone_bay and
+          b.state[:delivery_drone_enabled] == true and
+          b.state[:powered] != false
+      end)
+
+    {final_buildings, updates} =
+      Enum.reduce(delivery_bays, {buildings, []}, fn {bay_key, _bay_building}, {acc, upds} ->
+        # Re-fetch bay from acc in case a previous bay modified shared storage
+        bay = Map.get(acc, bay_key)
+
+        if bay do
+          {acc, update} = Behaviors.DroneBay.process_delivery_tick(bay_key, bay, acc)
+          upds = if update, do: [update | upds], else: upds
+          {acc, upds}
+        else
+          {acc, upds}
+        end
+      end)
+
+    # Group updates by face for broadcasting
+    updates_by_face =
+      updates
+      |> Enum.group_by(fn %{pos: {face, _r, _c}} -> face end)
+
+    {final_buildings, updates_by_face}
   end
 
   defp production_behavior(:smelter), do: Behaviors.Smelter

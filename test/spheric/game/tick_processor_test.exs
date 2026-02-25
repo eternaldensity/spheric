@@ -38,7 +38,7 @@ defmodule Spheric.Game.TickProcessorTest do
 
   describe "process_tick/1 with no buildings" do
     test "returns empty items_by_face" do
-      {tick, items_by_face, _submissions, _completed, _drone_completions} = TickProcessor.process_tick(1)
+      {tick, items_by_face, _submissions, _completed, _drone_completions, _delivery_updates} = TickProcessor.process_tick(1)
       assert tick == 1
       # May have items from existing buildings in other tests, but no buildings we placed
       assert is_map(items_by_face)
@@ -448,7 +448,7 @@ defmodule Spheric.Game.TickProcessorTest do
       })
 
       # move_ticks was 2, advance_cooldowns makes it 3 -> pushes
-      {_tick, items_by_face, _submissions, _completed, _drone_completions} = TickProcessor.process_tick(1)
+      {_tick, items_by_face, _submissions, _completed, _drone_completions, _delivery_updates} = TickProcessor.process_tick(1)
 
       face_items = Map.get(items_by_face, 15, [])
       item = Enum.find(face_items, fn i -> i.row == 1 and i.col == 3 end)
@@ -474,7 +474,7 @@ defmodule Spheric.Game.TickProcessorTest do
         state: Behaviors.ConveyorMk3.initial_state()
       })
 
-      {_tick, items_by_face, _submissions, _completed, _drone_completions} = TickProcessor.process_tick(1)
+      {_tick, items_by_face, _submissions, _completed, _drone_completions, _delivery_updates} = TickProcessor.process_tick(1)
 
       face_items = Map.get(items_by_face, 15, [])
       item = Enum.find(face_items, fn i -> i.row == 1 and i.col == 3 end)
@@ -491,7 +491,7 @@ defmodule Spheric.Game.TickProcessorTest do
       })
 
       # No downstream building, so item stays in miner buffer
-      {_tick, items_by_face, _submissions, _completed, _drone_completions} = TickProcessor.process_tick(1)
+      {_tick, items_by_face, _submissions, _completed, _drone_completions, _delivery_updates} = TickProcessor.process_tick(1)
 
       face_items = Map.get(items_by_face, 15, [])
       item = Enum.find(face_items, fn i -> i.row == 1 and i.col == 1 end)

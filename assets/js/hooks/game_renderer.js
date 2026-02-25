@@ -17,6 +17,7 @@ import { TerritoryRenderer } from "../systems/territory_renderer.js";
 import { CorruptionRenderer } from "../systems/corruption_renderer.js";
 import { AlteredItemRenderer } from "../systems/altered_item_renderer.js";
 import { DroneFuelSystem } from "../systems/drone_fuel.js";
+import { DeliveryDroneRenderer } from "../systems/delivery_drone_renderer.js";
 
 // Terrain biome colors (shared with ChunkManager)
 const TERRAIN_COLORS = {
@@ -159,6 +160,7 @@ const GameRenderer = {
     this.itemRenderer = new ItemRenderer(this.scene, getTileCenter, this.chunkManager, this.buildingData);
 
     this.creatureRenderer = new CreatureRenderer(this.scene, getTileCenter, this.chunkManager);
+    this.deliveryDroneRenderer = new DeliveryDroneRenderer(this.scene, getTileCenter, this.chunkManager);
     this.creatureData = [];
 
     this.setupRaycasting();
@@ -463,6 +465,10 @@ const GameRenderer = {
     this.handleEvent("creature_sync", ({ face, creatures }) => {
       this.creatureData = this.creatureData.filter(c => c.face !== face);
       this.creatureData.push(...creatures);
+    });
+
+    this.handleEvent("delivery_drone_update", ({ face, drones }) => {
+      this.deliveryDroneRenderer.onUpdate(face, drones);
     });
 
     this.handleEvent("creature_spawned", ({ id, creature }) => {
@@ -1132,6 +1138,9 @@ const GameRenderer = {
     const deltaTime = 1 / 60;
     this.creatureRenderer.update(this.creatureData, deltaTime);
 
+    // Smooth interpolation for delivery drones
+    this.deliveryDroneRenderer.tick(deltaTime);
+
     // Atmosphere: drift dust motes
     this.atmosphere.update();
 
@@ -1167,6 +1176,7 @@ const GameRenderer = {
     this.lineDrawingTool.dispose();
     this.blueprintTool.dispose();
     this.demolishTool.dispose();
+    this.deliveryDroneRenderer.dispose();
 
     if (this._spotLight) {
       this.scene.remove(this._spotLight.target);

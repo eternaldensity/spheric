@@ -127,7 +127,14 @@ defmodule SphericWeb.GameLive.Helpers do
             required: atomize_item_keys(building.state[:required] || %{}),
             fuel_buffer_count: length(building.state[:fuel_buffer] || []),
             upgrade_costs: Behaviors.DroneBay.all_upgrade_costs(),
-            player_upgrades: player_upgrades
+            player_upgrades: player_upgrades,
+            player_clearance: Research.clearance_level(building[:owner_id]),
+            delivery_drone_enabled: building.state[:delivery_drone_enabled] || false,
+            delivery_state: building.state[:delivery_state] || :idle,
+            delivery_fuel: building.state[:delivery_fuel],
+            delivery_fuel_tank_count: length(building.state[:delivery_fuel_tank] || []),
+            delivery_cargo: building.state[:delivery_cargo] || [],
+            delivery_cargo_capacity: building.state[:delivery_cargo_capacity] || 2
           }
         else
           nil
@@ -423,6 +430,8 @@ defmodule SphericWeb.GameLive.Helpers do
   def upgrade_display_name(:expanded_tank), do: "Expanded Tank"
   def upgrade_display_name(:drone_spotlight), do: "Drone Spotlight"
   def upgrade_display_name(:expanded_cargo), do: "Expanded Cargo"
+  def upgrade_display_name(:delivery_drone), do: "Delivery Drone"
+  def upgrade_display_name(:delivery_cargo), do: "Delivery Cargo"
   def upgrade_display_name(other), do: other |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
 
   def creature_boost_label(type) do
