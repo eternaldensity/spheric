@@ -11,11 +11,13 @@ Conduits (commonly: Conveyors) are the arteries of your factory. Understanding t
 
 ## Conduit Tiers
 
-| Bureau Name | Common Name | Unlocked At | Speed |
-|---|---|---|---|
-| Conduit | Conveyor | Start | Standard |
-| Conduit Mk-II | Conveyor Mk2 | [[Reaching Clearance 1|Clearance 1]] | Faster |
-| Conduit Mk-III | Conveyor Mk3 | Clearance 2 | Fastest |
+Higher-tier conduits move items faster. Speed is measured in ticks per tile (1 tick = 200ms).
+
+| Bureau Name | Common Name | Unlocked At | Speed | Throughput |
+|---|---|---|---|---|
+| Conduit | Conveyor | Start | 3 ticks/tile | 1.67 items/sec |
+| Conduit Mk-II | Conveyor Mk2 | [[Reaching Clearance 1|Clearance 1]] | 2 ticks/tile | 2.5 items/sec |
+| Conduit Mk-III | Conveyor Mk3 | Clearance 2 | 1 tick/tile | 5 items/sec |
 
 See [[Building Reference]] for construction costs.
 

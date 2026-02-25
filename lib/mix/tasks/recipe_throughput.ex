@@ -12,9 +12,14 @@ defmodule Mix.Tasks.RecipeThroughput do
 
   @shortdoc "Analyze conduit tier requirements for each recipe"
 
-  # All conveyors deliver 1 item per tick via push resolution.
-  # The difference is buffer depth (burst capacity), not sustained rate.
-  # Sustained throughput for all tiers: 1 item/tick = 5 items/sec.
+  # Per-tier conduit throughput (items per tick):
+  #   Mk-I:   pushes every 3 ticks = 0.333 items/tick = 1.67 items/sec
+  #   Mk-II:  pushes every 2 ticks = 0.500 items/tick = 2.50 items/sec
+  #   Mk-III: pushes every 1 tick  = 1.000 items/tick = 5.00 items/sec
+  @mk1_rate 1 / 3
+  @mk2_rate 1 / 2
+  @mk3_rate 1 / 1
+
   @buildings [
     {:smelter, Behaviors.Smelter, 10, :single},
     {:refinery, Behaviors.Refinery, 12, :single},
@@ -38,41 +43,23 @@ defmodule Mix.Tasks.RecipeThroughput do
       for %{inputs: inputs, output: {out_item, out_qty}} <- recipes do
         total_input_items = Enum.reduce(inputs, 0, fn {_item, qty}, acc -> acc + qty end)
 
-        # The machine takes `rate` ticks to process once inputs are satisfied.
-        # After processing, it also takes `out_qty - 1` drain ticks (1 output/tick)
-        # plus the processing tick itself. But drain happens in parallel with
-        # the next input acceptance (output_buffer blocks new processing, not input).
-        #
         # Full cycle time = rate ticks (processing) + max(out_qty - 1, 0) drain ticks
-        # But inputs can be loaded DURING drain, so effective input window = full cycle.
-        #
-        # Actually: inputs can arrive any time while output_buffer is being drained
-        # AND during processing. The machine accepts items whenever its input slots
-        # have capacity. So the full cycle is:
-        #   cycle_ticks = rate + (out_qty - 1)
-        # And we need `total_input_items` delivered within `cycle_ticks`.
-        #
-        # A single conduit delivers 1 item/tick on the same input line.
-        # Multi-input buildings accept from REAR direction only (single input belt).
-        # So all items share one conduit unless the player uses a merger.
-
+        # Inputs can arrive during processing and drain, so the full cycle is the
+        # available window for delivering items.
         cycle_ticks = rate + max(out_qty - 1, 0)
         demand_rate = total_input_items / cycle_ticks
 
-        # For multi-input recipes where both slots need DIFFERENT item types,
-        # items must alternate on the belt (or use a merger from 2 belts).
-        # With a merger: each input line needs to supply its share.
-        # Without a merger: single belt must interleave all types.
+        conduit_tier = recommend_tier(demand_rate)
 
-        # Single conduit throughput: 1 item/tick
-        # Can it keep up? demand_rate <= 1.0 means yes
-        conduit_tier = recommend_tier(total_input_items, cycle_ticks)
+        # Calculate idle time percentage if using basic Mk-I conduit
+        # Mk-I delivers 1 item every 3 ticks, so delivery time = total_input_items * 3
+        delivery_ticks_mk1 = total_input_items * 3
+        idle_ticks = max(delivery_ticks_mk1 - cycle_ticks, 0)
 
-        # Calculate idle time percentage if using basic conduit
-        # Time to deliver all inputs on 1 belt: total_input_items ticks
-        # If total_input_items > cycle_ticks, machine waits
-        idle_ticks = max(total_input_items - cycle_ticks, 0)
-        idle_pct = if cycle_ticks > 0, do: idle_ticks / (cycle_ticks + idle_ticks) * 100, else: 0.0
+        idle_pct =
+          if cycle_ticks > 0,
+            do: idle_ticks / (cycle_ticks + idle_ticks) * 100,
+            else: 0.0
 
         input_str =
           inputs
@@ -86,8 +73,9 @@ defmodule Mix.Tasks.RecipeThroughput do
 
         status =
           cond do
-            demand_rate <= 1.0 -> "OK"
-            demand_rate <= 1.0 and total_input_items > 1 -> "OK (burst)"
+            demand_rate <= @mk1_rate -> "OK (Mk-I)"
+            demand_rate <= @mk2_rate -> "OK (Mk-II+)"
+            demand_rate <= @mk3_rate -> "OK (Mk-III)"
             true -> "BOTTLENECK"
           end
 
@@ -97,7 +85,7 @@ defmodule Mix.Tasks.RecipeThroughput do
           Cycle: #{cycle_ticks} ticks (#{rate} process + #{max(out_qty - 1, 0)} drain)
           Total inputs needed: #{total_input_items} items
           Demand rate: #{Float.round(demand_rate, 3)} items/tick
-          Single conduit: #{status}#{if idle_pct > 0, do: " | #{Float.round(idle_pct, 1)}% idle with 1 belt", else: ""}
+          Min conduit: #{status}#{if idle_pct > 0, do: " | #{Float.round(idle_pct, 1)}% idle with Mk-I", else: ""}
           Recommendation: #{conduit_tier}
         """)
       end
@@ -106,24 +94,24 @@ defmodule Mix.Tasks.RecipeThroughput do
     Mix.shell().info(summary())
   end
 
-  defp recommend_tier(total_input_items, cycle_ticks) do
+  defp recommend_tier(demand_rate) do
     cond do
-      # Single belt can sustain the recipe with no waiting
-      total_input_items <= cycle_ticks ->
-        "Conduit (basic) is sufficient"
+      # Mk-I sustains 0.333 items/tick — sufficient for low-demand recipes
+      demand_rate <= @mk1_rate ->
+        "Conduit Mk-I is sufficient"
 
-      # Need slight burst capacity - Mk2 buffer helps absorb
-      total_input_items <= cycle_ticks + 1 ->
-        "Conduit Mk-II recommended (buffer absorbs 1-item burst)"
+      # Mk-II sustains 0.5 items/tick
+      demand_rate <= @mk2_rate ->
+        "Conduit Mk-II recommended"
 
-      # Need more burst capacity
-      total_input_items <= cycle_ticks + 2 ->
-        "Conduit Mk-III recommended (buffer absorbs 2-item burst)"
+      # Mk-III sustains 1.0 items/tick
+      demand_rate <= @mk3_rate ->
+        "Conduit Mk-III recommended"
 
-      # Genuinely need parallel belts via merger
+      # Genuinely need parallel belts via merger even with Mk-III
       true ->
-        belts = Float.ceil(total_input_items / cycle_ticks) |> trunc()
-        "Merger with #{belts} input belts needed"
+        belts = Float.ceil(demand_rate / @mk3_rate) |> trunc()
+        "Merger with #{belts} Mk-III input belts needed"
     end
   end
 
@@ -132,11 +120,10 @@ defmodule Mix.Tasks.RecipeThroughput do
     ============================================================
     RECIPE THROUGHPUT ANALYSIS
     ============================================================
-    Tick rate: 200ms | Conduit throughput: 1 item/tick (all tiers)
-    Conduit tiers differ in BUFFER size (burst capacity):
-      - Conduit:      1 slot  (no buffer)
-      - Conduit Mk-II:  2 slots (1 buffer)
-      - Conduit Mk-III: 3 slots (2 buffers)
+    Tick rate: 200ms | Per-tier conduit throughput:
+      - Conduit Mk-I:   1 item / 3 ticks = 0.333/tick (1.67/sec)
+      - Conduit Mk-II:  1 item / 2 ticks = 0.500/tick (2.50/sec)
+      - Conduit Mk-III: 1 item / 1 tick  = 1.000/tick (5.00/sec)
 
     Machines accept inputs into slots WHILE processing.
     Items enter from REAR direction (single belt) unless merged.
@@ -149,13 +136,14 @@ defmodule Mix.Tasks.RecipeThroughput do
     ============================================================
     LEGEND
     ============================================================
-    OK         = Single basic conduit keeps the machine fully fed
-    BOTTLENECK = Single conduit cannot deliver inputs fast enough;
-                 machine will idle between cycles waiting for items
+    OK (Mk-I)    = Mk-I conduit keeps the machine fully fed
+    OK (Mk-II+)  = Mk-II or higher needed for full throughput
+    OK (Mk-III)  = Mk-III needed for full throughput
+    BOTTLENECK   = Even Mk-III cannot deliver inputs fast enough;
+                   use a Merger with parallel Mk-III belts
 
     Cycle = processing ticks + output drain ticks
     Demand rate = total input items / cycle ticks
-    If demand rate > 1.0, a single belt cannot sustain the recipe.
     ============================================================
     """
   end

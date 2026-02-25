@@ -292,6 +292,9 @@ defmodule Spheric.Game.TickProcessor do
     # Phase 2p: Conveyor Mk2/Mk3 internal buffer advancement
     all_buildings = advance_conveyor_buffers(all_buildings)
 
+    # Phase 2p2: Advance conveyor move cooldowns (Mk1 pushes every 3 ticks, Mk2 every 2)
+    all_buildings = advance_conveyor_cooldowns(all_buildings)
+
     # Phase 2q: Arm transfers (loaders and unloaders)
     all_buildings = resolve_arm_transfers(all_buildings, classified.arms)
 
@@ -442,7 +445,7 @@ defmodule Spheric.Game.TickProcessor do
     Enum.reduce(buildings, buildings, fn
       {key, %{type: :conveyor_mk2, state: %{item: nil, buffer: buf}} = b}, acc
       when not is_nil(buf) ->
-        Map.put(acc, key, %{b | state: %{b.state | item: buf, buffer: nil}})
+        Map.put(acc, key, %{b | state: %{b.state | item: buf, buffer: nil, move_ticks: 0}})
 
       {key, %{type: :conveyor_mk3, state: %{item: nil, buffer1: b1}} = b}, acc
       when not is_nil(b1) ->
@@ -454,6 +457,39 @@ defmodule Spheric.Game.TickProcessor do
       {key, %{type: :conveyor_mk3, state: %{buffer1: nil, buffer2: b2}} = b}, acc
       when not is_nil(b2) ->
         Map.put(acc, key, %{b | state: %{b.state | buffer1: b2, buffer2: nil}})
+
+      _, acc ->
+        acc
+    end)
+  end
+
+  # Advance move_ticks counter for Mk1/Mk2 conveyors.
+  # Mk1 pushes every 3 ticks, Mk2 every 2 ticks. Counter increments each tick
+  # while the item slot is occupied; resets to 0 when empty.
+  defp advance_conveyor_cooldowns(buildings) do
+    Enum.reduce(buildings, buildings, fn
+      {key, %{type: :conveyor, state: %{item: item} = state} = b}, acc when not is_nil(item) ->
+        ticks = (state[:move_ticks] || 0) + 1
+        Map.put(acc, key, %{b | state: %{state | move_ticks: ticks}})
+
+      {key, %{type: :conveyor, state: state} = b}, acc ->
+        if (state[:move_ticks] || 0) != 0 do
+          Map.put(acc, key, %{b | state: %{state | move_ticks: 0}})
+        else
+          acc
+        end
+
+      {key, %{type: :conveyor_mk2, state: %{item: item} = state} = b}, acc
+      when not is_nil(item) ->
+        ticks = (state[:move_ticks] || 0) + 1
+        Map.put(acc, key, %{b | state: %{state | move_ticks: ticks}})
+
+      {key, %{type: :conveyor_mk2, state: state} = b}, acc ->
+        if (state[:move_ticks] || 0) != 0 do
+          Map.put(acc, key, %{b | state: %{state | move_ticks: 0}})
+        else
+          acc
+        end
 
       _, acc ->
         acc
@@ -799,19 +835,27 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
-  defp get_push_request(key, %{type: :conveyor, orientation: dir, state: %{item: item}}, n)
+  defp get_push_request(key, %{type: :conveyor, orientation: dir, state: %{item: item} = state}, n)
        when not is_nil(item) do
-    case TileNeighbors.neighbor(key, dir, n) do
-      {:ok, dest_key} -> {key, dest_key, item}
-      :boundary -> nil
+    if (state[:move_ticks] || 0) >= 3 do
+      case TileNeighbors.neighbor(key, dir, n) do
+        {:ok, dest_key} -> {key, dest_key, item}
+        :boundary -> nil
+      end
+    else
+      nil
     end
   end
 
-  defp get_push_request(key, %{type: :conveyor_mk2, orientation: dir, state: %{item: item}}, n)
+  defp get_push_request(key, %{type: :conveyor_mk2, orientation: dir, state: %{item: item} = state}, n)
        when not is_nil(item) do
-    case TileNeighbors.neighbor(key, dir, n) do
-      {:ok, dest_key} -> {key, dest_key, item}
-      :boundary -> nil
+    if (state[:move_ticks] || 0) >= 2 do
+      case TileNeighbors.neighbor(key, dir, n) do
+        {:ok, dest_key} -> {key, dest_key, item}
+        :boundary -> nil
+      end
+    else
+      nil
     end
   end
 
@@ -1479,10 +1523,10 @@ defmodule Spheric.Game.TickProcessor do
         Map.update!(acc, src_key, fn b ->
           case b.type do
             :conveyor ->
-              %{b | state: %{b.state | item: nil}}
+              %{b | state: %{b.state | item: nil, move_ticks: 0}}
 
             :conveyor_mk2 ->
-              %{b | state: %{b.state | item: nil}}
+              %{b | state: %{b.state | item: nil, move_ticks: 0}}
 
             :conveyor_mk3 ->
               %{b | state: %{b.state | item: nil}}
@@ -1846,12 +1890,20 @@ defmodule Spheric.Game.TickProcessor do
               not is_nil(item) do
     from = Map.get(sources, {face, row, col})
 
+    speed =
+      case type do
+        :conveyor -> 3
+        :conveyor_mk2 -> 2
+        _ -> 1
+      end
+
     [
       %{
         face: face,
         row: row,
         col: col,
         item: item,
+        speed: speed,
         from_face: if(from, do: elem(from, 0)),
         from_row: if(from, do: elem(from, 1)),
         from_col: if(from, do: elem(from, 2))

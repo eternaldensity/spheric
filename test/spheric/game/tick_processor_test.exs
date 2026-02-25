@@ -69,7 +69,7 @@ defmodule Spheric.Game.TickProcessorTest do
   end
 
   describe "conveyor movement" do
-    test "item moves from miner to adjacent conveyor" do
+    test "item moves from miner to adjacent Mk1 conveyor on first tick" do
       # Miner at {15,1,1} orientation 0 (col+1) -> pushes to {15,1,2}
       WorldStore.put_building(@miner_key, %{
         type: :miner,
@@ -80,7 +80,7 @@ defmodule Spheric.Game.TickProcessorTest do
       WorldStore.put_building(@conveyor1_key, %{
         type: :conveyor,
         orientation: 0,
-        state: %{item: nil}
+        state: Behaviors.Conveyor.initial_state()
       })
 
       TickProcessor.process_tick(1)
@@ -88,52 +88,173 @@ defmodule Spheric.Game.TickProcessorTest do
       miner = WorldStore.get_building(@miner_key)
       conveyor = WorldStore.get_building(@conveyor1_key)
 
+      # Miner pushes to conveyor (miner push is not gated by conveyor cooldown)
       assert miner.state.output_buffer == nil
       assert conveyor.state.item == :iron_ore
     end
 
-    test "item moves along conveyor chain" do
-      # Conveyor 1 at {15,1,2} has item, orientation 0 -> pushes to {15,1,3}
+    test "Mk1 conveyor does NOT push item until tick 3" do
+      # Conveyor 1 at {15,1,2} has item, orientation 0 -> should not push for 3 ticks
       WorldStore.put_building(@conveyor1_key, %{
         type: :conveyor,
         orientation: 0,
-        state: %{item: :iron_ore}
+        state: %{item: :iron_ore, move_ticks: 0}
       })
 
       WorldStore.put_building(@conveyor2_key, %{
         type: :conveyor,
         orientation: 0,
-        state: %{item: nil}
+        state: Behaviors.Conveyor.initial_state()
       })
 
+      # Tick 1: move_ticks goes to 1, still below 3 -> no push
       TickProcessor.process_tick(1)
-
       c1 = WorldStore.get_building(@conveyor1_key)
       c2 = WorldStore.get_building(@conveyor2_key)
+      assert c1.state.item == :iron_ore
+      assert c2.state.item == nil
 
+      # Tick 2: move_ticks goes to 2, still below 3 -> no push
+      TickProcessor.process_tick(2)
+      c1 = WorldStore.get_building(@conveyor1_key)
+      c2 = WorldStore.get_building(@conveyor2_key)
+      assert c1.state.item == :iron_ore
+      assert c2.state.item == nil
+
+      # Tick 3: move_ticks goes to 3, >= 3 -> pushes
+      TickProcessor.process_tick(3)
+      c1 = WorldStore.get_building(@conveyor1_key)
+      c2 = WorldStore.get_building(@conveyor2_key)
       assert c1.state.item == nil
       assert c2.state.item == :iron_ore
+      assert c1.state.move_ticks == 0
+    end
+
+    test "Mk2 conveyor pushes item after 2 ticks" do
+      WorldStore.put_building(@conveyor1_key, %{
+        type: :conveyor_mk2,
+        orientation: 0,
+        state: %{item: :iron_ore, buffer: nil, move_ticks: 0}
+      })
+
+      WorldStore.put_building(@conveyor2_key, %{
+        type: :conveyor,
+        orientation: 0,
+        state: Behaviors.Conveyor.initial_state()
+      })
+
+      # Tick 1: move_ticks goes to 1, below 2 -> no push
+      TickProcessor.process_tick(1)
+      c1 = WorldStore.get_building(@conveyor1_key)
+      assert c1.state.item == :iron_ore
+
+      # Tick 2: move_ticks goes to 2, >= 2 -> pushes
+      TickProcessor.process_tick(2)
+      c1 = WorldStore.get_building(@conveyor1_key)
+      c2 = WorldStore.get_building(@conveyor2_key)
+      assert c1.state.item == nil
+      assert c2.state.item == :iron_ore
+      assert c1.state.move_ticks == 0
+    end
+
+    test "Mk3 conveyor pushes item every tick" do
+      WorldStore.put_building(@conveyor1_key, %{
+        type: :conveyor_mk3,
+        orientation: 0,
+        state: %{item: :iron_ore, buffer1: nil, buffer2: nil}
+      })
+
+      WorldStore.put_building(@conveyor2_key, %{
+        type: :conveyor_mk3,
+        orientation: 0,
+        state: Behaviors.ConveyorMk3.initial_state()
+      })
+
+      # Tick 1: Mk3 pushes immediately
+      TickProcessor.process_tick(1)
+      c1 = WorldStore.get_building(@conveyor1_key)
+      c2 = WorldStore.get_building(@conveyor2_key)
+      assert c1.state.item == nil
+      assert c2.state.item == :iron_ore
+    end
+
+    test "Mk1 cooldown resets after successful push" do
+      WorldStore.put_building(@conveyor1_key, %{
+        type: :conveyor,
+        orientation: 0,
+        state: %{item: :iron_ore, move_ticks: 0}
+      })
+
+      WorldStore.put_building(@conveyor2_key, %{
+        type: :conveyor,
+        orientation: 0,
+        state: Behaviors.Conveyor.initial_state()
+      })
+
+      # 3 ticks to push
+      for i <- 1..3, do: TickProcessor.process_tick(i)
+
+      c1 = WorldStore.get_building(@conveyor1_key)
+      assert c1.state.item == nil
+      assert c1.state.move_ticks == 0
+
+      # Now the item is on c2 with move_ticks starting fresh
+      c2 = WorldStore.get_building(@conveyor2_key)
+      assert c2.state.item == :iron_ore
+    end
+
+    test "Mk2 buffer promotion resets move_ticks" do
+      # Mk2 with item in front and another in buffer
+      WorldStore.put_building(@conveyor1_key, %{
+        type: :conveyor_mk2,
+        orientation: 0,
+        state: %{item: :iron_ore, buffer: :copper_ore, move_ticks: 0}
+      })
+
+      WorldStore.put_building(@conveyor2_key, %{
+        type: :conveyor,
+        orientation: 0,
+        state: Behaviors.Conveyor.initial_state()
+      })
+
+      # Tick 1-2: front item (iron) cooldown reaches 2, pushes to c2.
+      # After tick 2: item=nil, buffer=copper_ore
+      for i <- 1..2, do: TickProcessor.process_tick(i)
+
+      c1 = WorldStore.get_building(@conveyor1_key)
+      assert c1.state.item == nil
+      assert c1.state.buffer == :copper_ore
+
+      # Tick 3: advance_conveyor_buffers promotes copper from buffer to front,
+      # resetting move_ticks to 0. Then advance_conveyor_cooldowns increments to 1.
+      TickProcessor.process_tick(3)
+
+      c1 = WorldStore.get_building(@conveyor1_key)
+      assert c1.state.item == :copper_ore
+      assert c1.state.buffer == nil
+      # move_ticks is 1: reset to 0 by buffer promotion, then incremented by cooldown advance
+      assert c1.state.move_ticks == 1
     end
 
     test "conveyor does not push to occupied conveyor" do
       WorldStore.put_building(@conveyor1_key, %{
         type: :conveyor,
         orientation: 0,
-        state: %{item: :iron_ore}
+        state: %{item: :iron_ore, move_ticks: 0}
       })
 
       WorldStore.put_building(@conveyor2_key, %{
         type: :conveyor,
         orientation: 0,
-        state: %{item: :copper_ore}
+        state: %{item: :copper_ore, move_ticks: 0}
       })
 
-      TickProcessor.process_tick(1)
+      # Even after 3 ticks, can't push because c2 is full
+      for i <- 1..3, do: TickProcessor.process_tick(i)
 
       c1 = WorldStore.get_building(@conveyor1_key)
       c2 = WorldStore.get_building(@conveyor2_key)
 
-      # Neither should change — c2 is full
       assert c1.state.item == :iron_ore
       assert c2.state.item == :copper_ore
     end
@@ -142,11 +263,11 @@ defmodule Spheric.Game.TickProcessorTest do
       WorldStore.put_building(@conveyor1_key, %{
         type: :conveyor,
         orientation: 0,
-        state: %{item: :iron_ore}
+        state: %{item: :iron_ore, move_ticks: 0}
       })
 
       # No building at conveyor2_key
-      TickProcessor.process_tick(1)
+      for i <- 1..3, do: TickProcessor.process_tick(i)
 
       c1 = WorldStore.get_building(@conveyor1_key)
       assert c1.state.item == :iron_ore
@@ -173,11 +294,11 @@ defmodule Spheric.Game.TickProcessorTest do
       assert smelter.state.output_buffer == :iron_ingot
     end
 
-    test "conveyor feeds item into smelter input" do
+    test "Mk3 conveyor feeds item into smelter input in 1 tick" do
       WorldStore.put_building(@conveyor2_key, %{
-        type: :conveyor,
+        type: :conveyor_mk3,
         orientation: 0,
-        state: %{item: :iron_ore}
+        state: %{item: :iron_ore, buffer1: nil, buffer2: nil}
       })
 
       WorldStore.put_building(@smelter_key, %{
@@ -194,26 +315,12 @@ defmodule Spheric.Game.TickProcessorTest do
       assert conveyor.state.item == nil
       assert smelter.state.input_buffer == :iron_ore
     end
-  end
 
-  describe "full production chain" do
-    test "miner -> conveyor -> conveyor -> smelter end-to-end" do
-      WorldStore.put_building(@miner_key, %{
-        type: :miner,
-        orientation: 0,
-        state: %{output_buffer: nil, progress: 0, rate: 5}
-      })
-
-      WorldStore.put_building(@conveyor1_key, %{
-        type: :conveyor,
-        orientation: 0,
-        state: %{item: nil}
-      })
-
+    test "Mk1 conveyor feeds item into smelter after 3 ticks" do
       WorldStore.put_building(@conveyor2_key, %{
         type: :conveyor,
         orientation: 0,
-        state: %{item: nil}
+        state: %{item: :iron_ore, move_ticks: 0}
       })
 
       WorldStore.put_building(@smelter_key, %{
@@ -222,9 +329,48 @@ defmodule Spheric.Game.TickProcessorTest do
         state: Behaviors.Smelter.initial_state()
       })
 
-      # Tick enough times for full chain:
+      # After 2 ticks, item should still be on conveyor
+      for i <- 1..2, do: TickProcessor.process_tick(i)
+      conveyor = WorldStore.get_building(@conveyor2_key)
+      assert conveyor.state.item == :iron_ore
+
+      # Tick 3: pushes
+      TickProcessor.process_tick(3)
+      conveyor = WorldStore.get_building(@conveyor2_key)
+      smelter = WorldStore.get_building(@smelter_key)
+      assert conveyor.state.item == nil
+      assert smelter.state.input_buffer == :iron_ore
+    end
+  end
+
+  describe "full production chain" do
+    test "miner -> Mk3 conveyor -> Mk3 conveyor -> smelter end-to-end" do
+      WorldStore.put_building(@miner_key, %{
+        type: :miner,
+        orientation: 0,
+        state: %{output_buffer: nil, progress: 0, rate: 5}
+      })
+
+      WorldStore.put_building(@conveyor1_key, %{
+        type: :conveyor_mk3,
+        orientation: 0,
+        state: Behaviors.ConveyorMk3.initial_state()
+      })
+
+      WorldStore.put_building(@conveyor2_key, %{
+        type: :conveyor_mk3,
+        orientation: 0,
+        state: Behaviors.ConveyorMk3.initial_state()
+      })
+
+      WorldStore.put_building(@smelter_key, %{
+        type: :smelter,
+        orientation: 0,
+        state: Behaviors.Smelter.initial_state()
+      })
+
       # 5 ticks: miner extracts ore
-      # 1 tick: ore pushed to conveyor1
+      # 1 tick: ore pushed to conveyor1 (Mk3 = instant)
       # 1 tick: ore moves to conveyor2
       # 1 tick: ore enters smelter
       # 10 ticks: smelter processes
@@ -236,33 +382,95 @@ defmodule Spheric.Game.TickProcessorTest do
       smelter = WorldStore.get_building(@smelter_key)
       assert smelter.state.output_buffer == :iron_ingot
     end
-  end
 
-  describe "item snapshot broadcasting" do
-    test "process_tick returns item positions in items_by_face" do
+    test "miner -> Mk1 conveyor -> Mk1 conveyor -> smelter needs more ticks" do
+      WorldStore.put_building(@miner_key, %{
+        type: :miner,
+        orientation: 0,
+        state: %{output_buffer: nil, progress: 0, rate: 5}
+      })
+
       WorldStore.put_building(@conveyor1_key, %{
         type: :conveyor,
         orientation: 0,
-        state: %{item: :iron_ore}
+        state: Behaviors.Conveyor.initial_state()
       })
 
       WorldStore.put_building(@conveyor2_key, %{
         type: :conveyor,
         orientation: 0,
-        state: %{item: nil}
+        state: Behaviors.Conveyor.initial_state()
       })
 
+      WorldStore.put_building(@smelter_key, %{
+        type: :smelter,
+        orientation: 0,
+        state: Behaviors.Smelter.initial_state()
+      })
+
+      # 5 ticks: miner extracts ore
+      # 1 tick: ore pushed to conveyor1
+      # 3 ticks: Mk1 conveyor1 cooldown
+      # 3 ticks: Mk1 conveyor2 cooldown
+      # 10 ticks: smelter processes
+      # Total: ~22 ticks
+      for i <- 1..25 do
+        TickProcessor.process_tick(i)
+      end
+
+      smelter = WorldStore.get_building(@smelter_key)
+      assert smelter.state.output_buffer == :iron_ingot
+    end
+  end
+
+  describe "item snapshot broadcasting" do
+    test "process_tick returns item positions with speed field" do
+      WorldStore.put_building(@conveyor1_key, %{
+        type: :conveyor,
+        orientation: 0,
+        state: %{item: :iron_ore, move_ticks: 2}
+      })
+
+      WorldStore.put_building(@conveyor2_key, %{
+        type: :conveyor,
+        orientation: 0,
+        state: Behaviors.Conveyor.initial_state()
+      })
+
+      # move_ticks was 2, advance_cooldowns makes it 3 -> pushes
       {_tick, items_by_face, _submissions, _completed, _drone_completions} = TickProcessor.process_tick(1)
 
-      # After the push, the item should be on conveyor2 (face 15)
       face_items = Map.get(items_by_face, 15, [])
       item = Enum.find(face_items, fn i -> i.row == 1 and i.col == 3 end)
 
       assert item != nil
       assert item.item == :iron_ore
+      assert item.speed == 3
       assert item.from_face == 15
       assert item.from_row == 1
       assert item.from_col == 2
+    end
+
+    test "Mk3 conveyor items have speed 1" do
+      WorldStore.put_building(@conveyor1_key, %{
+        type: :conveyor_mk3,
+        orientation: 0,
+        state: %{item: :iron_ore, buffer1: nil, buffer2: nil}
+      })
+
+      WorldStore.put_building(@conveyor2_key, %{
+        type: :conveyor_mk3,
+        orientation: 0,
+        state: Behaviors.ConveyorMk3.initial_state()
+      })
+
+      {_tick, items_by_face, _submissions, _completed, _drone_completions} = TickProcessor.process_tick(1)
+
+      face_items = Map.get(items_by_face, 15, [])
+      item = Enum.find(face_items, fn i -> i.row == 1 and i.col == 3 end)
+
+      assert item != nil
+      assert item.speed == 1
     end
 
     test "stationary items have nil from fields" do

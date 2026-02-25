@@ -65,6 +65,7 @@ defmodule SphericWeb.GameLive.ServerSync do
             row: item.row,
             col: item.col,
             item: Atom.to_string(item.item),
+            speed: item[:speed] || 1,
             from_face: item.from_face,
             from_row: item.from_row,
             from_col: item.from_col

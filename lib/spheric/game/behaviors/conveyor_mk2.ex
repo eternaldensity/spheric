@@ -10,6 +10,6 @@ defmodule Spheric.Game.Behaviors.ConveyorMk2 do
 
   @doc "Returns the initial state for a newly placed Mk2 conveyor."
   def initial_state do
-    %{item: nil, buffer: nil}
+    %{item: nil, buffer: nil, move_ticks: 0}
   end
 end

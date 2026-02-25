@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Per-tier conduit movement speed (#153)
 - Reduce drone fuel consumption when idle and near ground (#125)
 - Hide drone bay upgrades until construction complete (#122)
 - Clumpy ore distribution: cluster resource deposits into veins (#109)

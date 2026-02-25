@@ -5,6 +5,11 @@
  * The interpolator lerps item positions from their previous location to their current
  * location over the tick interval, producing smooth 60fps visuals.
  *
+ * Different conduit tiers move at different speeds:
+ *   Mk-III: 1 tick (200ms) per tile — speed: 1
+ *   Mk-II:  2 ticks (400ms) per tile — speed: 2
+ *   Mk-I:   3 ticks (600ms) per tile — speed: 3
+ *
  * Tick start times are tracked per-face so that updates arriving for one face
  * don't reset the interpolation progress of items on other faces.
  */
@@ -40,6 +45,7 @@ export class ItemInterpolator {
         row: item.row,
         col: item.col,
         item: item.item,
+        speed: item.speed || 1,
         fromFace: item.from_face,
         fromRow: item.from_row,
         fromCol: item.from_col,
@@ -65,10 +71,12 @@ export class ItemInterpolator {
 
     for (const [, curr] of this.currItems) {
       if (curr.fromFace != null && curr.fromRow != null && curr.fromCol != null) {
-        // Item moved this tick — interpolate using the face's own tick start
+        // Item moved this tick — interpolate using the face's own tick start.
+        // Slower belts spread the lerp over multiple tick intervals for smooth glide.
         const start = this.faceTickStart.get(curr.face) || 0;
         const elapsed = now - start;
-        const t = Math.min(elapsed / this.tickInterval, 1.0);
+        const lerpDuration = (curr.speed || 1) * this.tickInterval;
+        const t = Math.min(elapsed / lerpDuration, 1.0);
 
         result.push({
           face: curr.face,

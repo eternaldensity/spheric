@@ -6,13 +6,13 @@ Clearance 1 and 2 unlock several logistics buildings that let you build complex 
 
 ## Conduit Tiers
 
-Higher-tier conduits move items faster but cost more to build.
+Higher-tier conduits move items faster but cost more to build. Speed is measured in ticks per tile (1 tick = 200ms).
 
-| Tier | Bureau Name | Clearance | Cost |
-|---|---|---|---|
-| Mk-I | Conduit | 0 | 1 Ferric Standard |
-| Mk-II | Conduit Mk-II | Clearance 1 | 2 Ferric Standard, 1 Conductive Filament |
-| Mk-III | Conduit Mk-III | Clearance 2 | 3 Structural Plate, 2 Conductive Filament |
+| Tier | Bureau Name | Clearance | Speed | Throughput | Cost |
+|---|---|---|---|---|---|
+| Mk-I | Conduit | 0 | 3 ticks/tile | 1.67/sec | 1 Ferric Standard |
+| Mk-II | Conduit Mk-II | 1 | 2 ticks/tile | 2.5/sec | 2 Ferric Standard, 1 Conductive Filament |
+| Mk-III | Conduit Mk-III | 2 | 1 tick/tile | 5.0/sec | 3 Structural Plate, 2 Conductive Filament |
 
 See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 
@@ -120,7 +120,7 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 **Cost:** 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver
 
 > [!tip] Use arms to solve throughput bottlenecks
-> Some recipes consume inputs faster than a single conduit can deliver (1 item/tick). An Insertion Arm pulling from a Containment Vault provides a parallel feed channel, keeping machines running at full speed.
+> Some recipes consume inputs faster than a single conduit can deliver. Even a Mk-III conduit maxes out at 1 item/tick (5/sec). An Insertion Arm pulling from a Containment Vault provides a parallel feed channel, keeping machines running at full speed.
 
 ---
 
