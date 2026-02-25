@@ -353,6 +353,88 @@ defmodule Spheric.Game.TickProcessorTest do
     end
   end
 
+  describe "efficiency creature boost" do
+    setup do
+      Spheric.Game.Creatures.init()
+      Spheric.Game.Creatures.clear_all()
+      :ok
+    end
+
+    test "smelter with efficiency creature keeps inputs on lucky roll" do
+      # Seed RNG to guarantee the efficiency roll succeeds (need <= 25)
+      :rand.seed(:exsss, {1, 2, 3})
+
+      # Set up a quartz_drone (efficiency 0.25) creature assigned to smelter
+      creature = %{type: :quartz_drone, face: 15, row: 1, col: 1, spawned_at: 0}
+      Spheric.Game.Creatures.put_wild_creature("test:eff_tick", creature)
+      Spheric.Game.Creatures.capture_creature("test:eff_tick", creature, "player:eff_tick")
+
+      smelter_state =
+        Map.merge(Behaviors.Smelter.initial_state(), %{
+          input_buffer: :iron_ore,
+          input_count: 1,
+          progress: 9
+        })
+
+      WorldStore.put_building(@smelter_key, %{
+        type: :smelter,
+        orientation: 0,
+        state: smelter_state,
+        owner_id: "player:eff_tick"
+      })
+
+      Spheric.Game.Creatures.assign_creature("player:eff_tick", "test:eff_tick", @smelter_key)
+
+      # Run enough random seeds to find one that produces a roll <= 25
+      # We'll try multiple seeds and verify the mechanic works at least once
+      found_kept =
+        Enum.any?(0..100, fn seed ->
+          :rand.seed(:exsss, {seed, seed + 1, seed + 2})
+
+          # Reset smelter to about-to-produce state
+          WorldStore.put_building(@smelter_key, %{
+            type: :smelter,
+            orientation: 0,
+            state: Map.merge(Behaviors.Smelter.initial_state(), %{
+              input_buffer: :iron_ore,
+              input_count: 1,
+              progress: 9
+            }),
+            owner_id: "player:eff_tick"
+          })
+
+          TickProcessor.process_tick(1)
+          smelter = WorldStore.get_building(@smelter_key)
+
+          # If efficiency procced, input is kept AND output is produced
+          smelter.state.output_buffer == :iron_ingot and smelter.state.input_buffer == :iron_ore
+        end)
+
+      assert found_kept, "efficiency boost should keep inputs on at least one of 100 random seeds"
+    end
+
+    test "smelter without efficiency creature always consumes inputs" do
+      smelter_state =
+        Map.merge(Behaviors.Smelter.initial_state(), %{
+          input_buffer: :iron_ore,
+          input_count: 1,
+          progress: 9
+        })
+
+      WorldStore.put_building(@smelter_key, %{
+        type: :smelter,
+        orientation: 0,
+        state: smelter_state
+      })
+
+      TickProcessor.process_tick(1)
+
+      smelter = WorldStore.get_building(@smelter_key)
+      assert smelter.state.output_buffer == :iron_ingot
+      assert smelter.state.input_buffer == nil
+    end
+  end
+
   describe "full production chain" do
     test "miner -> Mk3 conveyor -> Mk3 conveyor -> smelter end-to-end" do
       WorldStore.put_building(@miner_key, %{

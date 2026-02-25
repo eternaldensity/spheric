@@ -136,7 +136,7 @@ defmodule Spheric.Game.Behaviors.Production do
       end
 
       def tick(key, building) do
-        _ = key
+
         unquote(tick_fn)
       end
 
@@ -203,9 +203,21 @@ defmodule Spheric.Game.Behaviors.Production do
               if state.progress + 1 >= state.rate do
                 output = Map.get(@recipe_routing, state.input_buffer, state.input_buffer)
 
-                %{
-                  building
-                  | state: %{
+                # Efficiency boost: chance to keep inputs when producing
+                eff = Spheric.Game.Creatures.efficiency_chance(key, building[:owner_id])
+                keep_inputs = eff > 0 and :rand.uniform(100) <= round(eff * 100)
+
+                new_state =
+                  if keep_inputs do
+                    %{
+                      state
+                      | output_buffer: output,
+                        output_remaining: out_qty - 1,
+                        output_type: output,
+                        progress: 0
+                    }
+                  else
+                    %{
                       state
                       | input_buffer: nil,
                         input_count: 0,
@@ -214,7 +226,9 @@ defmodule Spheric.Game.Behaviors.Production do
                         output_type: output,
                         progress: 0
                     }
-                }
+                  end
+
+                %{building | state: new_state}
               else
                 %{building | state: %{state | progress: state.progress + 1}}
               end
@@ -260,7 +274,7 @@ defmodule Spheric.Game.Behaviors.Production do
       end
 
       def tick(key, building) do
-        _ = key
+
         unquote(tick_fn)
       end
 
@@ -373,9 +387,21 @@ defmodule Spheric.Game.Behaviors.Production do
             {_qtys, out_qty} = Map.get(@recipe_quantities, {state.input_a, state.input_b})
             output = recipe_output(state.input_a, state.input_b)
 
-            %{
-              building
-              | state: %{
+            # Efficiency boost: chance to keep inputs when producing
+            eff = Spheric.Game.Creatures.efficiency_chance(key, building[:owner_id])
+            keep_inputs = eff > 0 and :rand.uniform(100) <= round(eff * 100)
+
+            new_state =
+              if keep_inputs do
+                %{
+                  state
+                  | output_buffer: output,
+                    output_remaining: out_qty - 1,
+                    output_type: output,
+                    progress: 0
+                }
+              else
+                %{
                   state
                   | input_a: nil,
                     input_a_count: 0,
@@ -386,7 +412,9 @@ defmodule Spheric.Game.Behaviors.Production do
                     output_type: output,
                     progress: 0
                 }
-            }
+              end
+
+            %{building | state: new_state}
           else
             %{building | state: %{state | progress: state.progress + 1}}
           end
@@ -429,7 +457,7 @@ defmodule Spheric.Game.Behaviors.Production do
       end
 
       def tick(key, building) do
-        _ = key
+
         unquote(tick_fn)
       end
 
@@ -581,9 +609,21 @@ defmodule Spheric.Game.Behaviors.Production do
 
             output = recipe_output(state.input_a, state.input_b, state.input_c)
 
-            %{
-              building
-              | state: %{
+            # Efficiency boost: chance to keep inputs when producing
+            eff = Spheric.Game.Creatures.efficiency_chance(key, building[:owner_id])
+            keep_inputs = eff > 0 and :rand.uniform(100) <= round(eff * 100)
+
+            new_state =
+              if keep_inputs do
+                %{
+                  state
+                  | output_buffer: output,
+                    output_remaining: out_qty - 1,
+                    output_type: output,
+                    progress: 0
+                }
+              else
+                %{
                   state
                   | input_a: nil,
                     input_a_count: 0,
@@ -596,7 +636,9 @@ defmodule Spheric.Game.Behaviors.Production do
                     output_type: output,
                     progress: 0
                 }
-            }
+              end
+
+            %{building | state: new_state}
           else
             %{building | state: %{state | progress: state.progress + 1}}
           end

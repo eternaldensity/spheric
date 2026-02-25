@@ -325,6 +325,50 @@ defmodule Spheric.Game.CreaturesTest do
     end
   end
 
+  describe "efficiency_chance/1" do
+    test "returns 0.0 when no creature assigned" do
+      assert Creatures.efficiency_chance({@test_face, 9, 9}) == 0.0
+    end
+
+    test "returns boost amount when efficiency creature assigned" do
+      creature = %{type: :quartz_drone, face: @test_face, row: 1, col: 1, spawned_at: 0}
+      Creatures.put_wild_creature("test:eff", creature)
+      Creatures.capture_creature("test:eff", creature, "player:eff")
+
+      building = %{
+        type: :smelter,
+        orientation: 0,
+        state: %{input_buffer: nil, input_count: 0, output_buffer: nil, progress: 0, rate: 10},
+        owner_id: "player:eff"
+      }
+
+      WorldStore.put_building({@test_face, 7, 8}, building)
+      Creatures.assign_creature("player:eff", "test:eff", {@test_face, 7, 8})
+
+      # Quartz Drone: efficiency 0.25
+      assert Creatures.efficiency_chance({@test_face, 7, 8}, "player:eff") == 0.25
+    end
+
+    test "returns 0.0 when non-efficiency creature assigned" do
+      creature = %{type: :ember_wisp, face: @test_face, row: 1, col: 1, spawned_at: 0}
+      Creatures.put_wild_creature("test:eff2", creature)
+      Creatures.capture_creature("test:eff2", creature, "player:eff2")
+
+      building = %{
+        type: :smelter,
+        orientation: 0,
+        state: %{input_buffer: nil, input_count: 0, output_buffer: nil, progress: 0, rate: 10},
+        owner_id: "player:eff2"
+      }
+
+      WorldStore.put_building({@test_face, 7, 9}, building)
+      Creatures.assign_creature("player:eff2", "test:eff2", {@test_face, 7, 9})
+
+      # Ember Wisp is speed, not efficiency
+      assert Creatures.efficiency_chance({@test_face, 7, 9}, "player:eff2") == 0.0
+    end
+  end
+
   describe "has_assigned_creature?/1" do
     test "returns false when no creature assigned" do
       refute Creatures.has_assigned_creature?({@test_face, 8, 8})

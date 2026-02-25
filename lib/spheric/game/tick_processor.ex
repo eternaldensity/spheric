@@ -317,9 +317,6 @@ defmodule Spheric.Game.TickProcessor do
     # Phase 4: Altered item duplication (5% chance to refill output after push)
     final_buildings = apply_duplication_effects(final_buildings, movements)
 
-    # Phase 4b: Efficiency boost — chance to not consume input
-    final_buildings = apply_efficiency_effects(final_buildings)
-
     # Phase 4c: Output boost — chance to double output
     final_buildings = apply_output_effects(final_buildings, movements)
 
@@ -2209,32 +2206,6 @@ defmodule Spheric.Game.TickProcessor do
   end
 
   defp take_item_from_building(_key, _building, _item), do: nil
-
-  # Efficiency boost: chance to not consume input when producing output
-  defp apply_efficiency_effects(buildings) do
-    Enum.reduce(buildings, buildings, fn {key, building}, acc ->
-      eff = Creatures.efficiency_chance(key, building[:owner_id])
-
-      if eff > 0 and building.state[:output_buffer] != nil do
-        # If the building just produced and has efficiency boost,
-        # chance to refill input (as if input wasn't consumed)
-        if :rand.uniform(100) <= round(eff * 100) do
-          case building.type do
-            type when type in [:smelter, :refinery, :advanced_smelter, :nuclear_refinery] ->
-              # Single-input: can't easily "un-consume" — skip for simplicity
-              acc
-
-            _ ->
-              acc
-          end
-        else
-          acc
-        end
-      else
-        acc
-      end
-    end)
-  end
 
   # Output boost: chance to produce double output
   defp apply_output_effects(buildings, movements) do
