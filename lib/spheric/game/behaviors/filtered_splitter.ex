@@ -24,8 +24,11 @@ defmodule Spheric.Game.Behaviors.FilteredSplitter do
 
   @doc "Returns the initial state for a newly placed filtered splitter."
   def initial_state do
-    %{item: nil, filter_item: nil, next_output: :left, mirrored: false, dual_filter: false, filter_item_right: nil}
+    %{item: nil, filter_item: nil, next_output: :left, mirrored: false, dual_filter: false, filter_item_right: nil, upgrade_progress: nil}
   end
+
+  @doc "Returns available upgrades as `{upgrade_atom, state_field}` tuples."
+  def upgrades, do: [{:mirror_mode, :mirrored}, {:dual_filter, :dual_filter}]
 
   @doc "Returns the upgrade cost for the given upgrade type."
   def upgrade_cost(upgrade), do: Map.get(@upgrade_costs, upgrade, %{})

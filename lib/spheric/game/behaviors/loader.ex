@@ -23,10 +23,14 @@ defmodule Spheric.Game.Behaviors.Loader do
       source: nil,
       destination: nil,
       stack_upgrade: false,
+      upgrade_progress: nil,
       last_transferred: nil,
       powered: true
     }
   end
+
+  @doc "Returns available upgrades as `{upgrade_atom, state_field}` tuples."
+  def upgrades, do: [{:stack_upgrade, :stack_upgrade}]
 
   @doc "Returns the resource cost map for a given upgrade."
   def upgrade_cost(upgrade), do: Map.get(@upgrade_costs, upgrade, %{})

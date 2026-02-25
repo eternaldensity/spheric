@@ -18,8 +18,11 @@ defmodule Spheric.Game.Behaviors.PriorityMerger do
 
   @doc "Returns the initial state for a newly placed priority merger."
   def initial_state do
-    %{item: nil, mirrored: false}
+    %{item: nil, mirrored: false, upgrade_progress: nil}
   end
+
+  @doc "Returns available upgrades as `{upgrade_atom, state_field}` tuples."
+  def upgrades, do: [{:mirror_mode, :mirrored}]
 
   @doc "Returns the upgrade cost for the given upgrade type."
   def upgrade_cost(upgrade), do: Map.get(@upgrade_costs, upgrade, %{})

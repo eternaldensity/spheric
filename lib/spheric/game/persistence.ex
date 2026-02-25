@@ -299,7 +299,8 @@ defmodule Spheric.Game.Persistence do
     :last_transferred,
     :filter_item,
     :filter_item_right,
-    :next_output
+    :next_output,
+    :upgrade_name
   ]
 
   @tuple_key_fields [:source, :destination, :linked_to]
@@ -328,6 +329,26 @@ defmodule Spheric.Game.Persistence do
       Map.put(construction, :delivered, atomize_item_map(construction.delivered))
     else
       construction
+    end
+  end
+
+  # Nested upgrade_progress state needs recursive atomization (same shape as construction)
+  defp atomize_state_value(:upgrade_progress, nil), do: nil
+
+  defp atomize_state_value(:upgrade_progress, value) when is_map(value) do
+    progress = atomize_state_keys(value)
+
+    progress =
+      if is_map(progress[:required]) do
+        Map.put(progress, :required, atomize_item_map(progress.required))
+      else
+        progress
+      end
+
+    if is_map(progress[:delivered]) do
+      Map.put(progress, :delivered, atomize_item_map(progress.delivered))
+    else
+      progress
     end
   end
 

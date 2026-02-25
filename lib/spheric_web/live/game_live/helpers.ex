@@ -147,11 +147,15 @@ defmodule SphericWeb.GameLive.Helpers do
               do: Behaviors.Loader,
               else: Behaviors.Unloader
 
+          has_upgrade_delivery = has_upgrade_delivery?(building[:owner_id])
+
           %{
             source: building.state[:source],
             destination: building.state[:destination],
             stack_upgrade: building.state[:stack_upgrade] || false,
             stack_upgrade_cost: behavior.upgrade_cost(:stack_upgrade),
+            upgrade_progress: building.state[:upgrade_progress],
+            has_upgrade_delivery: has_upgrade_delivery,
             source_label:
               if(building.state[:source],
                 do: format_building_key(building.state[:source]),
@@ -195,7 +199,9 @@ defmodule SphericWeb.GameLive.Helpers do
             mirrored: building.state[:mirrored] || false,
             mirror_cost: Behaviors.FilteredSplitter.upgrade_cost(:mirror_mode),
             dual_filter: building.state[:dual_filter] || false,
-            dual_filter_cost: Behaviors.FilteredSplitter.upgrade_cost(:dual_filter)
+            dual_filter_cost: Behaviors.FilteredSplitter.upgrade_cost(:dual_filter),
+            upgrade_progress: building.state[:upgrade_progress],
+            has_upgrade_delivery: has_upgrade_delivery?(building[:owner_id])
           }
         else
           nil
@@ -211,7 +217,9 @@ defmodule SphericWeb.GameLive.Helpers do
           %{
             mirrored: building.state[:mirrored] || false,
             mirror_cost: behavior.upgrade_cost(:mirror_mode),
-            building_type: building.type
+            building_type: building.type,
+            upgrade_progress: building.state[:upgrade_progress],
+            has_upgrade_delivery: has_upgrade_delivery?(building[:owner_id])
           }
         else
           nil
@@ -383,6 +391,11 @@ defmodule SphericWeb.GameLive.Helpers do
     label = if type == :loader, do: "Loading", else: "Extracting"
 
     cond do
+      state[:upgrade_progress] != nil and state.upgrade_progress.complete == false ->
+        total_req = Enum.reduce(state.upgrade_progress.required, 0, fn {_, qty}, acc -> acc + qty end)
+        total_del = Enum.reduce(state.upgrade_progress.delivered, 0, fn {_, qty}, acc -> acc + qty end)
+        "Upgrading (#{total_del}/#{total_req}) — awaiting delivery"
+
       state[:powered] == false ->
         "Unpowered"
 
@@ -478,6 +491,7 @@ defmodule SphericWeb.GameLive.Helpers do
   def upgrade_display_name(:expanded_cargo), do: "Expanded Cargo"
   def upgrade_display_name(:delivery_drone), do: "Delivery Drone"
   def upgrade_display_name(:delivery_cargo), do: "Delivery Cargo"
+  def upgrade_display_name(:upgrade_delivery), do: "Upgrade Delivery"
   def upgrade_display_name(other), do: other |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
 
   def creature_boost_label(type) do
@@ -679,5 +693,12 @@ defmodule SphericWeb.GameLive.Helpers do
       :biofuel, :creature_essence
     ]
     |> Enum.map(fn item -> %{item: item, name: Lore.display_name(item)} end)
+  end
+
+  defp has_upgrade_delivery?(nil), do: false
+
+  defp has_upgrade_delivery?(owner_id) do
+    upgrades = Persistence.get_drone_upgrades(owner_id)
+    Map.get(upgrades, "upgrade_delivery", false)
   end
 end

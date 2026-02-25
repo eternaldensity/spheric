@@ -521,6 +521,94 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     end
   end
 
+  # Upgradeable building types and their behavior modules
+  @upgradeable_behaviors %{
+    loader: Loader,
+    unloader: Unloader,
+    filtered_splitter: FilteredSplitter,
+    overflow_gate: OverflowGate,
+    priority_merger: PriorityMerger
+  }
+
+  # Request delivery drone to deliver materials for a building upgrade
+  def handle_event(
+        "request_upgrade_delivery",
+        %{"face" => face, "row" => row, "col" => col, "upgrade" => upgrade_str},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+    building = WorldStore.get_building(key)
+
+    upgrade =
+      try do
+        String.to_existing_atom(upgrade_str)
+      rescue
+        ArgumentError -> nil
+      end
+
+    behavior = building && Map.get(@upgradeable_behaviors, building.type)
+
+    if upgrade && building && behavior &&
+         (building.owner_id == nil or building.owner_id == socket.assigns.player_id) &&
+         building.state[:upgrade_progress] == nil do
+      # Verify this upgrade is valid and not already active
+      upgrade_valid =
+        Enum.any?(behavior.upgrades(), fn {up_atom, state_field} ->
+          up_atom == upgrade and not (building.state[state_field] || false)
+        end)
+
+      if upgrade_valid do
+        cost = behavior.upgrade_cost(upgrade)
+        state_field = Enum.find_value(behavior.upgrades(), fn {up, sf} -> if up == upgrade, do: sf end)
+
+        progress = %{
+          required: cost,
+          delivered: Map.new(cost, fn {item, _count} -> {item, 0} end),
+          complete: false,
+          upgrade_name: state_field
+        }
+
+        new_state = %{building.state | upgrade_progress: progress}
+        WorldStore.put_building(key, %{building | state: new_state})
+        tile_info = Helpers.build_tile_info(key)
+        {:noreply, assign(socket, :tile_info, tile_info)}
+      else
+        {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Cancel a pending upgrade delivery, refunding delivered items to ground
+  def handle_event(
+        "cancel_upgrade_delivery",
+        %{"face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+    building = WorldStore.get_building(key)
+
+    if building && building.state[:upgrade_progress] != nil &&
+         (building.owner_id == nil or building.owner_id == socket.assigns.player_id) do
+      progress = building.state.upgrade_progress
+
+      # Refund already-delivered items to ground
+      Enum.each(progress.delivered, fn {item, count} ->
+        if count > 0 do
+          Enum.each(1..count, fn _ -> GroundItems.add(key, item) end)
+        end
+      end)
+
+      new_state = %{building.state | upgrade_progress: nil}
+      WorldStore.put_building(key, %{building | state: new_state})
+      tile_info = Helpers.build_tile_info(key)
+      {:noreply, assign(socket, :tile_info, tile_info)}
+    else
+      {:noreply, socket}
+    end
+  end
+
   # Drone fuel pickup: client requests fuel from a ground tile
   def handle_event("pickup_fuel", %{"face" => face, "row" => row, "col" => col}, socket) do
     face = Helpers.to_int(face)
@@ -691,6 +779,7 @@ defmodule SphericWeb.GameLive.BuildingEvents do
           :auto_refuel -> %{new_state | auto_refuel_enabled: true}
           :delivery_drone -> %{new_state | delivery_drone_enabled: true}
           :delivery_cargo -> %{new_state | delivery_cargo_capacity: 4}
+          :upgrade_delivery -> %{new_state | upgrade_delivery_enabled: true}
           _ -> new_state
         end
 

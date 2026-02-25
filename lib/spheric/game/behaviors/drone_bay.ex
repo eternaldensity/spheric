@@ -28,12 +28,14 @@ defmodule Spheric.Game.Behaviors.DroneBay do
     drone_spotlight: %{iron_ingot: 4, wire: 3, copper_ingot: 2},
     expanded_cargo: %{plate: 5, circuit: 3, wire: 6},
     delivery_drone: %{frame: 3, circuit: 3, motor: 2, biofuel: 5},
-    delivery_cargo: %{heavy_frame: 2, advanced_circuit: 1, motor: 2}
+    delivery_cargo: %{heavy_frame: 2, advanced_circuit: 1, motor: 2},
+    upgrade_delivery: %{heavy_frame: 3, advanced_circuit: 2, motor: 1, cable: 4}
   }
 
   @upgrade_clearance %{
     delivery_drone: 3,
-    delivery_cargo: 4
+    delivery_cargo: 4,
+    upgrade_delivery: 4
   }
 
   @fuel_durations %{
@@ -55,6 +57,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
       powered: true,
       # Delivery drone state
       delivery_drone_enabled: false,
+      upgrade_delivery_enabled: false,
       delivery_state: :idle,
       delivery_fuel: nil,
       delivery_fuel_tank: [],
@@ -340,7 +343,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
         {state, buildings}
       else
         # Find a construction site in range that needs materials
-        case find_delivery_task(bay_key, buildings, owner_id) do
+        case find_delivery_task(bay_key, buildings, owner_id, state[:upgrade_delivery_enabled] == true) do
           nil ->
             {state, buildings}
 
@@ -479,22 +482,39 @@ defmodule Spheric.Game.Behaviors.DroneBay do
     {%{state | delivery_pos: next, delivery_path: rest}, true}
   end
 
-  defp find_delivery_task(bay_key, buildings, owner_id) do
-    # Find construction sites in range needing materials
+  @upgradeable_types [:loader, :unloader, :filtered_splitter, :overflow_gate, :priority_merger]
+
+  defp find_delivery_task(bay_key, buildings, owner_id, upgrade_delivery_enabled \\ false) do
+    # Find construction sites and (optionally) buildings with pending upgrades in range
     sites =
       Enum.filter(buildings, fn {key, b} ->
-        b.state[:construction] != nil and
-          b.state.construction.complete == false and
-          delivery_in_range?(bay_key, key, owner_id)
+        in_range = delivery_in_range?(bay_key, key, owner_id)
+
+        construction_site =
+          b.state[:construction] != nil and
+            b.state.construction.complete == false
+
+        upgrade_site =
+          upgrade_delivery_enabled and
+            b.type in @upgradeable_types and
+            b.state[:upgrade_progress] != nil and
+            b.state.upgrade_progress.complete == false
+
+        in_range and (construction_site or upgrade_site)
       end)
 
     # For each site, check what items are needed and if any storage has them
     Enum.find_value(sites, fn {site_key, site} ->
-      constr = site.state.construction
+      progress =
+        if site.state[:construction] != nil and site.state.construction.complete == false do
+          site.state.construction
+        else
+          site.state[:upgrade_progress]
+        end
 
       needed_items =
-        Enum.flat_map(constr.required, fn {item, qty} ->
-          delivered = Map.get(constr.delivered, item, 0)
+        Enum.flat_map(progress.required, fn {item, qty} ->
+          delivered = Map.get(progress.delivered, item, 0)
           if delivered < qty, do: [item], else: []
         end)
 
@@ -561,6 +581,26 @@ defmodule Spheric.Game.Behaviors.DroneBay do
           end)
 
         Map.put(buildings, site_key, %{b | state: %{st | construction: new_constr}})
+
+      %{state: %{upgrade_progress: %{complete: false} = progress} = st} = b ->
+        new_progress =
+          Enum.reduce(cargo, progress, fn item, p ->
+            case ConstructionCosts.deliver_item(p, item) do
+              nil -> p
+              updated -> updated
+            end
+          end)
+
+        new_st =
+          if new_progress.complete do
+            # Auto-apply the upgrade
+            state_field = new_progress.upgrade_name
+            %{st | upgrade_progress: nil} |> Map.put(state_field, true)
+          else
+            %{st | upgrade_progress: new_progress}
+          end
+
+        Map.put(buildings, site_key, %{b | state: new_st})
 
       _ ->
         # Site no longer exists or is complete — drop cargo on ground

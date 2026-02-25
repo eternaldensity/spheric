@@ -610,6 +610,7 @@ defmodule SphericWeb.GameLive do
               </span>
             </span>
             <button
+              :if={@tile_info.arm_info.upgrade_progress == nil}
               phx-click="upgrade_arm"
               phx-value-face={@tile_info.face}
               phx-value-row={@tile_info.row}
@@ -619,9 +620,39 @@ defmodule SphericWeb.GameLive do
               {if @tile_info.arm_info.stack_upgrade, do: "Disable", else: "Enable"}
             </button>
           </div>
-          <div :if={!@tile_info.arm_info.stack_upgrade} style="margin-top: 3px; font-size: 9px; color: var(--fbc-text-dim);">
+          <div :if={!@tile_info.arm_info.stack_upgrade && @tile_info.arm_info.upgrade_progress == nil} style="margin-top: 3px; font-size: 9px; color: var(--fbc-text-dim);">
             Cost: {Enum.map_join(@tile_info.arm_info.stack_upgrade_cost, ", ", fn {item, qty} -> "#{qty}x #{Spheric.Game.Lore.display_name(item)}" end)}
             <span style="font-size: 8px; opacity: 0.6;">(drop on tile)</span>
+          </div>
+          <%!-- Request Drone Delivery button --%>
+          <button
+            :if={@tile_info.arm_info.has_upgrade_delivery && !@tile_info.arm_info.stack_upgrade && @tile_info.arm_info.upgrade_progress == nil}
+            phx-click="request_upgrade_delivery"
+            phx-value-face={@tile_info.face}
+            phx-value-row={@tile_info.row}
+            phx-value-col={@tile_info.col}
+            phx-value-upgrade="stack_upgrade"
+            style="margin-top: 4px; padding: 2px 8px; border: 1px solid var(--fbc-info); background: rgba(136,153,170,0.1); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase; width: 100%;"
+          >
+            Request Drone Delivery
+          </button>
+          <%!-- Delivery progress --%>
+          <div :if={@tile_info.arm_info.upgrade_progress != nil} style="margin-top: 4px; padding: 4px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.03);">
+            <div style="font-size: 9px; color: var(--fbc-info); text-transform: uppercase; margin-bottom: 3px;">
+              Delivery Progress
+            </div>
+            <div :for={{item, qty} <- @tile_info.arm_info.upgrade_progress.required} style="font-size: 9px; color: var(--fbc-text-dim);">
+              {Spheric.Game.Lore.display_name(item)}: {Map.get(@tile_info.arm_info.upgrade_progress.delivered, item, 0)}/{qty}
+            </div>
+            <button
+              phx-click="cancel_upgrade_delivery"
+              phx-value-face={@tile_info.face}
+              phx-value-row={@tile_info.row}
+              phx-value-col={@tile_info.col}
+              style="margin-top: 4px; padding: 2px 8px; border: 1px solid var(--fbc-accent); background: rgba(255,100,100,0.1); color: var(--fbc-accent); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase; width: 100%;"
+            >
+              Cancel
+            </button>
           </div>
         </div>
 
@@ -676,6 +707,7 @@ defmodule SphericWeb.GameLive do
               </span>
             </span>
             <button
+              :if={@tile_info.filter_info.upgrade_progress == nil}
               phx-click="toggle_mirror"
               phx-value-face={@tile_info.face}
               phx-value-row={@tile_info.row}
@@ -685,10 +717,21 @@ defmodule SphericWeb.GameLive do
               {if @tile_info.filter_info.mirrored, do: "Disable", else: "Enable"}
             </button>
           </div>
-          <div :if={!@tile_info.filter_info.mirrored} style="margin-top: -3px; margin-bottom: 6px; font-size: 9px; color: var(--fbc-text-dim);">
+          <div :if={!@tile_info.filter_info.mirrored && @tile_info.filter_info.upgrade_progress == nil} style="margin-top: -3px; margin-bottom: 6px; font-size: 9px; color: var(--fbc-text-dim);">
             Cost: {Enum.map_join(@tile_info.filter_info.mirror_cost, ", ", fn {item, qty} -> "#{qty}x #{Spheric.Game.Lore.display_name(item)}" end)}
             <span style="font-size: 8px; opacity: 0.6;">(drop on tile)</span>
           </div>
+          <button
+            :if={@tile_info.filter_info.has_upgrade_delivery && !@tile_info.filter_info.mirrored && @tile_info.filter_info.upgrade_progress == nil}
+            phx-click="request_upgrade_delivery"
+            phx-value-face={@tile_info.face}
+            phx-value-row={@tile_info.row}
+            phx-value-col={@tile_info.col}
+            phx-value-upgrade="mirror_mode"
+            style="margin-top: 2px; margin-bottom: 6px; padding: 2px 8px; border: 1px solid var(--fbc-info); background: rgba(136,153,170,0.1); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase; width: 100%;"
+          >
+            Request Drone Delivery
+          </button>
 
           <%!-- Dual Filter upgrade --%>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -698,6 +741,7 @@ defmodule SphericWeb.GameLive do
               </span>
             </span>
             <button
+              :if={@tile_info.filter_info.upgrade_progress == nil}
               phx-click="toggle_dual_filter"
               phx-value-face={@tile_info.face}
               phx-value-row={@tile_info.row}
@@ -707,9 +751,39 @@ defmodule SphericWeb.GameLive do
               {if @tile_info.filter_info.dual_filter, do: "Disable", else: "Enable"}
             </button>
           </div>
-          <div :if={!@tile_info.filter_info.dual_filter} style="margin-top: -3px; margin-bottom: 6px; font-size: 9px; color: var(--fbc-text-dim);">
+          <div :if={!@tile_info.filter_info.dual_filter && @tile_info.filter_info.upgrade_progress == nil} style="margin-top: -3px; margin-bottom: 6px; font-size: 9px; color: var(--fbc-text-dim);">
             Cost: {Enum.map_join(@tile_info.filter_info.dual_filter_cost, ", ", fn {item, qty} -> "#{qty}x #{Spheric.Game.Lore.display_name(item)}" end)}
             <span style="font-size: 8px; opacity: 0.6;">(drop on tile)</span>
+          </div>
+          <button
+            :if={@tile_info.filter_info.has_upgrade_delivery && !@tile_info.filter_info.dual_filter && @tile_info.filter_info.upgrade_progress == nil}
+            phx-click="request_upgrade_delivery"
+            phx-value-face={@tile_info.face}
+            phx-value-row={@tile_info.row}
+            phx-value-col={@tile_info.col}
+            phx-value-upgrade="dual_filter"
+            style="margin-top: 2px; margin-bottom: 6px; padding: 2px 8px; border: 1px solid var(--fbc-info); background: rgba(136,153,170,0.1); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase; width: 100%;"
+          >
+            Request Drone Delivery
+          </button>
+
+          <%!-- Delivery progress for filtered splitter --%>
+          <div :if={@tile_info.filter_info.upgrade_progress != nil} style="margin-top: 2px; margin-bottom: 6px; padding: 4px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.03);">
+            <div style="font-size: 9px; color: var(--fbc-info); text-transform: uppercase; margin-bottom: 3px;">
+              Delivery Progress
+            </div>
+            <div :for={{item, qty} <- @tile_info.filter_info.upgrade_progress.required} style="font-size: 9px; color: var(--fbc-text-dim);">
+              {Spheric.Game.Lore.display_name(item)}: {Map.get(@tile_info.filter_info.upgrade_progress.delivered, item, 0)}/{qty}
+            </div>
+            <button
+              phx-click="cancel_upgrade_delivery"
+              phx-value-face={@tile_info.face}
+              phx-value-row={@tile_info.row}
+              phx-value-col={@tile_info.col}
+              style="margin-top: 4px; padding: 2px 8px; border: 1px solid var(--fbc-accent); background: rgba(255,100,100,0.1); color: var(--fbc-accent); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase; width: 100%;"
+            >
+              Cancel
+            </button>
           </div>
 
           <%!-- Left filter (or "Item Filter" when dual_filter is off) --%>
@@ -797,6 +871,7 @@ defmodule SphericWeb.GameLive do
               </span>
             </span>
             <button
+              :if={@tile_info.logistics_upgrade_info.upgrade_progress == nil}
               phx-click="toggle_mirror"
               phx-value-face={@tile_info.face}
               phx-value-row={@tile_info.row}
@@ -806,9 +881,38 @@ defmodule SphericWeb.GameLive do
               {if @tile_info.logistics_upgrade_info.mirrored, do: "Disable", else: "Enable"}
             </button>
           </div>
-          <div :if={!@tile_info.logistics_upgrade_info.mirrored} style="margin-top: -3px; font-size: 9px; color: var(--fbc-text-dim);">
+          <div :if={!@tile_info.logistics_upgrade_info.mirrored && @tile_info.logistics_upgrade_info.upgrade_progress == nil} style="margin-top: -3px; font-size: 9px; color: var(--fbc-text-dim);">
             Cost: {Enum.map_join(@tile_info.logistics_upgrade_info.mirror_cost, ", ", fn {item, qty} -> "#{qty}x #{Spheric.Game.Lore.display_name(item)}" end)}
             <span style="font-size: 8px; opacity: 0.6;">(drop on tile)</span>
+          </div>
+          <button
+            :if={@tile_info.logistics_upgrade_info.has_upgrade_delivery && !@tile_info.logistics_upgrade_info.mirrored && @tile_info.logistics_upgrade_info.upgrade_progress == nil}
+            phx-click="request_upgrade_delivery"
+            phx-value-face={@tile_info.face}
+            phx-value-row={@tile_info.row}
+            phx-value-col={@tile_info.col}
+            phx-value-upgrade="mirror_mode"
+            style="margin-top: 4px; padding: 2px 8px; border: 1px solid var(--fbc-info); background: rgba(136,153,170,0.1); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase; width: 100%;"
+          >
+            Request Drone Delivery
+          </button>
+          <%!-- Delivery progress --%>
+          <div :if={@tile_info.logistics_upgrade_info.upgrade_progress != nil} style="margin-top: 4px; padding: 4px; border: 1px solid var(--fbc-border); background: rgba(255,255,255,0.03);">
+            <div style="font-size: 9px; color: var(--fbc-info); text-transform: uppercase; margin-bottom: 3px;">
+              Delivery Progress
+            </div>
+            <div :for={{item, qty} <- @tile_info.logistics_upgrade_info.upgrade_progress.required} style="font-size: 9px; color: var(--fbc-text-dim);">
+              {Spheric.Game.Lore.display_name(item)}: {Map.get(@tile_info.logistics_upgrade_info.upgrade_progress.delivered, item, 0)}/{qty}
+            </div>
+            <button
+              phx-click="cancel_upgrade_delivery"
+              phx-value-face={@tile_info.face}
+              phx-value-row={@tile_info.row}
+              phx-value-col={@tile_info.col}
+              style="margin-top: 4px; padding: 2px 8px; border: 1px solid var(--fbc-accent); background: rgba(255,100,100,0.1); color: var(--fbc-accent); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase; width: 100%;"
+            >
+              Cancel
+            </button>
           </div>
         </div>
 
@@ -1716,6 +1820,14 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_event("clear_filter_item_right", params, socket),
     do: BuildingEvents.handle_event("clear_filter_item_right", params, socket)
+
+  @impl true
+  def handle_event("request_upgrade_delivery", params, socket),
+    do: BuildingEvents.handle_event("request_upgrade_delivery", params, socket)
+
+  @impl true
+  def handle_event("cancel_upgrade_delivery", params, socket),
+    do: BuildingEvents.handle_event("cancel_upgrade_delivery", params, socket)
 
   # Panel events
   @impl true
