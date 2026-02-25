@@ -48,6 +48,7 @@ export const ITEM_COLORS = {
 
   // Creature / fuel
   biofuel: 0x66aa44,
+  catalysed_fuel: 0xcc8822,
   refined_fuel: 0x33aaaa,
   creature_essence: 0xaa44cc,
   hiss_residue: 0xff2244,

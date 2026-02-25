@@ -89,6 +89,7 @@ defmodule Spheric.Game.Lore do
   def display_name(:astral_lens), do: "Astral Projection Lens"
   def display_name(:board_resonator), do: "Board Resonator"
   def display_name(:refined_fuel), do: "Refined Entity Fuel"
+  def display_name(:catalysed_fuel), do: "Catalysed Ichor Fuel"
 
   # Creature items
   def display_name(:biofuel), do: "Entity Biofuel"
@@ -110,6 +111,7 @@ defmodule Spheric.Game.Lore do
   def display_name(:drone_bay), do: "Drone Bay"
   def display_name(:loader), do: "Insertion Arm"
   def display_name(:unloader), do: "Extraction Arm"
+  def display_name(:mixer), do: "Compound Mixer"
 
   # New creatures
   def display_name(:flux_serpent), do: "Flux Serpent"

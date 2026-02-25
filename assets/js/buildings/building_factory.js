@@ -28,6 +28,7 @@ const COLORS = {
   drone_bay: 0x445577,
   loader: 0x55aa77,
   unloader: 0x77aa55,
+  mixer: 0x8855aa,
 };
 
 // Shared material cache — reuse materials across all buildings of the same color
@@ -130,6 +131,10 @@ const _SHARED_GEOMETRIES_RAW = {
   drone_bay_mast: new THREE.CylinderGeometry(s * 0.08, s * 0.1, s * 1.4, 6),
   drone_bay_dish: new THREE.SphereGeometry(s * 0.3, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2),
   drone_bay_arm: new THREE.BoxGeometry(s * 0.6, s * 0.06, s * 0.06),
+  // Mixer
+  mixer_vat: new THREE.CylinderGeometry(s * 0.8, s * 0.7, s * 0.9, 8),
+  mixer_funnel: new THREE.CylinderGeometry(s * 0.15, s * 0.25, s * 0.4, 6),
+  mixer_blade: new THREE.BoxGeometry(s * 0.6, s * 0.05, s * 0.1),
   // Loader / Unloader arms
   arm_base: new THREE.CylinderGeometry(s * 0.7, s * 0.8, s * 0.3, 6),
   arm_pillar: new THREE.CylinderGeometry(s * 0.12, s * 0.15, s * 1.0, 6),
@@ -743,6 +748,35 @@ function createUnloader() {
   return group;
 }
 
+function createMixer() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.mixer);
+
+  // Main vat body
+  const vat = new THREE.Mesh(SHARED_GEOMETRIES.mixer_vat, mat);
+  vat.position.y = s * 0.45;
+  group.add(vat);
+
+  // Two input funnels on top
+  const funnelMat = makeMaterial(0x666688);
+  const funnel1 = new THREE.Mesh(SHARED_GEOMETRIES.mixer_funnel, funnelMat);
+  funnel1.position.set(-s * 0.35, s * 1.1, 0);
+  group.add(funnel1);
+
+  const funnel2 = new THREE.Mesh(SHARED_GEOMETRIES.mixer_funnel, funnelMat);
+  funnel2.position.set(s * 0.35, s * 1.1, 0);
+  group.add(funnel2);
+
+  // Mixing blade (visible through top)
+  const bladeMat = makeMaterial(0x999999);
+  const blade = new THREE.Mesh(SHARED_GEOMETRIES.mixer_blade, bladeMat);
+  blade.position.y = s * 0.7;
+  group.add(blade);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
@@ -769,6 +803,7 @@ const BUILDERS = {
   drone_bay: createDroneBay,
   loader: createLoader,
   unloader: createUnloader,
+  mixer: createMixer,
 };
 
 /**

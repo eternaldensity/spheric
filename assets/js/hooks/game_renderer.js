@@ -1003,7 +1003,7 @@ const GameRenderer = {
       if (!slot) {
         html += `<div class="fuel-pip fuel-empty"></div>`;
       } else {
-        const cls = slot.type === "refined_fuel" ? "fuel-refined" : "fuel-biofuel";
+        const cls = slot.type === "refined_fuel" ? "fuel-refined" : slot.type === "catalysed_fuel" ? "fuel-catalysed" : "fuel-biofuel";
         const warn = data.lowPower || (slot.active && slot.fraction < 0.3) ? " fuel-warn" : "";
         const h = Math.max(10, slot.fraction * 100);
         html += `<div class="fuel-pip ${cls}${warn}"><div class="fuel-fill" style="height:${h}%"></div></div>`;

@@ -151,6 +151,10 @@
   background: #448833;
 }
 
+.fuel-catalysed .fuel-fill {
+  background: #cc8822;
+}
+
 .fuel-refined .fuel-fill {
   background: #33aaaa;
 }

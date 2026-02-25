@@ -121,6 +121,18 @@ defmodule Spheric.Game.TickProcessor do
         end
       end)
 
+    # Phase 2e2: Mixers tick
+    mixer_updates =
+      Enum.map(classified.mixers, fn {key, building} ->
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = tick_with_boost(key, building, &Behaviors.Mixer.tick/2)
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
+      end)
+
     # Phase 2f: Fabrication plants tick
     fab_plant_updates =
       Enum.map(classified.fabrication_plants, fn {key, building} ->
@@ -262,6 +274,7 @@ defmodule Spheric.Game.TickProcessor do
         assembler_updates ++
         adv_smelter_updates ++
         adv_assembler_updates ++
+        mixer_updates ++
         fab_plant_updates ++
         collider_updates ++
         nuclear_updates ++
@@ -380,6 +393,7 @@ defmodule Spheric.Game.TickProcessor do
       shadow_panels: [],
       gathering_posts: [],
       essence_extractors: [],
+      mixers: [],
       drone_bays: [],
       arms: [],
       others: []
@@ -408,6 +422,7 @@ defmodule Spheric.Game.TickProcessor do
         :lamp -> acc
         :gathering_post -> %{acc | gathering_posts: [pair | acc.gathering_posts]}
         :essence_extractor -> %{acc | essence_extractors: [pair | acc.essence_extractors]}
+        :mixer -> %{acc | mixers: [pair | acc.mixers]}
         :drone_bay -> %{acc | drone_bays: [pair | acc.drone_bays]}
         type when type in [:loader, :unloader] -> %{acc | arms: [pair | acc.arms]}
         _ -> %{acc | others: [pair | acc.others]}
@@ -635,6 +650,7 @@ defmodule Spheric.Game.TickProcessor do
       when type in [
              :smelter,
              :refinery,
+             :mixer,
              :advanced_smelter,
              :nuclear_refinery,
              :assembler,
@@ -690,6 +706,7 @@ defmodule Spheric.Game.TickProcessor do
 
   defp production_behavior(:smelter), do: Behaviors.Smelter
   defp production_behavior(:refinery), do: Behaviors.Refinery
+  defp production_behavior(:mixer), do: Behaviors.Mixer
   defp production_behavior(:advanced_smelter), do: Behaviors.AdvancedSmelter
   defp production_behavior(:nuclear_refinery), do: Behaviors.NuclearRefinery
   defp production_behavior(:assembler), do: Behaviors.Assembler
@@ -968,6 +985,7 @@ defmodule Spheric.Game.TickProcessor do
        when type in [
               :advanced_smelter,
               :advanced_assembler,
+              :mixer,
               :fabrication_plant,
               :particle_collider,
               :nuclear_refinery,
@@ -1028,6 +1046,9 @@ defmodule Spheric.Game.TickProcessor do
 
       %{type: :assembler, state: state} ->
         Behaviors.Assembler.full?(state)
+
+      %{type: :mixer, state: state} ->
+        Behaviors.Mixer.full?(state)
 
       %{type: :advanced_smelter, state: state} ->
         Behaviors.AdvancedSmelter.full?(state)
@@ -1173,6 +1194,21 @@ defmodule Spheric.Game.TickProcessor do
        ) do
     rear_dir = rem(dir + 2, 4)
     accept_from_direction(dest_key, rear_dir, requests, n)
+  end
+
+  # Mixer: dual-input, accepts from rear
+  defp try_accept(dest_key, %{type: :mixer, orientation: dir, state: state}, requests, n) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.Mixer.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
   end
 
   # Assembler: accepts from rear, routes item to correct input slot via dual-input logic
@@ -1367,7 +1403,7 @@ defmodule Spheric.Game.TickProcessor do
     case TileNeighbors.neighbor(dest_key, rear_dir, n) do
       {:ok, valid_src} ->
         Enum.find(requests, fn {src, _dest, item} ->
-          src == valid_src and item in [:biofuel, :refined_fuel]
+          src == valid_src and item in [:biofuel, :catalysed_fuel, :refined_fuel]
         end)
 
       :boundary ->
@@ -1461,6 +1497,9 @@ defmodule Spheric.Game.TickProcessor do
               %{b | state: %{b.state | output_buffer: nil}}
 
             :refinery ->
+              %{b | state: %{b.state | output_buffer: nil}}
+
+            :mixer ->
               %{b | state: %{b.state | output_buffer: nil}}
 
             :defense_turret ->
@@ -1574,6 +1613,12 @@ defmodule Spheric.Game.TickProcessor do
               new_state -> %{b | state: new_state}
             end
 
+          :mixer ->
+            case Behaviors.Mixer.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
+
           :crossover ->
             sub_n = Application.get_env(:spheric, :subdivisions, 64)
 
@@ -1655,7 +1700,7 @@ defmodule Spheric.Game.TickProcessor do
             end
 
           :bio_generator ->
-            if item in [:biofuel, :refined_fuel] do
+            if item in [:biofuel, :catalysed_fuel, :refined_fuel] do
               %{b | state: %{b.state | input_buffer: item}}
             else
               b
@@ -1820,6 +1865,7 @@ defmodule Spheric.Game.TickProcessor do
               :smelter,
               :assembler,
               :refinery,
+              :mixer,
               :defense_turret,
               :trade_terminal,
               :advanced_smelter,

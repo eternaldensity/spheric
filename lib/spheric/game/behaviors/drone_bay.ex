@@ -101,7 +101,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
         %{mode: :idle, fuel_buffer: buf, auto_refuel_enabled: true} = state,
         item
       )
-      when item in [:biofuel, :refined_fuel] and length(buf) < @fuel_buffer_max do
+      when item in [:biofuel, :catalysed_fuel, :refined_fuel] and length(buf) < @fuel_buffer_max do
     %{state | fuel_buffer: buf ++ [item]}
   end
 

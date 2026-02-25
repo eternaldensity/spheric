@@ -13,6 +13,7 @@
 const STORAGE_KEY = "spheric_drone_fuel";
 const BASE_CAPACITY = 5;
 const BIOFUEL_DURATION = 60;
+const CATALYSED_FUEL_DURATION = 90;
 const REFINED_FUEL_DURATION = 150;
 const LOW_POWER_SPEED = 0.25;
 const NORMAL_SPEED = 1.0;
@@ -290,7 +291,9 @@ export class DroneFuelSystem {
   }
 
   _fuelDuration(type) {
-    return type === "refined_fuel" ? REFINED_FUEL_DURATION : BIOFUEL_DURATION;
+    if (type === "refined_fuel") return REFINED_FUEL_DURATION;
+    if (type === "catalysed_fuel") return CATALYSED_FUEL_DURATION;
+    return BIOFUEL_DURATION;
   }
 
   _dirtySave() {
