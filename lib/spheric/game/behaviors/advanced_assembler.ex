@@ -10,6 +10,7 @@ defmodule Spheric.Game.Behaviors.AdvancedAssembler do
     recipes: [
       %{inputs: [frame: 2, reinforced_plate: 6], output: {:heavy_frame, 1}},
       %{inputs: [circuit: 4, cable: 6], output: {:advanced_circuit, 2}},
-      %{inputs: [polycarbonate: 10, sulfur_compound: 15], output: {:plastic_sheet, 5}}
+      %{inputs: [polycarbonate: 10, sulfur_compound: 15], output: {:plastic_sheet, 5}},
+      %{inputs: [iron_ingot: 10, hiss_residue: 10], output: {:whispering_powder, 10}}
     ]
 end

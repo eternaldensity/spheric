@@ -5,7 +5,7 @@ defmodule SphericWeb.GameLive.BuildingEvents do
   import Phoenix.LiveView, only: [push_event: 3]
 
   alias Spheric.Game.{WorldServer, WorldStore, Buildings, StarterKit, GroundItems, Research}
-  alias Spheric.Game.Behaviors.DroneBay
+  alias Spheric.Game.Behaviors.{DroneBay, Loader, Unloader}
   alias Spheric.Game.Persistence
   alias SphericWeb.GameLive.Helpers
 
@@ -486,10 +486,36 @@ defmodule SphericWeb.GameLive.BuildingEvents do
 
     if building && building.type in [:loader, :unloader] &&
          building.owner_id == socket.assigns.player_id do
-      new_state = %{building.state | stack_upgrade: !building.state[:stack_upgrade]}
-      WorldStore.put_building(key, %{building | state: new_state})
-      tile_info = Helpers.build_tile_info(key)
-      {:noreply, assign(socket, :tile_info, tile_info)}
+      enabling = !building.state[:stack_upgrade]
+
+      if enabling do
+        behavior = if building.type == :loader, do: Loader, else: Unloader
+        cost = behavior.upgrade_cost(:stack_upgrade)
+        ground = GroundItems.get(key)
+
+        has_all =
+          Enum.all?(cost, fn {item, needed} ->
+            Map.get(ground, item, 0) >= needed
+          end)
+
+        if has_all do
+          Enum.each(cost, fn {item, needed} ->
+            Enum.each(1..needed, fn _ -> GroundItems.take(key, item) end)
+          end)
+
+          new_state = %{building.state | stack_upgrade: true}
+          WorldStore.put_building(key, %{building | state: new_state})
+          tile_info = Helpers.build_tile_info(key)
+          {:noreply, assign(socket, :tile_info, tile_info)}
+        else
+          {:noreply, socket}
+        end
+      else
+        new_state = %{building.state | stack_upgrade: false}
+        WorldStore.put_building(key, %{building | state: new_state})
+        tile_info = Helpers.build_tile_info(key)
+        {:noreply, assign(socket, :tile_info, tile_info)}
+      end
     else
       {:noreply, socket}
     end

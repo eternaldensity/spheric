@@ -46,6 +46,10 @@ export const ITEM_COLORS = {
   astral_lens: 0xcc88ff,
   board_resonator: 0xff88cc,
 
+  // Whispering chain
+  whispering_powder: 0xc8b8d8,
+  whispering_ingot: 0xa090c0,
+
   // Creature / fuel
   biofuel: 0x66aa44,
   catalysed_fuel: 0xcc8822,
@@ -134,6 +138,7 @@ const _shapedGeometries = {
   iron_ingot: createIngotGeometry(),
   copper_ingot: createIngotGeometry(),
   titanium_ingot: createIngotGeometry(),
+  whispering_ingot: createIngotGeometry(),
   plate: createPlateGeometry(),
   reinforced_plate: createPlateGeometry(),
   plastic_sheet: createPlateGeometry(),

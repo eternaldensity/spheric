@@ -142,10 +142,16 @@ defmodule SphericWeb.GameLive.Helpers do
 
       arm_info =
         if building.type in [:loader, :unloader] && !under_construction do
+          behavior =
+            if building.type == :loader,
+              do: Behaviors.Loader,
+              else: Behaviors.Unloader
+
           %{
             source: building.state[:source],
             destination: building.state[:destination],
             stack_upgrade: building.state[:stack_upgrade] || false,
+            stack_upgrade_cost: behavior.upgrade_cost(:stack_upgrade),
             source_label:
               if(building.state[:source],
                 do: format_building_key(building.state[:source]),

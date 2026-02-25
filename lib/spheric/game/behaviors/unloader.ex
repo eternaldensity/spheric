@@ -14,6 +14,10 @@ defmodule Spheric.Game.Behaviors.Unloader do
     - powered: boolean  -- requires power to operate
   """
 
+  @upgrade_costs %{
+    stack_upgrade: %{motor: 1, cable: 2, circuit: 1, whispering_ingot: 1}
+  }
+
   def initial_state do
     %{
       source: nil,
@@ -23,4 +27,7 @@ defmodule Spheric.Game.Behaviors.Unloader do
       powered: true
     }
   end
+
+  @doc "Returns the resource cost map for a given upgrade."
+  def upgrade_cost(upgrade), do: Map.get(@upgrade_costs, upgrade, %{})
 end

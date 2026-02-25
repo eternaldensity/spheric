@@ -20,7 +20,6 @@ defmodule Spheric.Game.Behaviors.Assembler do
       %{inputs: [iron_ingot: 4, wire: 8], output: {:motor, 1}},
       %{inputs: [wire: 5, polycarbonate: 3], output: {:cable, 5}},
       %{inputs: [plate: 2, iron_ingot: 4], output: {:reinforced_plate, 2}},
-      %{inputs: [copper_ingot: 3, sulfur_compound: 1], output: {:heat_sink, 1}},
-      %{inputs: [iron_ingot: 10, hiss_residue: 10], output: {:whispering_ingot, 10}}
+      %{inputs: [copper_ingot: 3, sulfur_compound: 1], output: {:heat_sink, 1}}
     ]
 end

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Add cost for loader/unloader stack_upgrade (#163)
 - Implement resonance cascade world event effect (#162)
 - Implement area creature boost for 5 buildings (#161)
 - Implement efficiency creature boost: skip input consumption (#160)
@@ -27,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Add deep production chains: Assembler activation, Refinery, 4 new resources, multi-tier recipes (#40)
 
 ### Fixed
+- Add whispering_powder and whispering_ingot to item renderer (#164)
 - Fix move_ticks KeyError in advance_conveyor_cooldowns (#155)
 - Storage vault: separate stored vs inserted items for arm transfer fairness (#154)
 - Add DB fallback when Research ETS cache misses player unlocks (#130)

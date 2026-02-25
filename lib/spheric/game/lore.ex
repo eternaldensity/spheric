@@ -26,6 +26,7 @@ defmodule Spheric.Game.Lore do
   def display_name(:iron_ingot), do: "Ferric Standard"
   def display_name(:copper_ingot), do: "Paraelectric Bar"
   def display_name(:titanium_ingot), do: "Astral Ingot"
+  def display_name(:whispering_ingot), do: "Whispering Ingot"
   def display_name(:polycarbonate), do: "Stabilized Polymer"
   def display_name(:sulfur_compound), do: "Threshold Compound"
   def display_name(:wire), do: "Conductive Filament"
@@ -33,6 +34,7 @@ defmodule Spheric.Game.Lore do
   def display_name(:circuit), do: "Resonance Circuit"
   def display_name(:frame), do: "Astral Frame"
   def display_name(:hiss_residue), do: "Hiss Residue"
+  def display_name(:whispering_powder), do: "Whispering Powder"
 
   # Buildings
   def display_name(:conveyor), do: "Conduit"

@@ -619,6 +619,10 @@ defmodule SphericWeb.GameLive do
               {if @tile_info.arm_info.stack_upgrade, do: "Disable", else: "Enable"}
             </button>
           </div>
+          <div :if={!@tile_info.arm_info.stack_upgrade} style="margin-top: 3px; font-size: 9px; color: var(--fbc-text-dim);">
+            Cost: {Enum.map_join(@tile_info.arm_info.stack_upgrade_cost, ", ", fn {item, qty} -> "#{qty}x #{Spheric.Game.Lore.display_name(item)}" end)}
+            <span style="font-size: 8px; opacity: 0.6;">(drop on tile)</span>
+          </div>
         </div>
 
         <%!-- Underground Conduit linking panel --%>
