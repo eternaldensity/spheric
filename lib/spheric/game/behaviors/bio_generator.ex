@@ -2,13 +2,15 @@ defmodule Spheric.Game.Behaviors.BioGenerator do
   @moduledoc """
   Bio Generator building behavior.
 
-  Consumes fuel items (biofuel, refined_fuel, or catalysed_fuel) and generates power.
+  Consumes fuel items (biofuel, refined_fuel, catalysed_fuel, unstable_fuel or stable_fuel) and generates power.
   Power is distributed via the power network (substations/transfer stations).
   """
 
   @biofuel_duration 50
   @catalysed_fuel_duration 75
   @refined_fuel_duration 100
+  @unstable_fuel_duration 20
+  @stable_fuel_duration 325
 
   def initial_state do
     %{
@@ -60,14 +62,16 @@ defmodule Spheric.Game.Behaviors.BioGenerator do
   def producing_power?(state), do: state.fuel_remaining > 0
 
   @doc "Returns accepted fuel types."
-  def fuel_types, do: [:biofuel, :catalysed_fuel, :refined_fuel]
+  def fuel_types, do: [:biofuel, :catalysed_fuel, :refined_fuel, :unstable_fuel, :stable_fuel]
 
   @doc "Check if an item is valid fuel."
-  def valid_fuel?(item), do: item in [:biofuel, :catalysed_fuel, :refined_fuel]
+  def valid_fuel?(item), do: item in [:biofuel, :catalysed_fuel, :refined_fuel, :unstable_fuel, :stable_fuel]
 
   @doc "Returns the fuel duration for a given fuel type."
   def fuel_duration(:biofuel), do: @biofuel_duration
   def fuel_duration(:catalysed_fuel), do: @catalysed_fuel_duration
   def fuel_duration(:refined_fuel), do: @refined_fuel_duration
+  def fuel_duration(:unstable_fuel), do: @unstable_fuel_duration
+  def fuel_duration(:stable_fuel), do: @stable_fuel_duration
   def fuel_duration(_), do: 0
 end

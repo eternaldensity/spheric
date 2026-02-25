@@ -90,6 +90,8 @@ defmodule Spheric.Game.Lore do
   def display_name(:board_resonator), do: "Board Resonator"
   def display_name(:refined_fuel), do: "Refined Entity Fuel"
   def display_name(:catalysed_fuel), do: "Catalysed Ichor Fuel"
+  def display_name(:unstable_fuel), do: "Unstable Mixed Fuel"
+  def display_name(:stable_fuel), do: "Stable Mixed Fuel"
 
   # Creature items
   def display_name(:biofuel), do: "Entity Biofuel"

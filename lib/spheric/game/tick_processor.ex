@@ -1403,7 +1403,7 @@ defmodule Spheric.Game.TickProcessor do
     case TileNeighbors.neighbor(dest_key, rear_dir, n) do
       {:ok, valid_src} ->
         Enum.find(requests, fn {src, _dest, item} ->
-          src == valid_src and item in [:biofuel, :catalysed_fuel, :refined_fuel]
+          src == valid_src and item in [:biofuel, :catalysed_fuel, :refined_fuel, :unstable_fuel, :stable_fuel]
         end)
 
       :boundary ->
@@ -1700,7 +1700,7 @@ defmodule Spheric.Game.TickProcessor do
             end
 
           :bio_generator ->
-            if item in [:biofuel, :catalysed_fuel, :refined_fuel] do
+            if item in [:biofuel, :catalysed_fuel, :refined_fuel, :unstable_fuel, :stable_fuel] do
               %{b | state: %{b.state | input_buffer: item}}
             else
               b

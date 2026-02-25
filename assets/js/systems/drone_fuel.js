@@ -15,6 +15,8 @@ const BASE_CAPACITY = 5;
 const BIOFUEL_DURATION = 60;
 const CATALYSED_FUEL_DURATION = 90;
 const REFINED_FUEL_DURATION = 150;
+const UNSTABLE_FUEL_DURATION = 30;
+const STABLE_FUEL_DURATION = 480;
 const LOW_POWER_SPEED = 0.25;
 const NORMAL_SPEED = 1.0;
 const PICKUP_COOLDOWN_MS = 1500;
@@ -293,6 +295,8 @@ export class DroneFuelSystem {
   _fuelDuration(type) {
     if (type === "refined_fuel") return REFINED_FUEL_DURATION;
     if (type === "catalysed_fuel") return CATALYSED_FUEL_DURATION;
+    if (type === "unstable_fuel") return UNSTABLE_FUEL_DURATION;
+    if (type === "stable_fuel") return STABLE_FUEL_DURATION;
     return BIOFUEL_DURATION;
   }
 
