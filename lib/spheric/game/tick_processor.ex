@@ -448,7 +448,7 @@ defmodule Spheric.Game.TickProcessor do
     Enum.reduce(buildings, buildings, fn
       {key, %{type: :conveyor_mk2, state: %{item: nil, buffer: buf}} = b}, acc
       when not is_nil(buf) ->
-        Map.put(acc, key, %{b | state: %{b.state | item: buf, buffer: nil, move_ticks: 0}})
+        Map.put(acc, key, %{b | state: b.state |> Map.put(:item, buf) |> Map.put(:buffer, nil) |> Map.put(:move_ticks, 0)})
 
       {key, %{type: :conveyor_mk3, state: %{item: nil, buffer1: b1}} = b}, acc
       when not is_nil(b1) ->
@@ -473,11 +473,11 @@ defmodule Spheric.Game.TickProcessor do
     Enum.reduce(buildings, buildings, fn
       {key, %{type: :conveyor, state: %{item: item} = state} = b}, acc when not is_nil(item) ->
         ticks = (state[:move_ticks] || 0) + 1
-        Map.put(acc, key, %{b | state: %{state | move_ticks: ticks}})
+        Map.put(acc, key, %{b | state: Map.put(state, :move_ticks, ticks)})
 
       {key, %{type: :conveyor, state: state} = b}, acc ->
         if (state[:move_ticks] || 0) != 0 do
-          Map.put(acc, key, %{b | state: %{state | move_ticks: 0}})
+          Map.put(acc, key, %{b | state: Map.put(state, :move_ticks, 0)})
         else
           acc
         end
@@ -485,11 +485,11 @@ defmodule Spheric.Game.TickProcessor do
       {key, %{type: :conveyor_mk2, state: %{item: item} = state} = b}, acc
       when not is_nil(item) ->
         ticks = (state[:move_ticks] || 0) + 1
-        Map.put(acc, key, %{b | state: %{state | move_ticks: ticks}})
+        Map.put(acc, key, %{b | state: Map.put(state, :move_ticks, ticks)})
 
       {key, %{type: :conveyor_mk2, state: state} = b}, acc ->
         if (state[:move_ticks] || 0) != 0 do
-          Map.put(acc, key, %{b | state: %{state | move_ticks: 0}})
+          Map.put(acc, key, %{b | state: Map.put(state, :move_ticks, 0)})
         else
           acc
         end
@@ -1546,10 +1546,10 @@ defmodule Spheric.Game.TickProcessor do
         Map.update!(acc, src_key, fn b ->
           case b.type do
             :conveyor ->
-              %{b | state: %{b.state | item: nil, move_ticks: 0}}
+              %{b | state: b.state |> Map.put(:item, nil) |> Map.put(:move_ticks, 0)}
 
             :conveyor_mk2 ->
-              %{b | state: %{b.state | item: nil, move_ticks: 0}}
+              %{b | state: b.state |> Map.put(:item, nil) |> Map.put(:move_ticks, 0)}
 
             :conveyor_mk3 ->
               %{b | state: %{b.state | item: nil}}
