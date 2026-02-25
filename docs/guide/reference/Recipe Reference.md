@@ -69,6 +69,7 @@ All standard Processor recipes, plus:
 | Input | Output |
 |---|---|
 | Threshold Radiant (Raw) | Enriched Radiant |
+| Whispering Powder | Whispering Ingot |
 
 ---
 
@@ -81,6 +82,7 @@ All standard Processor recipes, plus:
 | Astral Frame | Reinforced Plate | Heavy Astral Frame |
 | Resonance Circuit | Shielded Conductor | Advanced Resonance Circuit |
 | Stabilized Polymer | Threshold Compound | Polymer Membrane |
+| Ferric Standard | Hiss Residue | Whispering Powder |
 
 ---
 

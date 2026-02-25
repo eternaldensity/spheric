@@ -61,9 +61,9 @@ Click a Drone Bay to open its upgrade panel. The bay offers six permanent upgrad
 
 | Upgrade | Clearance | Resource Cost | Effect |
 |---|---|---|---|
-| **Auto-Refuel** | 1 | 5 Ferric Standard, 3 Paraelectric Bar, 2 Conductive Filament | Bay accepts biofuel into a buffer and auto-refuels your drone when you fly nearby |
-| **Expanded Tank** | 1 | 4 Conductive Filament, 3 Structural Plate, 2 Resonance Circuit | Increases tank capacity from 5 to **10 slots** |
-| **Drone Spotlight** | 1 | 4 Ferric Standard, 3 Conductive Filament, 2 Paraelectric Bar | Toggleable light (press **L**); burns fuel at **2x speed** while on |
+| **Auto-Refuel** | 5 Ferric Standard, 3 Paraelectric Bar, 2 Conductive Filament | Bay accepts biofuel into a buffer and auto-refuels your drone when you fly nearby |
+| **Expanded Tank** | 4 Conductive Filament, 3 Structural Plate, 2 Resonance Circuit | Increases tank capacity from 5 to **10 slots** |
+| **Drone Spotlight** | 4 Ferric Standard, 3 Conductive Filament, 2 Paraelectric Bar | Toggleable light (press **L**); burns fuel at **2x speed** while on |
 | **Expanded Cargo** | 1 | 5 Structural Plate, 3 Resonance Circuit, 6 Conductive Filament | Increases drone cargo capacity from 1 to **4 items** |
 | **Delivery Drone** | 3 | 3 Astral Frame, 3 Resonance Circuit, 2 Kinetic Driver, 5 Entity Biofuel | Adds an automated delivery drone to this bay (see below) |
 | **Delivery Cargo** | 4 | 2 Heavy Astral Frame, 1 Advanced Resonance Circuit, 2 Kinetic Driver | Increases delivery drone cargo capacity from 2 to **4 items** |

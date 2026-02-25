@@ -15,7 +15,7 @@
 #   mix run scripts/update_guide_costs.exs --dry-run  # preview changes only
 
 alias Spheric.Game.{ConstructionCosts, Lore, Research}
-alias Spheric.Game.Behaviors.DroneBay
+alias Spheric.Game.Behaviors.{DroneBay, Loader, Unloader}
 
 dry_run? = "--dry-run" in System.argv()
 
@@ -391,10 +391,19 @@ if recipe_ref do
     [header | rows] |> Enum.join("\n")
   end
 
-  # Advanced smelter: same as smelter + uranium
-  advanced_smelter_extra = [
-    {[:raw_uranium], :enriched_uranium}
-  ]
+  # Advanced smelter: same as smelter + extra recipes
+  advanced_smelter_extra =
+    Spheric.Game.Behaviors.AdvancedSmelter.recipes()
+    |> Enum.reject(fn %{inputs: inputs} ->
+      # Exclude the standard smelter recipes (single ore → ingot)
+      case inputs do
+        [{item, _qty}] -> item in [:iron_ore, :copper_ore, :titanium_ore, :raw_quartz]
+        _ -> false
+      end
+    end)
+    |> Enum.map(fn %{inputs: inputs, output: {out_type, _out_qty}} ->
+      {Enum.map(inputs, fn {item, _qty} -> item end), out_type}
+    end)
 
   # Nuclear refinery
   nuclear_refinery_recipes = [
@@ -685,6 +694,22 @@ if adv_log do
   |> re_cost.(~r/(## Transfer Station.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:transfer_station)))
   |> re_cost.(~r/(## Insertion Arm.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:loader)))
   |> re_cost.(~r/(## Extraction Arm.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(ConstructionCosts.cost(:unloader)))
+
+  # Update arm Bulk Transfer upgrade costs
+  loader_upgrade = GuideUpdater.format_cost(Loader.upgrade_cost(:stack_upgrade))
+  unloader_upgrade = GuideUpdater.format_cost(Unloader.upgrade_cost(:stack_upgrade))
+  upgrade_suffix = " — drop materials on the arm's tile, then click **Enable** in the tile info panel."
+
+  new_content = Regex.replace(
+    ~r/(## Insertion Arm.*?)\*\*Bulk Transfer Upgrade:\*\* [^\n]+/s,
+    new_content,
+    "\\1**Bulk Transfer Upgrade:** #{loader_upgrade}#{upgrade_suffix}"
+  )
+  new_content = Regex.replace(
+    ~r/(## Extraction Arm.*?)\*\*Bulk Transfer Upgrade:\*\* [^\n]+/s,
+    new_content,
+    "\\1**Bulk Transfer Upgrade:** #{unloader_upgrade}#{upgrade_suffix}"
+  )
 
   # Update conveyor tier table
   mk2_cost = GuideUpdater.format_cost(ConstructionCosts.cost(:conveyor_mk2))

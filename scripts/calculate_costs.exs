@@ -28,6 +28,7 @@ recipe_modules = [
   Behaviors.Refinery,
   Behaviors.NuclearRefinery,
   Behaviors.Assembler,
+  Behaviors.Mixer,
   Behaviors.AdvancedAssembler,
   Behaviors.AdvancedSmelter,
   Behaviors.FabricationPlant,
@@ -48,7 +49,7 @@ recipe_lookup =
 raw_materials = MapSet.new([
   :iron_ore, :copper_ore, :raw_quartz, :titanium_ore,
   :crude_oil, :raw_sulfur, :raw_uranium,
-  :creature_essence, :biofuel
+  :creature_essence, :biofuel, :hiss_residue
 ])
 
 # ── Recursive cost resolver ─────────────────────────────────────────────────
