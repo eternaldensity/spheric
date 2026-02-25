@@ -322,10 +322,11 @@ defmodule Spheric.Game.Creatures do
       {trap_face, trap_row, trap_col} = trap_key
 
       # Altered item: trap_radius triples the capture radius (3 -> 9)
-      # Altered Resonance OoP further doubles it (3 -> 18)
+      # Resonance Cascade doubles the multiplier, Altered Resonance OoP doubles it again
       radius =
         if trap.state[:altered_effect] == :trap_radius do
           base_mult = 3
+          base_mult = if Spheric.Game.WorldEvents.active?(:resonance_cascade), do: base_mult * 2, else: base_mult
 
           mult =
             if trap[:owner_id] &&

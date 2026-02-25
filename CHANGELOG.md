@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Implement resonance cascade world event effect (#162)
 - Implement area creature boost for 5 buildings (#161)
 - Implement efficiency creature boost: skip input consumption (#160)
 - Wire 3 unimplemented altered item effects: purified_smelting, trap_radius, teleport_output (#159)

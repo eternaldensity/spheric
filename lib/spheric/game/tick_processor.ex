@@ -22,7 +22,8 @@ defmodule Spheric.Game.TickProcessor do
     ShiftCycle,
     ConstructionCosts,
     GroundItems,
-    Power
+    Power,
+    WorldEvents
   }
 
   alias Spheric.Geometry.TileNeighbors
@@ -1111,16 +1112,24 @@ defmodule Spheric.Game.TickProcessor do
 
   defp get_push_request(_key, _building, _n), do: nil
 
-  # Altered item: teleport_output — resolve destination, skipping one tile if active.
+  # Altered item: teleport_output — resolve destination, skipping tiles if active.
+  # Resonance Cascade doubles the skip distance (1 -> 2 tiles skipped).
   # Falls back to the immediate neighbor if the skip target doesn't exist.
   defp resolve_output_dest(key, dir, n, state) do
     if state[:altered_effect] == :teleport_output do
-      with {:ok, skip_key} <- TileNeighbors.neighbor(key, dir, n),
-           {:ok, dest_key} <- TileNeighbors.neighbor(skip_key, dir, n) do
-        {:ok, dest_key}
-      else
-        # Can't skip (boundary or edge) — fall back to immediate neighbor
-        _ -> TileNeighbors.neighbor(key, dir, n)
+      skips = if WorldEvents.active?(:resonance_cascade), do: 2, else: 1
+
+      result =
+        Enum.reduce_while(1..(skips + 1), {:ok, key}, fn _i, {:ok, current} ->
+          case TileNeighbors.neighbor(current, dir, n) do
+            {:ok, next} -> {:cont, {:ok, next}}
+            _ -> {:halt, :boundary}
+          end
+        end)
+
+      case result do
+        {:ok, dest_key} -> {:ok, dest_key}
+        :boundary -> TileNeighbors.neighbor(key, dir, n)
       end
     else
       TileNeighbors.neighbor(key, dir, n)
@@ -2026,12 +2035,15 @@ defmodule Spheric.Game.TickProcessor do
       if building && building.state[:altered_effect] == :duplication &&
            building.state[:output_buffer] == nil &&
            (building.state[:output_remaining] || 0) == 0 do
-        # Object of Power: Altered Resonance doubles the duplication chance (5% -> 10%)
+        # Base 5%, Altered Resonance OoP doubles it, Resonance Cascade doubles it
+        base = 5
+        base = if WorldEvents.active?(:resonance_cascade), do: base * 2, else: base
+
         chance =
           if building[:owner_id] &&
                ObjectsOfPower.player_has?(building.owner_id, :altered_resonance),
-            do: 10,
-            else: 5
+            do: base * 2,
+            else: base
 
         if :rand.uniform(100) <= chance do
           Map.put(acc, src_key, %{
@@ -2054,20 +2066,18 @@ defmodule Spheric.Game.TickProcessor do
     if updated.state[:altered_effect] == :purified_smelting and
          old_building.state[:output_buffer] == nil and
          updated.state[:output_buffer] != nil do
-      # Double the output: original total = 1 (in buffer) + output_remaining
-      # Doubled total = 2 * (1 + output_remaining) = 2 + 2*output_remaining
-      # New output_remaining = doubled_total - 1 (the one already in buffer)
+      # Base 2x output, Resonance Cascade doubles it, Altered Resonance OoP doubles it
       original_remaining = updated.state[:output_remaining] || 0
-      doubled_remaining = (original_remaining + 1) * 2 - 1
+      base_mult = 2
+      base_mult = if WorldEvents.active?(:resonance_cascade), do: base_mult * 2, else: base_mult
 
-      # Altered Resonance OoP doubles the effect again (4x total)
-      final_remaining =
+      final_mult =
         if updated[:owner_id] &&
-             ObjectsOfPower.player_has?(updated.owner_id, :altered_resonance) do
-          (original_remaining + 1) * 4 - 1
-        else
-          doubled_remaining
-        end
+             ObjectsOfPower.player_has?(updated.owner_id, :altered_resonance),
+          do: base_mult * 2,
+          else: base_mult
+
+      final_remaining = (original_remaining + 1) * final_mult - 1
 
       %{updated | state: Map.put(updated.state, :output_remaining, final_remaining)}
     else
@@ -2266,13 +2276,17 @@ defmodule Spheric.Game.TickProcessor do
         boosted = Creatures.boosted_rate(key, base_rate, building[:owner_id])
 
         # Altered item: overclock halves the effective rate (doubled with Altered Resonance OoP)
+        # Resonance Cascade world event doubles all altered item effects
         boosted =
           if building.state[:altered_effect] == :overclock do
+            base = 2
+            base = if WorldEvents.active?(:resonance_cascade), do: base * 2, else: base
+
             divisor =
               if building[:owner_id] &&
                    ObjectsOfPower.player_has?(building.owner_id, :altered_resonance),
-                do: 4,
-                else: 2
+                do: base * 2,
+                else: base
 
             max(1, div(boosted, divisor))
           else
