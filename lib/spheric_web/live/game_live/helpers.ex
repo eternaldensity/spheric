@@ -154,6 +154,20 @@ defmodule SphericWeb.GameLive.Helpers do
           nil
         end
 
+      conduit_info =
+        if building.type == :underground_conduit && !under_construction do
+          %{
+            linked_to: building.state[:linked_to],
+            linked_label:
+              if(building.state[:linked_to],
+                do: format_building_key(building.state[:linked_to]),
+                else: nil
+              )
+          }
+        else
+          nil
+        end
+
       Map.merge(base, %{
         building_name: Lore.display_name(building.type),
         building_orientation: building.orientation,
@@ -161,7 +175,8 @@ defmodule SphericWeb.GameLive.Helpers do
         building_owner_id: building[:owner_id],
         building_owner_name: owner_name,
         drone_bay_info: drone_bay_info,
-        arm_info: arm_info
+        arm_info: arm_info,
+        conduit_info: conduit_info
       })
     else
       Map.merge(base, %{
@@ -171,7 +186,8 @@ defmodule SphericWeb.GameLive.Helpers do
         building_owner_id: nil,
         building_owner_name: nil,
         drone_bay_info: nil,
-        arm_info: nil
+        arm_info: nil,
+        conduit_info: nil
       })
     end
   end

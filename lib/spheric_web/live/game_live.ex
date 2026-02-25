@@ -159,6 +159,7 @@ defmodule SphericWeb.GameLive do
       |> assign(:waypoints, Helpers.restore_waypoints(if(connected?(socket), do: get_connect_params(socket), else: %{})))
       |> assign(:demolish_mode, false)
       |> assign(:arm_linking, nil)
+      |> assign(:conduit_linking, nil)
       |> assign(:starter_kit_remaining, StarterKit.get_remaining(player_id))
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
 
@@ -578,12 +579,56 @@ defmodule SphericWeb.GameLive do
           </div>
         </div>
 
-        <%!-- Arm linking mode indicator --%>
+        <%!-- Underground Conduit linking panel --%>
+        <div
+          :if={@tile_info.conduit_info && (@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id)}
+          style="margin-top: 8px; border-top: 1px solid var(--fbc-border); padding-top: 8px;"
+        >
+          <div style="font-size: 10px; color: var(--fbc-info); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">
+            Conduit Link
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 10px; color: var(--fbc-text-dim);">
+              Paired: <span style={"color: #{if @tile_info.conduit_info.linked_to, do: "var(--fbc-text)", else: "var(--fbc-text-dim)"}"}>
+                {if @tile_info.conduit_info.linked_to, do: @tile_info.conduit_info.linked_label, else: "None"}
+              </span>
+            </span>
+            <div style="display: flex; gap: 4px;">
+              <button
+                phx-click="start_conduit_link"
+                phx-value-face={@tile_info.face}
+                phx-value-row={@tile_info.row}
+                phx-value-col={@tile_info.col}
+                style="padding: 2px 8px; border: 1px solid var(--fbc-info); background: rgba(136,153,170,0.1); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"
+              >
+                Link
+              </button>
+              <button
+                :if={@tile_info.conduit_info.linked_to}
+                phx-click="unlink_conduit"
+                phx-value-face={@tile_info.face}
+                phx-value-row={@tile_info.row}
+                phx-value-col={@tile_info.col}
+                style="padding: 2px 8px; border: 1px solid var(--fbc-accent-dim); background: rgba(136,34,34,0.15); color: var(--fbc-accent); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"
+              >
+                Unlink
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Linking mode indicators --%>
         <div
           :if={@arm_linking != nil}
           style="margin-top: 6px; padding: 6px 8px; border: 1px solid var(--fbc-highlight); background: rgba(204,170,102,0.1); font-size: 10px; color: var(--fbc-highlight); text-transform: uppercase; letter-spacing: 0.05em; text-align: center;"
         >
           Select a tile to set {elem(@arm_linking, 0)}...
+        </div>
+        <div
+          :if={@conduit_linking != nil}
+          style="margin-top: 6px; padding: 6px 8px; border: 1px solid var(--fbc-highlight); background: rgba(204,170,102,0.1); font-size: 10px; color: var(--fbc-highlight); text-transform: uppercase; letter-spacing: 0.05em; text-align: center;"
+        >
+          Select another Subsurface Link to pair...
         </div>
       </div>
       <div :if={@tile_info.building == nil} style="color: var(--fbc-text-dim); margin-top: 4px;">
@@ -1406,8 +1451,12 @@ defmodule SphericWeb.GameLive do
     do: BuildingEvents.handle_event("toggle_power", params, socket)
 
   @impl true
-  def handle_event("link_conduit", params, socket),
-    do: BuildingEvents.handle_event("link_conduit", params, socket)
+  def handle_event("start_conduit_link", params, socket),
+    do: BuildingEvents.handle_event("start_conduit_link", params, socket)
+
+  @impl true
+  def handle_event("unlink_conduit", params, socket),
+    do: BuildingEvents.handle_event("unlink_conduit", params, socket)
 
   @impl true
   def handle_event("pickup_fuel", params, socket),

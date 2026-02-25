@@ -125,12 +125,16 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     tile = %{face: face, row: row, col: col}
     Logger.debug("Tile clicked: face=#{face} row=#{row} col=#{col}")
 
-    # Intercept for arm linking mode
-    case socket.assigns[:arm_linking] do
-      {mode, arm_key} when mode in [:source, :destination] ->
+    # Intercept for linking modes
+    cond do
+      match?({mode, _} when mode in [:source, :destination], socket.assigns[:arm_linking]) ->
+        {mode, arm_key} = socket.assigns.arm_linking
         handle_arm_link(socket, arm_key, key, mode)
 
-      _ ->
+      socket.assigns[:conduit_linking] != nil ->
+        handle_conduit_link(socket, socket.assigns.conduit_linking, key)
+
+      true ->
         handle_normal_tile_click(socket, key, tile, face, row, col)
     end
   end
@@ -168,6 +172,53 @@ defmodule SphericWeb.GameLive.BuildingEvents do
       {:noreply, socket}
     else
       {:noreply, assign(socket, :arm_linking, nil)}
+    end
+  end
+
+  defp handle_conduit_link(socket, conduit_key, target_key) do
+    building_a = WorldStore.get_building(conduit_key)
+    building_b = WorldStore.get_building(target_key)
+
+    valid =
+      conduit_key != target_key and
+        building_a != nil and building_b != nil and
+        building_a.type == :underground_conduit and
+        building_b.type == :underground_conduit and
+        (building_a.owner_id == nil or building_a.owner_id == socket.assigns.player_id) and
+        (building_b.owner_id == nil or building_b.owner_id == socket.assigns.player_id)
+
+    if valid do
+      # Unlink any previous partners
+      for {_bldg, partner_key} <- [{building_a, building_a.state[:linked_to]}, {building_b, building_b.state[:linked_to]}],
+          partner_key != nil,
+          partner_key != conduit_key,
+          partner_key != target_key do
+        old_partner = WorldStore.get_building(partner_key)
+
+        if old_partner && old_partner.type == :underground_conduit do
+          WorldStore.put_building(partner_key, %{old_partner | state: %{old_partner.state | linked_to: nil}})
+        end
+      end
+
+      # Link the pair
+      WorldStore.put_building(conduit_key, %{building_a | state: %{building_a.state | linked_to: target_key}})
+      WorldStore.put_building(target_key, %{building_b | state: %{building_b.state | linked_to: conduit_key}})
+
+      tile_info = Helpers.build_tile_info(conduit_key)
+
+      socket =
+        socket
+        |> assign(:conduit_linking, nil)
+        |> assign(:tile_info, tile_info)
+        |> assign(:selected_tile, %{
+          face: elem(conduit_key, 0),
+          row: elem(conduit_key, 1),
+          col: elem(conduit_key, 2)
+        })
+
+      {:noreply, socket}
+    else
+      {:noreply, assign(socket, :conduit_linking, nil)}
     end
   end
 
@@ -353,33 +404,45 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     end
   end
 
-  def handle_event("link_conduit", params, socket) do
-    %{
-      "face" => face,
-      "row" => row,
-      "col" => col,
-      "target_face" => tf,
-      "target_row" => tr,
-      "target_col" => tc
-    } = params
+  # Conduit linking: enter linking mode so next tile_click pairs two underground conduits
+  def handle_event(
+        "start_conduit_link",
+        %{"face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+    building = WorldStore.get_building(key)
 
-    key_a = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
-    key_b = {Helpers.to_int(tf), Helpers.to_int(tr), Helpers.to_int(tc)}
+    if building && building.type == :underground_conduit &&
+         (building.owner_id == nil or building.owner_id == socket.assigns.player_id) do
+      {:noreply, assign(socket, :conduit_linking, key)}
+    else
+      {:noreply, socket}
+    end
+  end
 
-    building_a = WorldStore.get_building(key_a)
-    building_b = WorldStore.get_building(key_b)
+  # Conduit unlink: clear linked_to on both paired conduits
+  def handle_event(
+        "unlink_conduit",
+        %{"face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    key = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+    building = WorldStore.get_building(key)
 
-    if building_a && building_b &&
-         building_a.type == :underground_conduit &&
-         building_b.type == :underground_conduit &&
-         building_a.owner_id == socket.assigns.player_id &&
-         building_b.owner_id == socket.assigns.player_id do
-      new_state_a = %{building_a.state | linked_to: key_b}
-      new_state_b = %{building_b.state | linked_to: key_a}
-      WorldStore.put_building(key_a, %{building_a | state: new_state_a})
-      WorldStore.put_building(key_b, %{building_b | state: new_state_b})
+    if building && building.type == :underground_conduit &&
+         (building.owner_id == nil or building.owner_id == socket.assigns.player_id) &&
+         building.state[:linked_to] != nil do
+      # Unlink the partner too
+      partner_key = building.state.linked_to
+      partner = WorldStore.get_building(partner_key)
 
-      tile_info = Helpers.build_tile_info(key_a)
+      if partner && partner.type == :underground_conduit do
+        WorldStore.put_building(partner_key, %{partner | state: %{partner.state | linked_to: nil}})
+      end
+
+      WorldStore.put_building(key, %{building | state: %{building.state | linked_to: nil}})
+      tile_info = Helpers.build_tile_info(key)
       {:noreply, assign(socket, :tile_info, tile_info)}
     else
       {:noreply, socket}
