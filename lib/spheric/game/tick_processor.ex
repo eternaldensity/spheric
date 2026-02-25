@@ -522,8 +522,12 @@ defmodule Spheric.Game.TickProcessor do
     source_key = state.source
     dest_key = state.destination
 
-    # Validate range (Manhattan distance <= 2, same face)
-    unless arm_within_range?(arm_key, source_key) and arm_within_range?(arm_key, dest_key) do
+    # Validate range (Manhattan distance <= base 2, extended by area creature boost)
+    area = Creatures.area_value(arm_key, arm_building[:owner_id])
+    max_range = round(2 * (1.0 + area))
+
+    unless arm_within_range?(arm_key, source_key, max_range) and
+             arm_within_range?(arm_key, dest_key, max_range) do
       buildings
     else
       max_items = if state[:stack_upgrade], do: 10, else: 1
@@ -565,8 +569,8 @@ defmodule Spheric.Game.TickProcessor do
     end
   end
 
-  defp arm_within_range?({f1, r1, c1}, {f2, r2, c2}) do
-    f1 == f2 and abs(r1 - r2) + abs(c1 - c2) <= 2
+  defp arm_within_range?({f1, r1, c1}, {f2, r2, c2}, max_range) do
+    f1 == f2 and abs(r1 - r2) + abs(c1 - c2) <= max_range
   end
 
   # ── Extract item from source ──────────────────────────────────────────────

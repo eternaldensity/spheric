@@ -435,6 +435,79 @@ defmodule Spheric.Game.TickProcessorTest do
     end
   end
 
+  describe "area creature boost" do
+    # Use face 29 with high row/col to avoid world-gen resource interference
+    @area_face 29
+    @area_miner_key {29, 60, 60}
+    @area_adj_key {29, 60, 61}
+
+    setup do
+      Spheric.Game.Creatures.init()
+      Spheric.Game.Creatures.clear_all()
+
+      # Clear all tiles in the area so only our test tiles have resources
+      for r <- 59..61, c <- 59..61 do
+        WorldStore.put_tile({@area_face, r, c}, %{terrain: :grassland, resource: nil})
+        WorldStore.remove_building({@area_face, r, c})
+      end
+
+      # Set the adjacent tile to have iron
+      WorldStore.put_tile(@area_adj_key, %{terrain: :grassland, resource: {:iron, 10}})
+
+      on_exit(fn ->
+        Spheric.Game.Creatures.clear_all()
+
+        for r <- 59..61, c <- 59..61 do
+          WorldStore.remove_building({@area_face, r, c})
+        end
+      end)
+
+      :ok
+    end
+
+    test "miner with area creature mines adjacent tile when own tile is depleted" do
+      # Set up a spore_cloud (area 0.50) creature assigned to miner
+      creature = %{type: :spore_cloud, face: @area_face, row: 60, col: 60, spawned_at: 0}
+      Spheric.Game.Creatures.put_wild_creature("test:area_miner", creature)
+      Spheric.Game.Creatures.capture_creature("test:area_miner", creature, "player:area_miner")
+
+      WorldStore.put_building(@area_miner_key, %{
+        type: :miner,
+        orientation: 0,
+        state: %{output_buffer: nil, progress: 4, rate: 5},
+        owner_id: "player:area_miner"
+      })
+
+      Spheric.Game.Creatures.assign_creature("player:area_miner", "test:area_miner", @area_miner_key)
+
+      TickProcessor.process_tick(1)
+
+      miner = WorldStore.get_building(@area_miner_key)
+      assert miner.state.output_buffer == :iron_ore
+
+      # Adjacent tile resource should be decremented
+      adj_tile = WorldStore.get_tile(@area_adj_key)
+      assert adj_tile.resource == {:iron, 9}
+    end
+
+    test "miner without area creature does not mine adjacent tiles" do
+      WorldStore.put_building(@area_miner_key, %{
+        type: :miner,
+        orientation: 0,
+        state: %{output_buffer: nil, progress: 4, rate: 5}
+      })
+
+      TickProcessor.process_tick(1)
+
+      miner = WorldStore.get_building(@area_miner_key)
+      assert miner.state.output_buffer == nil
+
+      # Adjacent tile resource should be untouched
+      adj_tile = WorldStore.get_tile(@area_adj_key)
+      assert adj_tile.resource == {:iron, 10}
+    end
+  end
+
   describe "full production chain" do
     test "miner -> Mk3 conveyor -> Mk3 conveyor -> smelter end-to-end" do
       WorldStore.put_building(@miner_key, %{
@@ -713,6 +786,110 @@ defmodule Spheric.Game.TickProcessorTest do
       assert vault.state.count == 1
       assert vault.state.inserted_count == 0
       assert vault.state.item_type == :iron_ingot
+    end
+  end
+
+  describe "arm area creature boost" do
+    # Use isolated face and tiles at Manhattan distance 3 (out of base range 2)
+    @arm_face 21
+    @arm_key {21, 5, 5}
+    @arm_source {21, 5, 2}
+    @arm_dest {21, 5, 8}
+
+    setup do
+      Spheric.Game.Creatures.init()
+      Spheric.Game.Creatures.clear_all()
+
+      for key <- [@arm_key, @arm_source, @arm_dest] do
+        WorldStore.put_tile(key, %{terrain: :grassland, resource: nil})
+        WorldStore.remove_building(key)
+      end
+
+      on_exit(fn ->
+        Spheric.Game.Creatures.clear_all()
+
+        for key <- [@arm_key, @arm_source, @arm_dest] do
+          WorldStore.remove_building(key)
+        end
+      end)
+
+      :ok
+    end
+
+    test "unloader at distance 3 fails without area boost" do
+      WorldStore.put_building(@arm_source, %{
+        type: :smelter,
+        orientation: 0,
+        state: Map.merge(Behaviors.Smelter.initial_state(), %{output_buffer: :iron_ingot})
+      })
+
+      WorldStore.put_building(@arm_key, %{
+        type: :unloader,
+        orientation: 0,
+        state: %{
+          source: @arm_source,
+          destination: @arm_dest,
+          stack_upgrade: false,
+          last_transferred: nil,
+          powered: true
+        }
+      })
+
+      WorldStore.put_building(@arm_dest, %{
+        type: :storage_container,
+        orientation: 0,
+        state: Behaviors.StorageContainer.initial_state()
+      })
+
+      TickProcessor.process_tick(1)
+
+      # Source should still have item (arm out of range)
+      source = WorldStore.get_building(@arm_source)
+      assert source.state.output_buffer == :iron_ingot
+    end
+
+    test "unloader at distance 3 works with area creature boost" do
+      # Phase wisp: area 0.60 -> range = round(2 * 1.6) = 3
+      creature = %{type: :phase_wisp, face: @arm_face, row: 5, col: 5, spawned_at: 0}
+      Spheric.Game.Creatures.put_wild_creature("test:arm_area", creature)
+      Spheric.Game.Creatures.capture_creature("test:arm_area", creature, "player:arm_area")
+
+      WorldStore.put_building(@arm_source, %{
+        type: :smelter,
+        orientation: 0,
+        state: Map.merge(Behaviors.Smelter.initial_state(), %{output_buffer: :iron_ingot})
+      })
+
+      WorldStore.put_building(@arm_key, %{
+        type: :unloader,
+        orientation: 0,
+        state: %{
+          source: @arm_source,
+          destination: @arm_dest,
+          stack_upgrade: false,
+          last_transferred: nil,
+          powered: true
+        },
+        owner_id: "player:arm_area"
+      })
+
+      WorldStore.put_building(@arm_dest, %{
+        type: :storage_container,
+        orientation: 0,
+        state: Behaviors.StorageContainer.initial_state()
+      })
+
+      Spheric.Game.Creatures.assign_creature("player:arm_area", "test:arm_area", @arm_key)
+
+      TickProcessor.process_tick(1)
+
+      # Source should be empty (arm successfully transferred)
+      source = WorldStore.get_building(@arm_source)
+      assert source.state.output_buffer == nil
+
+      dest = WorldStore.get_building(@arm_dest)
+      assert dest.state.item_type == :iron_ingot
+      assert dest.state.count == 1
     end
   end
 end

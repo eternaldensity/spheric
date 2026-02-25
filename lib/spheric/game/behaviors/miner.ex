@@ -8,7 +8,7 @@ defmodule Spheric.Game.Behaviors.Miner do
   resource is depleted.
   """
 
-  alias Spheric.Game.WorldStore
+  alias Spheric.Game.{Creatures, WorldStore}
 
   @default_rate 5
 
@@ -21,6 +21,7 @@ defmodule Spheric.Game.Behaviors.Miner do
   Process one tick for a miner. Returns updated building map.
 
   Extracts resources directly from ETS tile data when ready.
+  With an area creature boost, can mine adjacent tiles when own tile is depleted.
   """
   def tick(key, building) do
     state = building.state
@@ -38,7 +39,14 @@ defmodule Spheric.Game.Behaviors.Miner do
             %{building | state: %{state | output_buffer: item_type, progress: 0}}
 
           :depleted ->
-            building
+            # Area boost: try adjacent tiles
+            case extract_from_area(key, building[:owner_id]) do
+              {:ok, item_type} ->
+                %{building | state: %{state | output_buffer: item_type, progress: 0}}
+
+              :depleted ->
+                building
+            end
         end
     end
   end
@@ -54,6 +62,29 @@ defmodule Spheric.Game.Behaviors.Miner do
 
       _ ->
         :depleted
+    end
+  end
+
+  defp extract_from_area({face, row, col} = key, owner_id) do
+    area = Creatures.area_value(key, owner_id)
+
+    if area > 0 do
+      radius = round(area)
+      radius = max(radius, 1)
+
+      # Try adjacent tiles within area radius (excluding self)
+      Enum.find_value(for(r <- (row - radius)..(row + radius),
+                          c <- (col - radius)..(col + radius),
+                          r >= 0 and c >= 0 and r < 64 and c < 64,
+                          {r, c} != {row, col},
+                          do: {face, r, c}), fn adj_key ->
+        case extract_resource(adj_key) do
+          {:ok, _} = result -> result
+          :depleted -> nil
+        end
+      end) || :depleted
+    else
+      :depleted
     end
   end
 

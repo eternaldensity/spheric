@@ -36,7 +36,7 @@ defmodule Spheric.Game.Behaviors.GatheringPost do
 
       true ->
         # Look for a nearby wild creature to visit
-        case find_nearby_creature(key) do
+        case find_nearby_creature(key, building[:owner_id]) do
           nil ->
             building
 
@@ -46,12 +46,15 @@ defmodule Spheric.Game.Behaviors.GatheringPost do
     end
   end
 
-  defp find_nearby_creature({face, row, col}) do
+  defp find_nearby_creature({face, row, col} = key, owner_id) do
+    area = Creatures.area_value(key, owner_id)
+    radius = round(@attraction_radius * (1.0 + area))
+
     Creatures.all_wild_creatures()
     |> Enum.find_value(fn {_id, c} ->
       if c.face == face and
-           abs(c.row - row) <= @attraction_radius and
-           abs(c.col - col) <= @attraction_radius do
+           abs(c.row - row) <= radius and
+           abs(c.col - col) <= radius do
         c.type
       end
     end)

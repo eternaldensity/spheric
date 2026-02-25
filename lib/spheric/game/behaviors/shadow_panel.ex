@@ -11,6 +11,8 @@ defmodule Spheric.Game.Behaviors.ShadowPanel do
   alias Spheric.Game.ShiftCycle
 
   @lamp_suppress_radius 3
+  # Max scan radius accounts for area-boosted lamps (base 3 * max ~2.8x = ~9)
+  @lamp_scan_radius 9
 
   def initial_state do
     %{power_output: 0, rate: 1}
@@ -33,18 +35,27 @@ defmodule Spheric.Game.Behaviors.ShadowPanel do
   @doc "Radius within which a powered lamp suppresses this panel."
   def lamp_suppress_radius, do: @lamp_suppress_radius
 
-  # Check if any powered lamp building exists within suppress radius
+  # Check if any powered lamp building exists within its effective suppress radius.
+  # Scans a wider area to account for area-boosted lamps, then checks per-lamp distance.
   defp lamp_nearby?({face, row, col}) do
     alias Spheric.Game.{WorldStore, Power}
+    alias Spheric.Game.Behaviors.Lamp
 
-    for r <- (row - @lamp_suppress_radius)..(row + @lamp_suppress_radius),
-        c <- (col - @lamp_suppress_radius)..(col + @lamp_suppress_radius),
-        r >= 0 and c >= 0 and r < 64 and c < 64,
-        {r, c} != {row, col} do
-      key = {face, r, c}
-      building = WorldStore.get_building(key)
-      building != nil and building.type == :lamp and Power.powered?(key)
-    end
-    |> Enum.any?()
+    Enum.any?(
+      for r <- (row - @lamp_scan_radius)..(row + @lamp_scan_radius),
+          c <- (col - @lamp_scan_radius)..(col + @lamp_scan_radius),
+          r >= 0 and c >= 0 and r < 64 and c < 64,
+          {r, c} != {row, col} do
+        lamp_key = {face, r, c}
+        building = WorldStore.get_building(lamp_key)
+
+        if building != nil and building.type == :lamp and Power.powered?(lamp_key) do
+          eff_radius = Lamp.effective_radius(lamp_key, building[:owner_id])
+          abs(r - row) <= eff_radius and abs(c - col) <= eff_radius
+        else
+          false
+        end
+      end
+    )
   end
 end

@@ -179,7 +179,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
       state = refuel_delivery_drone(state)
 
       # Step 3: Handle state machine
-      {state, buildings} = delivery_state_machine(bay_key, state, buildings)
+      {state, buildings} = delivery_state_machine(bay_key, state, buildings, bay_building[:owner_id])
 
       # Update the bay building in the buildings map
       buildings = Map.put(buildings, bay_key, %{bay_building | state: state})
@@ -201,11 +201,16 @@ defmodule Spheric.Game.Behaviors.DroneBay do
     end
   end
 
-  @doc "Check if two tile keys are within delivery range (same + adjacent cells)."
-  def delivery_in_range?({f1, r1, c1}, {f2, r2, c2}) do
+  @doc "Check if two tile keys are within delivery range. Base is adjacent cells (±1). Area creature boost extends range."
+  def delivery_in_range?(bay_key, target_key, owner_id \\ nil)
+
+  def delivery_in_range?({f1, r1, c1} = bay_key, {f2, r2, c2}, owner_id) do
+    area = Spheric.Game.Creatures.area_value(bay_key, owner_id)
+    max_cells = round(1 * (1.0 + area))
+
     f1 == f2 and
-      abs(div(r1, 16) - div(r2, 16)) <= 1 and
-      abs(div(c1, 16) - div(c2, 16)) <= 1
+      abs(div(r1, 16) - div(r2, 16)) <= max_cells and
+      abs(div(c1, 16) - div(c2, 16)) <= max_cells
   end
 
   @doc "Compute a Manhattan path from src to dest (row first, then col). Returns list of tiles excluding src."
@@ -311,7 +316,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
     end
   end
 
-  defp delivery_state_machine(bay_key, %{delivery_state: :idle} = state, buildings) do
+  defp delivery_state_machine(bay_key, %{delivery_state: :idle} = state, buildings, owner_id) do
     # Check if we have fuel
     has_fuel = state.delivery_fuel != nil or state.delivery_fuel_tank != []
 
@@ -335,7 +340,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
         {state, buildings}
       else
         # Find a construction site in range that needs materials
-        case find_delivery_task(bay_key, buildings) do
+        case find_delivery_task(bay_key, buildings, owner_id) do
           nil ->
             {state, buildings}
 
@@ -363,7 +368,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
     end
   end
 
-  defp delivery_state_machine(bay_key, %{delivery_state: :flying_to_storage} = state, buildings) do
+  defp delivery_state_machine(bay_key, %{delivery_state: :flying_to_storage} = state, buildings, _owner_id) do
     case state.delivery_path do
       [] ->
         # Arrived at storage — extract items
@@ -413,7 +418,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
     end
   end
 
-  defp delivery_state_machine(bay_key, %{delivery_state: :flying_to_site} = state, buildings) do
+  defp delivery_state_machine(bay_key, %{delivery_state: :flying_to_site} = state, buildings, _owner_id) do
     case state.delivery_path do
       [] ->
         # Arrived at construction site — deliver items
@@ -443,7 +448,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
     end
   end
 
-  defp delivery_state_machine(bay_key, %{delivery_state: :returning} = state, buildings) do
+  defp delivery_state_machine(_bay_key, %{delivery_state: :returning} = state, buildings, _owner_id) do
     case state.delivery_path do
       [] ->
         # Arrived back at bay — go idle
@@ -466,7 +471,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
     end
   end
 
-  defp delivery_state_machine(_bay_key, state, buildings), do: {state, buildings}
+  defp delivery_state_machine(_bay_key, state, buildings, _owner_id), do: {state, buildings}
 
   defp move_one_step(%{delivery_path: []} = state), do: {state, false}
 
@@ -474,13 +479,13 @@ defmodule Spheric.Game.Behaviors.DroneBay do
     {%{state | delivery_pos: next, delivery_path: rest}, true}
   end
 
-  defp find_delivery_task(bay_key, buildings) do
+  defp find_delivery_task(bay_key, buildings, owner_id) do
     # Find construction sites in range needing materials
     sites =
       Enum.filter(buildings, fn {key, b} ->
         b.state[:construction] != nil and
           b.state.construction.complete == false and
-          delivery_in_range?(bay_key, key)
+          delivery_in_range?(bay_key, key, owner_id)
       end)
 
     # For each site, check what items are needed and if any storage has them
@@ -500,7 +505,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
         storage =
           Enum.find(buildings, fn {key, b} ->
             b.type == :storage_container and
-              delivery_in_range?(bay_key, key) and
+              delivery_in_range?(bay_key, key, owner_id) and
               b.state[:item_type] in needed_items and
               b.state[:count] > 0
           end)

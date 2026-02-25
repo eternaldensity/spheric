@@ -369,6 +369,50 @@ defmodule Spheric.Game.CreaturesTest do
     end
   end
 
+  describe "area_value/1" do
+    test "returns 0.0 when no creature assigned" do
+      assert Creatures.area_value({@test_face, 9, 9}) == 0.0
+    end
+
+    test "returns boost amount when area creature assigned" do
+      creature = %{type: :spore_cloud, face: @test_face, row: 1, col: 1, spawned_at: 0}
+      Creatures.put_wild_creature("test:area", creature)
+      Creatures.capture_creature("test:area", creature, "player:area")
+
+      building = %{
+        type: :gathering_post,
+        orientation: 0,
+        state: %{output_buffer: nil, progress: 0, rate: 20, visitor_type: nil, powered: true},
+        owner_id: "player:area"
+      }
+
+      WorldStore.put_building({@test_face, 8, 7}, building)
+      Creatures.assign_creature("player:area", "test:area", {@test_face, 8, 7})
+
+      # Spore Cloud: area 0.50
+      assert Creatures.area_value({@test_face, 8, 7}, "player:area") == 0.50
+    end
+
+    test "returns 0.0 when non-area creature assigned" do
+      creature = %{type: :ember_wisp, face: @test_face, row: 1, col: 1, spawned_at: 0}
+      Creatures.put_wild_creature("test:area2", creature)
+      Creatures.capture_creature("test:area2", creature, "player:area2")
+
+      building = %{
+        type: :miner,
+        orientation: 0,
+        state: %{output_buffer: nil, progress: 0, rate: 5},
+        owner_id: "player:area2"
+      }
+
+      WorldStore.put_building({@test_face, 8, 6}, building)
+      Creatures.assign_creature("player:area2", "test:area2", {@test_face, 8, 6})
+
+      # Ember Wisp is speed, not area
+      assert Creatures.area_value({@test_face, 8, 6}, "player:area2") == 0.0
+    end
+  end
+
   describe "has_assigned_creature?/1" do
     test "returns false when no creature assigned" do
       refute Creatures.has_assigned_creature?({@test_face, 8, 8})
