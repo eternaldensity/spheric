@@ -131,7 +131,7 @@ defmodule Spheric.Game.Research do
       id: "l6_nuclear_materials",
       name: "Nuclear Clearance Protocol",
       clearance: 6,
-      requirements: %{composite: 15, enriched_uranium: 5},
+      requirements: %{composite: 15, enriched_uranium: 50},
       description:
         "Deliver 15 Composite Materials and 5 Enriched Uranium to authorize nuclear operations."
     }
