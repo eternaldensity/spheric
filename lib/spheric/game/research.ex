@@ -203,7 +203,7 @@ defmodule Spheric.Game.Research do
     ],
     2 => [:refinery, :conveyor_mk3, :balancer, :underground_conduit, :crossover],
     3 => [:containment_trap, :purification_beacon, :defense_turret, :shadow_panel, :lamp],
-    4 => [:bio_generator, :substation, :transfer_station, :advanced_smelter],
+    4 => [:bio_generator, :substation, :transfer_station, :advanced_smelter, :loader, :unloader],
     5 => [:advanced_assembler, :fabrication_plant, :essence_extractor],
     6 => [:particle_collider, :nuclear_refinery],
     7 => [:dimensional_stabilizer, :paranatural_synthesizer, :astral_projection_chamber],

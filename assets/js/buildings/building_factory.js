@@ -26,6 +26,8 @@ const COLORS = {
   astral_projection_chamber: 0x8866cc,
   gathering_post: 0x66884a,
   drone_bay: 0x445577,
+  loader: 0x55aa77,
+  unloader: 0x77aa55,
 };
 
 // Shared material cache — reuse materials across all buildings of the same color
@@ -128,6 +130,11 @@ const _SHARED_GEOMETRIES_RAW = {
   drone_bay_mast: new THREE.CylinderGeometry(s * 0.08, s * 0.1, s * 1.4, 6),
   drone_bay_dish: new THREE.SphereGeometry(s * 0.3, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2),
   drone_bay_arm: new THREE.BoxGeometry(s * 0.6, s * 0.06, s * 0.06),
+  // Loader / Unloader arms
+  arm_base: new THREE.CylinderGeometry(s * 0.7, s * 0.8, s * 0.3, 6),
+  arm_pillar: new THREE.CylinderGeometry(s * 0.12, s * 0.15, s * 1.0, 6),
+  arm_boom: new THREE.BoxGeometry(s * 1.2, s * 0.08, s * 0.08),
+  arm_claw: new THREE.BoxGeometry(s * 0.15, s * 0.4, s * 0.15),
 };
 // Mark all shared geometries so they won't be disposed when individual buildings are removed
 const SHARED_GEOMETRIES = Object.fromEntries(
@@ -676,6 +683,66 @@ function createDroneBay() {
   return group;
 }
 
+function createLoader() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.loader);
+
+  // Hexagonal base platform
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.arm_base, mat);
+  base.position.y = s * 0.15;
+  group.add(base);
+
+  // Vertical pillar
+  const pillar = new THREE.Mesh(SHARED_GEOMETRIES.arm_pillar, mat);
+  pillar.position.y = s * 0.8;
+  group.add(pillar);
+
+  // Horizontal boom (points forward — toward destination)
+  const boomMat = makeMaterial(0x448866);
+  const boom = new THREE.Mesh(SHARED_GEOMETRIES.arm_boom, boomMat);
+  boom.position.set(s * 0.5, s * 1.3, 0);
+  group.add(boom);
+
+  // Claw/gripper at end of boom
+  const clawMat = makeMaterial(0x336655);
+  const claw = new THREE.Mesh(SHARED_GEOMETRIES.arm_claw, clawMat);
+  claw.position.set(s * 1.1, s * 1.1, 0);
+  group.add(claw);
+
+  return group;
+}
+
+function createUnloader() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.unloader);
+
+  // Hexagonal base platform
+  const base = new THREE.Mesh(SHARED_GEOMETRIES.arm_base, mat);
+  base.position.y = s * 0.15;
+  group.add(base);
+
+  // Vertical pillar
+  const pillar = new THREE.Mesh(SHARED_GEOMETRIES.arm_pillar, mat);
+  pillar.position.y = s * 0.8;
+  group.add(pillar);
+
+  // Horizontal boom (points backward — toward source)
+  const boomMat = makeMaterial(0x668844);
+  const boom = new THREE.Mesh(SHARED_GEOMETRIES.arm_boom, boomMat);
+  boom.position.set(-s * 0.5, s * 1.3, 0);
+  group.add(boom);
+
+  // Claw/gripper at end of boom
+  const clawMat = makeMaterial(0x556633);
+  const claw = new THREE.Mesh(SHARED_GEOMETRIES.arm_claw, clawMat);
+  claw.position.set(-s * 1.1, s * 1.1, 0);
+  group.add(claw);
+
+  return group;
+}
+
 const BUILDERS = {
   miner: createMiner,
   conveyor: createConveyor,
@@ -700,6 +767,8 @@ const BUILDERS = {
   astral_projection_chamber: createAstralProjectionChamber,
   gathering_post: createGatheringPost,
   drone_bay: createDroneBay,
+  loader: createLoader,
+  unloader: createUnloader,
 };
 
 /**

@@ -43,6 +43,8 @@ defmodule Spheric.Game.ConstructionCosts do
     substation: %{cable: 5, copper_ingot: 10, plate: 6},
     transfer_station: %{cable: 10, frame: 2, circuit: 6},
     advanced_smelter: %{heavy_frame: 12, circuit: 5, heat_sink: 8},
+    loader: %{frame: 2, cable: 3, motor: 1},
+    unloader: %{frame: 2, cable: 3, motor: 1},
 
     # Tier 5
     advanced_assembler: %{heavy_frame: 20, advanced_circuit: 3, motor: 4},
@@ -90,6 +92,8 @@ defmodule Spheric.Game.ConstructionCosts do
     substation: 4,
     transfer_station: 4,
     advanced_smelter: 4,
+    loader: 4,
+    unloader: 4,
     advanced_assembler: 5,
     fabrication_plant: 5,
     essence_extractor: 5,

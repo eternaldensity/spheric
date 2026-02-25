@@ -108,6 +108,8 @@ defmodule Spheric.Game.Lore do
   def display_name(:paranatural_synthesizer), do: "Paranatural Synthesizer"
   def display_name(:board_interface), do: "Board Interface"
   def display_name(:drone_bay), do: "Drone Bay"
+  def display_name(:loader), do: "Insertion Arm"
+  def display_name(:unloader), do: "Extraction Arm"
 
   # New creatures
   def display_name(:flux_serpent), do: "Flux Serpent"

@@ -125,6 +125,75 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     tile = %{face: face, row: row, col: col}
     Logger.debug("Tile clicked: face=#{face} row=#{row} col=#{col}")
 
+    # Intercept for arm linking mode
+    case socket.assigns[:arm_linking] do
+      {mode, arm_key} when mode in [:source, :destination] ->
+        handle_arm_link(socket, arm_key, key, mode)
+
+      _ ->
+        handle_normal_tile_click(socket, key, tile, face, row, col)
+    end
+  end
+
+  defp handle_arm_link(socket, arm_key, target_key, mode) do
+    building = WorldStore.get_building(arm_key)
+
+    valid =
+      building != nil and
+        building.type in [:loader, :unloader] and
+        building.owner_id == socket.assigns.player_id and
+        arm_within_range?(arm_key, target_key) and
+        validate_arm_target(building.type, mode, target_key)
+
+    if valid do
+      new_state =
+        case mode do
+          :source -> %{building.state | source: target_key}
+          :destination -> %{building.state | destination: target_key}
+        end
+
+      WorldStore.put_building(arm_key, %{building | state: new_state})
+      tile_info = Helpers.build_tile_info(arm_key)
+
+      socket =
+        socket
+        |> assign(:arm_linking, nil)
+        |> assign(:tile_info, tile_info)
+        |> assign(:selected_tile, %{
+          face: elem(arm_key, 0),
+          row: elem(arm_key, 1),
+          col: elem(arm_key, 2)
+        })
+
+      {:noreply, socket}
+    else
+      {:noreply, assign(socket, :arm_linking, nil)}
+    end
+  end
+
+  defp arm_within_range?({f1, r1, c1}, {f2, r2, c2}) do
+    f1 == f2 and abs(r1 - r2) + abs(c1 - c2) <= 2
+  end
+
+  defp validate_arm_target(:unloader, :source, _target_key), do: true
+
+  defp validate_arm_target(:unloader, :destination, target_key) do
+    case WorldStore.get_building(target_key) do
+      %{type: :storage_container} -> true
+      _ -> false
+    end
+  end
+
+  defp validate_arm_target(:loader, :source, target_key) do
+    case WorldStore.get_building(target_key) do
+      %{type: :storage_container} -> true
+      _ -> false
+    end
+  end
+
+  defp validate_arm_target(:loader, :destination, _target_key), do: true
+
+  defp handle_normal_tile_click(socket, key, tile, face, row, col) do
     case socket.assigns.selected_building_type do
       nil ->
         tile_info = Helpers.build_tile_info(key)
@@ -311,6 +380,52 @@ defmodule SphericWeb.GameLive.BuildingEvents do
       WorldStore.put_building(key_b, %{building_b | state: new_state_b})
 
       tile_info = Helpers.build_tile_info(key_a)
+      {:noreply, assign(socket, :tile_info, tile_info)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Arm linking: enter linking mode so next tile_click assigns source or destination
+  def handle_event(
+        "start_arm_link",
+        %{"face" => face, "row" => row, "col" => col, "mode" => mode},
+        socket
+      ) do
+    face = Helpers.to_int(face)
+    row = Helpers.to_int(row)
+    col = Helpers.to_int(col)
+    arm_key = {face, row, col}
+
+    building = WorldStore.get_building(arm_key)
+
+    if building && building.type in [:loader, :unloader] &&
+         building.owner_id == socket.assigns.player_id do
+      link_mode = String.to_existing_atom(mode)
+      {:noreply, assign(socket, :arm_linking, {link_mode, arm_key})}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Arm upgrade: toggle bulk transfer
+  def handle_event(
+        "upgrade_arm",
+        %{"face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    face = Helpers.to_int(face)
+    row = Helpers.to_int(row)
+    col = Helpers.to_int(col)
+    key = {face, row, col}
+
+    building = WorldStore.get_building(key)
+
+    if building && building.type in [:loader, :unloader] &&
+         building.owner_id == socket.assigns.player_id do
+      new_state = %{building.state | stack_upgrade: !building.state[:stack_upgrade]}
+      WorldStore.put_building(key, %{building | state: new_state})
+      tile_info = Helpers.build_tile_info(key)
       {:noreply, assign(socket, :tile_info, tile_info)}
     else
       {:noreply, socket}

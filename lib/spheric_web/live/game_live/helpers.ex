@@ -133,13 +133,35 @@ defmodule SphericWeb.GameLive.Helpers do
           nil
         end
 
+      arm_info =
+        if building.type in [:loader, :unloader] && !under_construction do
+          %{
+            source: building.state[:source],
+            destination: building.state[:destination],
+            stack_upgrade: building.state[:stack_upgrade] || false,
+            source_label:
+              if(building.state[:source],
+                do: format_building_key(building.state[:source]),
+                else: nil
+              ),
+            destination_label:
+              if(building.state[:destination],
+                do: format_building_key(building.state[:destination]),
+                else: nil
+              )
+          }
+        else
+          nil
+        end
+
       Map.merge(base, %{
         building_name: Lore.display_name(building.type),
         building_orientation: building.orientation,
         building_status: building_status_text(building),
         building_owner_id: building[:owner_id],
         building_owner_name: owner_name,
-        drone_bay_info: drone_bay_info
+        drone_bay_info: drone_bay_info,
+        arm_info: arm_info
       })
     else
       Map.merge(base, %{
@@ -148,7 +170,8 @@ defmodule SphericWeb.GameLive.Helpers do
         building_status: nil,
         building_owner_id: nil,
         building_owner_name: nil,
-        drone_bay_info: nil
+        drone_bay_info: nil,
+        arm_info: nil
       })
     end
   end
@@ -283,6 +306,32 @@ defmodule SphericWeb.GameLive.Helpers do
       "#{Lore.display_name(state.item_type)}: #{state.count}/#{state.capacity}"
     else
       "Empty — 0/#{state[:capacity] || 100}"
+    end
+  end
+
+  def building_status_text(%{type: type, state: state})
+      when type in [:loader, :unloader] do
+    label = if type == :loader, do: "Loading", else: "Extracting"
+
+    cond do
+      state[:powered] == false ->
+        "Unpowered"
+
+      state[:source] == nil and state[:destination] == nil ->
+        "Unconfigured — set source and destination"
+
+      state[:source] == nil ->
+        "Set source tile"
+
+      state[:destination] == nil ->
+        "Set destination tile"
+
+      state[:last_transferred] != nil ->
+        bulk = if state[:stack_upgrade], do: " [BULK]", else: ""
+        "#{label}: #{Lore.display_name(state.last_transferred)}#{bulk}"
+
+      true ->
+        "Idle — awaiting items"
     end
   end
 

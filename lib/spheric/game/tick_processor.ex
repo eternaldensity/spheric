@@ -279,6 +279,9 @@ defmodule Spheric.Game.TickProcessor do
     # Phase 2p: Conveyor Mk2/Mk3 internal buffer advancement
     all_buildings = advance_conveyor_buffers(all_buildings)
 
+    # Phase 2q: Arm transfers (loaders and unloaders)
+    all_buildings = resolve_arm_transfers(all_buildings, classified.arms)
+
     # Phase 3: Push resolution — move items between buildings
     {final_buildings, movements} = resolve_pushes(all_buildings)
 
@@ -378,6 +381,7 @@ defmodule Spheric.Game.TickProcessor do
       gathering_posts: [],
       essence_extractors: [],
       drone_bays: [],
+      arms: [],
       others: []
     }
 
@@ -405,6 +409,7 @@ defmodule Spheric.Game.TickProcessor do
         :gathering_post -> %{acc | gathering_posts: [pair | acc.gathering_posts]}
         :essence_extractor -> %{acc | essence_extractors: [pair | acc.essence_extractors]}
         :drone_bay -> %{acc | drone_bays: [pair | acc.drone_bays]}
+        type when type in [:loader, :unloader] -> %{acc | arms: [pair | acc.arms]}
         _ -> %{acc | others: [pair | acc.others]}
       end
     end)
@@ -439,6 +444,260 @@ defmodule Spheric.Game.TickProcessor do
         acc
     end)
   end
+
+  # ── Arm transfers (loaders / unloaders) ────────────────────────────────────
+
+  defp resolve_arm_transfers(buildings, arms) do
+    Enum.reduce(arms, buildings, fn {arm_key, arm_building}, acc ->
+      state = arm_building.state
+
+      # Skip unpowered, unconfigured, or under-construction arms
+      cond do
+        state[:powered] == false -> acc
+        state[:source] == nil or state[:destination] == nil -> acc
+        true -> do_arm_transfer(acc, arm_key, arm_building)
+      end
+    end)
+  end
+
+  defp do_arm_transfer(buildings, arm_key, arm_building) do
+    state = arm_building.state
+    source_key = state.source
+    dest_key = state.destination
+
+    # Validate range (Manhattan distance <= 2, same face)
+    unless arm_within_range?(arm_key, source_key) and arm_within_range?(arm_key, dest_key) do
+      buildings
+    else
+      max_items = if state[:stack_upgrade], do: 10, else: 1
+
+      {final_buildings, last_item} =
+        Enum.reduce_while(1..max_items, {buildings, nil}, fn _i, {acc, _last} ->
+          case arm_extract(acc, arm_building.type, source_key) do
+            nil ->
+              {:halt, {acc, nil}}
+
+            {item, acc} ->
+              case arm_insert(acc, arm_building.type, dest_key, item) do
+                nil ->
+                  # Can't insert — put item back at source
+                  acc = arm_return(acc, arm_building.type, source_key, item)
+                  {:halt, {acc, nil}}
+
+                acc ->
+                  {:cont, {acc, item}}
+              end
+          end
+        end)
+
+      # Update arm's last_transferred
+      if last_item do
+        arm_b = Map.get(final_buildings, arm_key)
+
+        if arm_b do
+          Map.put(final_buildings, arm_key, %{
+            arm_b
+            | state: %{arm_b.state | last_transferred: last_item}
+          })
+        else
+          final_buildings
+        end
+      else
+        final_buildings
+      end
+    end
+  end
+
+  defp arm_within_range?({f1, r1, c1}, {f2, r2, c2}) do
+    f1 == f2 and abs(r1 - r2) + abs(c1 - c2) <= 2
+  end
+
+  # ── Extract item from source ──────────────────────────────────────────────
+
+  # Unloader: can grab from machine output_buffer, conveyor, storage, or ground
+  defp arm_extract(buildings, :unloader, source_key) do
+    case Map.get(buildings, source_key) do
+      %{state: %{output_buffer: item}} = b when not is_nil(item) ->
+        {item, Map.put(buildings, source_key, %{b | state: %{b.state | output_buffer: nil}})}
+
+      %{type: type, state: %{item: item}} = b
+      when type in [:conveyor, :conveyor_mk2, :conveyor_mk3] and not is_nil(item) ->
+        {item, Map.put(buildings, source_key, %{b | state: %{b.state | item: nil}})}
+
+      %{type: :storage_container, state: %{item_type: item_type, count: count}} = b
+      when not is_nil(item_type) and count > 0 ->
+        new_count = count - 1
+        new_type = if new_count == 0, do: nil, else: item_type
+
+        {item_type,
+         Map.put(buildings, source_key, %{
+           b
+           | state: %{b.state | count: new_count, item_type: new_type}
+         })}
+
+      _ ->
+        # Try ground items
+        arm_extract_ground(buildings, source_key)
+    end
+  end
+
+  # Loader: can only grab from storage container
+  defp arm_extract(buildings, :loader, source_key) do
+    case Map.get(buildings, source_key) do
+      %{type: :storage_container, state: %{item_type: item_type, count: count}} = b
+      when not is_nil(item_type) and count > 0 ->
+        new_count = count - 1
+        new_type = if new_count == 0, do: nil, else: item_type
+
+        {item_type,
+         Map.put(buildings, source_key, %{
+           b
+           | state: %{b.state | count: new_count, item_type: new_type}
+         })}
+
+      _ ->
+        nil
+    end
+  end
+
+  defp arm_extract_ground(buildings, key) do
+    ground = GroundItems.get(key)
+
+    case Enum.find(ground, fn {_type, count} -> count > 0 end) do
+      {item_type, _count} ->
+        GroundItems.take(key, item_type)
+        {item_type, buildings}
+
+      nil ->
+        nil
+    end
+  end
+
+  # ── Insert item into destination ──────────────────────────────────────────
+
+  # Unloader: destination must be storage container
+  defp arm_insert(buildings, :unloader, dest_key, item) do
+    case Map.get(buildings, dest_key) do
+      %{type: :storage_container, state: state} = b ->
+        case Behaviors.StorageContainer.try_accept_item(state, item) do
+          nil -> nil
+          new_state -> Map.put(buildings, dest_key, %{b | state: new_state})
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  # Loader: can insert into conveyor, production machine, storage, or ground
+  defp arm_insert(buildings, :loader, dest_key, item) do
+    case Map.get(buildings, dest_key) do
+      # Conveyors
+      %{type: :conveyor, state: %{item: nil}} = b ->
+        Map.put(buildings, dest_key, %{b | state: %{b.state | item: item}})
+
+      %{type: :conveyor_mk2, state: state} = b ->
+        cond do
+          state.item == nil ->
+            Map.put(buildings, dest_key, %{b | state: %{state | item: item}})
+
+          state.buffer == nil ->
+            Map.put(buildings, dest_key, %{b | state: %{state | buffer: item}})
+
+          true ->
+            nil
+        end
+
+      %{type: :conveyor_mk3, state: state} = b ->
+        cond do
+          state.item == nil ->
+            Map.put(buildings, dest_key, %{b | state: %{state | item: item}})
+
+          state.buffer1 == nil ->
+            Map.put(buildings, dest_key, %{b | state: %{state | buffer1: item}})
+
+          state.buffer2 == nil ->
+            Map.put(buildings, dest_key, %{b | state: %{state | buffer2: item}})
+
+          true ->
+            nil
+        end
+
+      # Storage container
+      %{type: :storage_container, state: state} = b ->
+        case Behaviors.StorageContainer.try_accept_item(state, item) do
+          nil -> nil
+          new_state -> Map.put(buildings, dest_key, %{b | state: new_state})
+        end
+
+      # Production machines (all use try_accept_item from the Production macro)
+      %{type: type, state: state} = b
+      when type in [
+             :smelter,
+             :refinery,
+             :advanced_smelter,
+             :nuclear_refinery,
+             :assembler,
+             :advanced_assembler,
+             :fabrication_plant,
+             :particle_collider,
+             :paranatural_synthesizer,
+             :board_interface
+           ] ->
+        behavior = production_behavior(type)
+
+        case behavior.try_accept_item(state, item) do
+          nil -> nil
+          new_state -> Map.put(buildings, dest_key, %{b | state: new_state})
+        end
+
+      # No building or unsupported type — drop to ground
+      _ ->
+        GroundItems.add(dest_key, item)
+        buildings
+    end
+  end
+
+  # Return an extracted item to source (when dest rejected it)
+  defp arm_return(buildings, :unloader, source_key, item) do
+    case Map.get(buildings, source_key) do
+      %{state: %{output_buffer: nil}} = b ->
+        Map.put(buildings, source_key, %{b | state: %{b.state | output_buffer: item}})
+
+      _ ->
+        GroundItems.add(source_key, item)
+        buildings
+    end
+  end
+
+  defp arm_return(buildings, :loader, source_key, item) do
+    case Map.get(buildings, source_key) do
+      %{type: :storage_container, state: state} = b ->
+        case Behaviors.StorageContainer.try_accept_item(state, item) do
+          nil ->
+            GroundItems.add(source_key, item)
+            buildings
+
+          new_state ->
+            Map.put(buildings, source_key, %{b | state: new_state})
+        end
+
+      _ ->
+        GroundItems.add(source_key, item)
+        buildings
+    end
+  end
+
+  defp production_behavior(:smelter), do: Behaviors.Smelter
+  defp production_behavior(:refinery), do: Behaviors.Refinery
+  defp production_behavior(:advanced_smelter), do: Behaviors.AdvancedSmelter
+  defp production_behavior(:nuclear_refinery), do: Behaviors.NuclearRefinery
+  defp production_behavior(:assembler), do: Behaviors.Assembler
+  defp production_behavior(:advanced_assembler), do: Behaviors.AdvancedAssembler
+  defp production_behavior(:fabrication_plant), do: Behaviors.FabricationPlant
+  defp production_behavior(:particle_collider), do: Behaviors.ParticleCollider
+  defp production_behavior(:paranatural_synthesizer), do: Behaviors.ParanaturalSynthesizer
+  defp production_behavior(:board_interface), do: Behaviors.BoardInterface
 
   @doc """
   Resolve item movement. Returns `{final_buildings, movements}`.

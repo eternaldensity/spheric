@@ -295,8 +295,15 @@ defmodule Spheric.Game.Persistence do
     :item_type,
     :output_type,
     :mode,
-    :selected_upgrade
+    :selected_upgrade,
+    :last_transferred
   ]
+
+  @tuple_key_fields [:source, :destination, :linked_to]
+
+  defp atomize_state_value(key, value) when key in @tuple_key_fields and is_list(value) do
+    List.to_tuple(value)
+  end
 
   defp atomize_state_value(key, value) when key in @atom_fields and is_binary(value) do
     String.to_atom(value)
@@ -697,6 +704,7 @@ defmodule Spheric.Game.Persistence do
 
       val =
         cond do
+          is_tuple(v) -> Tuple.to_list(v)
           is_map(v) -> serialize_state(v)
           is_atom(v) and not is_nil(v) and not is_boolean(v) -> Atom.to_string(v)
           true -> v

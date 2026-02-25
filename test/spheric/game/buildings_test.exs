@@ -6,7 +6,7 @@ defmodule Spheric.Game.BuildingsTest do
   describe "types/0" do
     test "returns all building types" do
       types = Buildings.types()
-      assert length(types) == 36
+      assert length(types) == 38
       assert :conveyor in types
       assert :conveyor_mk2 in types
       assert :conveyor_mk3 in types

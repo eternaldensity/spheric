@@ -158,6 +158,7 @@ defmodule SphericWeb.GameLive do
       |> assign(:show_waypoints, false)
       |> assign(:waypoints, Helpers.restore_waypoints(if(connected?(socket), do: get_connect_params(socket), else: %{})))
       |> assign(:demolish_mode, false)
+      |> assign(:arm_linking, nil)
       |> assign(:starter_kit_remaining, StarterKit.get_remaining(player_id))
       |> push_event("buildings_snapshot", %{buildings: buildings_data})
 
@@ -509,6 +510,80 @@ defmodule SphericWeb.GameLive do
           >
             Fuel buffer: {@tile_info.drone_bay_info.fuel_buffer_count}/5
           </div>
+        </div>
+
+        <%!-- Arm (Loader/Unloader) configuration panel --%>
+        <div
+          :if={@tile_info.arm_info && (@tile_info.building_owner_id == nil or @tile_info.building_owner_id == @player_id)}
+          style="margin-top: 8px; border-top: 1px solid var(--fbc-border); padding-top: 8px;"
+        >
+          <div style="font-size: 10px; color: var(--fbc-info); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">
+            Arm Configuration
+          </div>
+
+          <%!-- Source --%>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 10px; color: var(--fbc-text-dim);">
+              Source: <span style="color: var(--fbc-text);">
+                {if @tile_info.arm_info.source, do: @tile_info.arm_info.source_label, else: "Not set"}
+              </span>
+            </span>
+            <button
+              phx-click="start_arm_link"
+              phx-value-face={@tile_info.face}
+              phx-value-row={@tile_info.row}
+              phx-value-col={@tile_info.col}
+              phx-value-mode="source"
+              style="padding: 2px 8px; border: 1px solid var(--fbc-info); background: rgba(136,153,170,0.1); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"
+            >
+              Set
+            </button>
+          </div>
+
+          <%!-- Destination --%>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 10px; color: var(--fbc-text-dim);">
+              Dest: <span style="color: var(--fbc-text);">
+                {if @tile_info.arm_info.destination, do: @tile_info.arm_info.destination_label, else: "Not set"}
+              </span>
+            </span>
+            <button
+              phx-click="start_arm_link"
+              phx-value-face={@tile_info.face}
+              phx-value-row={@tile_info.row}
+              phx-value-col={@tile_info.col}
+              phx-value-mode="destination"
+              style="padding: 2px 8px; border: 1px solid var(--fbc-info); background: rgba(136,153,170,0.1); color: var(--fbc-info); cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"
+            >
+              Set
+            </button>
+          </div>
+
+          <%!-- Bulk transfer upgrade --%>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+            <span style="font-size: 10px; color: var(--fbc-text-dim);">
+              Bulk Transfer: <span style={"color: #{if @tile_info.arm_info.stack_upgrade, do: "var(--fbc-success)", else: "var(--fbc-text-dim)"}"}>
+                {if @tile_info.arm_info.stack_upgrade, do: "Active", else: "Inactive"}
+              </span>
+            </span>
+            <button
+              phx-click="upgrade_arm"
+              phx-value-face={@tile_info.face}
+              phx-value-row={@tile_info.row}
+              phx-value-col={@tile_info.col}
+              style={"padding: 2px 8px; border: 1px solid #{if @tile_info.arm_info.stack_upgrade, do: "var(--fbc-success)", else: "var(--fbc-border)"}; background: #{if @tile_info.arm_info.stack_upgrade, do: "rgba(102,136,68,0.15)", else: "rgba(255,255,255,0.06)"}; color: #{if @tile_info.arm_info.stack_upgrade, do: "var(--fbc-success)", else: "var(--fbc-text-dim)"}; cursor: pointer; font-family: 'Courier New', monospace; font-size: 9px; text-transform: uppercase;"}
+            >
+              {if @tile_info.arm_info.stack_upgrade, do: "Disable", else: "Enable"}
+            </button>
+          </div>
+        </div>
+
+        <%!-- Arm linking mode indicator --%>
+        <div
+          :if={@arm_linking != nil}
+          style="margin-top: 6px; padding: 6px 8px; border: 1px solid var(--fbc-highlight); background: rgba(204,170,102,0.1); font-size: 10px; color: var(--fbc-highlight); text-transform: uppercase; letter-spacing: 0.05em; text-align: center;"
+        >
+          Select a tile to set {elem(@arm_linking, 0)}...
         </div>
       </div>
       <div :if={@tile_info.building == nil} style="color: var(--fbc-text-dim); margin-top: 4px;">
@@ -1357,6 +1432,14 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_event("claim_drone_upgrade", params, socket),
     do: BuildingEvents.handle_event("claim_drone_upgrade", params, socket)
+
+  @impl true
+  def handle_event("start_arm_link", params, socket),
+    do: BuildingEvents.handle_event("start_arm_link", params, socket)
+
+  @impl true
+  def handle_event("upgrade_arm", params, socket),
+    do: BuildingEvents.handle_event("upgrade_arm", params, socket)
 
   # Panel events
   @impl true
