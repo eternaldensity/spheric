@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Add delivery drone and delivery cargo upgrades to user guide (#157)
 - Per-tier conduit movement speed (#153)
 - Reduce drone fuel consumption when idle and near ground (#125)
 - Hide drone bay upgrades until construction complete (#122)
