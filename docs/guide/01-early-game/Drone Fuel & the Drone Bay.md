@@ -67,6 +67,7 @@ Click a Drone Bay to open its upgrade panel. The bay offers six permanent upgrad
 | **Expanded Cargo** | 1 | 5 Structural Plate, 3 Resonance Circuit, 6 Conductive Filament | Increases drone cargo capacity from 1 to **4 items** |
 | **Delivery Drone** | 3 | 3 Astral Frame, 3 Resonance Circuit, 2 Kinetic Driver, 5 Entity Biofuel | Adds an automated delivery drone to this bay (see below) |
 | **Delivery Cargo** | 4 | 2 Heavy Astral Frame, 1 Advanced Resonance Circuit, 2 Kinetic Driver | Increases delivery drone cargo capacity from 2 to **4 items** |
+| **Upgrade Delivery** | 4 | 3 Heavy Astral Frame, 2 Advanced Resonance Circuit, 1 Kinetic Driver, 4 Shielded Conductor | Delivery drone also delivers materials for building upgrades (arms, splitters, etc.) |
 
 ### Installing an Upgrade
 
@@ -134,6 +135,28 @@ Delivery drones consume fuel from the same pool as your camera drone's Auto-Refu
 ### Delivery Cargo Upgrade (Clearance 4)
 
 At Clearance 4, you can install **Delivery Cargo** on the same Drone Bay to double the delivery drone's carrying capacity from 2 to **4 items per trip**. This significantly speeds up construction for buildings that require many materials.
+
+### Upgrade Delivery (Clearance 4)
+
+At Clearance 4, you can install **Upgrade Delivery** on a Drone Bay. This extends the delivery drone's capability to also deliver materials for **building upgrades** — not just construction sites.
+
+Supported buildings:
+- **Insertion Arm / Extraction Arm** — Bulk Transfer upgrade
+- **Selective Distributor** — Mirror Mode and Dual Filter upgrades
+- **Surplus Router** — Mirror Mode upgrade
+- **Priority Converger** — Mirror Mode upgrade
+
+To use it:
+1. Click a building that has an available upgrade
+2. Click **Request Drone Delivery** in the tile info panel
+3. The building enters a pending state — the delivery drone will automatically fetch the required materials from nearby Containment Vaults
+4. Progress is shown in the tile info panel with per-item counts
+5. Once all materials are delivered, the upgrade is automatically applied
+
+You can **Cancel** a pending delivery at any time — already-delivered items are refunded to the ground.
+
+> [!tip] Both Paths Work
+> The manual method still works: drop upgrade materials on the building's tile and click **Enable**. Upgrade Delivery is an automation convenience, not a replacement.
 
 ### Status Panel
 

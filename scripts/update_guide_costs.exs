@@ -706,21 +706,22 @@ if adv_log do
   # Update arm Bulk Transfer upgrade costs
   loader_upgrade = GuideUpdater.format_cost(Loader.upgrade_cost(:stack_upgrade))
   unloader_upgrade = GuideUpdater.format_cost(Unloader.upgrade_cost(:stack_upgrade))
-  upgrade_suffix = " — drop materials on the arm's tile, then click **Enable** in the tile info panel."
+  arm_suffix = " — drop materials on the arm's tile, then click **Enable** in the tile info panel. *Alternatively, with the [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]] drone upgrade, click **Request Drone Delivery** for automated material delivery.*"
 
   new_content = Regex.replace(
     ~r/(## Insertion Arm.*?)\*\*Bulk Transfer Upgrade:\*\* [^\n]+/s,
     new_content,
-    "\\1**Bulk Transfer Upgrade:** #{loader_upgrade}#{upgrade_suffix}"
+    "\\1**Bulk Transfer Upgrade:** #{loader_upgrade}#{arm_suffix}"
   )
   new_content = Regex.replace(
     ~r/(## Extraction Arm.*?)\*\*Bulk Transfer Upgrade:\*\* [^\n]+/s,
     new_content,
-    "\\1**Bulk Transfer Upgrade:** #{unloader_upgrade}#{upgrade_suffix}"
+    "\\1**Bulk Transfer Upgrade:** #{unloader_upgrade}#{arm_suffix}"
   )
 
   # Update Mirror Mode / Dual Filter upgrade costs
   upgrade_suffix = " — drop materials on the building's tile, then click **Enable** in the tile info panel."
+  drone_suffix = " *Alternatively, with [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]], click **Request Drone Delivery** for automated delivery.*"
 
   fs_mirror = GuideUpdater.format_cost(FilteredSplitter.upgrade_cost(:mirror_mode))
   fs_dual = GuideUpdater.format_cost(FilteredSplitter.upgrade_cost(:dual_filter))
@@ -730,22 +731,22 @@ if adv_log do
   new_content = Regex.replace(
     ~r/(## Selective Distributor.*?)\*\*Mirror Mode Upgrade:\*\* [^\n]+/s,
     new_content,
-    "\\1**Mirror Mode Upgrade:** #{fs_mirror}#{upgrade_suffix} Swaps left/right routing (matching items go right, non-matching go left)."
+    "\\1**Mirror Mode Upgrade:** #{fs_mirror}#{upgrade_suffix} Swaps left/right routing (matching items go right, non-matching go left).#{drone_suffix}"
   )
   new_content = Regex.replace(
     ~r/(## Selective Distributor.*?)\*\*Dual Filter Upgrade:\*\* [^\n]+/s,
     new_content,
-    "\\1**Dual Filter Upgrade:** #{fs_dual}#{upgrade_suffix} Adds a second filter: left filter matches go left, right filter matches go right, non-matching items pass straight through."
+    "\\1**Dual Filter Upgrade:** #{fs_dual}#{upgrade_suffix} Adds a second filter: left filter matches go left, right filter matches go right, non-matching items pass straight through.#{drone_suffix}"
   )
   new_content = Regex.replace(
     ~r/(## Surplus Router.*?)\*\*Mirror Mode Upgrade:\*\* [^\n]+/s,
     new_content,
-    "\\1**Mirror Mode Upgrade:** #{og_mirror}#{upgrade_suffix} Overflow routes to the **right** side instead of the left."
+    "\\1**Mirror Mode Upgrade:** #{og_mirror}#{upgrade_suffix} Overflow routes to the **right** side instead of the left.#{drone_suffix}"
   )
   new_content = Regex.replace(
     ~r/(## Priority Converger.*?)\*\*Mirror Mode Upgrade:\*\* [^\n]+/s,
     new_content,
-    "\\1**Mirror Mode Upgrade:** #{pm_mirror}#{upgrade_suffix} The **right** input becomes the priority side instead of the left."
+    "\\1**Mirror Mode Upgrade:** #{pm_mirror}#{upgrade_suffix} The **right** input becomes the priority side instead of the left.#{drone_suffix}"
   )
 
   # Update conveyor tier table
@@ -921,6 +922,10 @@ if drone do
   auto_refuel = GuideUpdater.format_cost(upgrade_costs.auto_refuel)
   expanded_tank = GuideUpdater.format_cost(upgrade_costs.expanded_tank)
   drone_spotlight = GuideUpdater.format_cost(upgrade_costs.drone_spotlight)
+  expanded_cargo = GuideUpdater.format_cost(upgrade_costs.expanded_cargo)
+  delivery_drone = GuideUpdater.format_cost(upgrade_costs.delivery_drone)
+  delivery_cargo = GuideUpdater.format_cost(upgrade_costs.delivery_cargo)
+  upgrade_delivery = GuideUpdater.format_cost(upgrade_costs.upgrade_delivery)
 
   new_content = Regex.replace(
     ~r/\| \*\*Auto-Refuel\*\* \| .+ \|/,
@@ -936,6 +941,26 @@ if drone do
     ~r/\| \*\*Drone Spotlight\*\* \| .+ \|/,
     new_content,
     "| **Drone Spotlight** | #{drone_spotlight} | Toggleable light (press **L**); burns fuel at **2x speed** while on |"
+  )
+  new_content = Regex.replace(
+    ~r/\| \*\*Expanded Cargo\*\* \| .+ \|/,
+    new_content,
+    "| **Expanded Cargo** | 1 | #{expanded_cargo} | Increases drone cargo capacity from 1 to **4 items** |"
+  )
+  new_content = Regex.replace(
+    ~r/\| \*\*Delivery Drone\*\* \| .+ \|/,
+    new_content,
+    "| **Delivery Drone** | 3 | #{delivery_drone} | Adds an automated delivery drone to this bay (see below) |"
+  )
+  new_content = Regex.replace(
+    ~r/\| \*\*Delivery Cargo\*\* \| .+ \|/,
+    new_content,
+    "| **Delivery Cargo** | 4 | #{delivery_cargo} | Increases delivery drone cargo capacity from 2 to **4 items** |"
+  )
+  new_content = Regex.replace(
+    ~r/\| \*\*Upgrade Delivery\*\* \| .+ \|/,
+    new_content,
+    "| **Upgrade Delivery** | 4 | #{upgrade_delivery} | Delivery drone also delivers materials for building upgrades (arms, splitters, etc.) |"
   )
 
   maybe_write.(drone_path, drone, new_content)

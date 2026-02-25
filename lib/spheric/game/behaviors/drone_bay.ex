@@ -484,7 +484,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
 
   @upgradeable_types [:loader, :unloader, :filtered_splitter, :overflow_gate, :priority_merger]
 
-  defp find_delivery_task(bay_key, buildings, owner_id, upgrade_delivery_enabled \\ false) do
+  defp find_delivery_task(bay_key, buildings, owner_id, upgrade_delivery_enabled) do
     # Find construction sites and (optionally) buildings with pending upgrades in range
     sites =
       Enum.filter(buildings, fn {key, b} ->
