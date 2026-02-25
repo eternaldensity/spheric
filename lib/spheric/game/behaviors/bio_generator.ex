@@ -39,7 +39,16 @@ defmodule Spheric.Game.Behaviors.BioGenerator do
 
       # No fuel burning, but have fuel in input buffer
       state.input_buffer != nil ->
-        duration = fuel_duration(state.input_buffer)
+        base_duration = fuel_duration(state.input_buffer)
+
+        # Object of Power: Power Surge gives +25% fuel duration
+        duration =
+          if building[:owner_id] &&
+               Spheric.Game.ObjectsOfPower.player_has?(building.owner_id, :power_surge) do
+            round(base_duration * 1.25)
+          else
+            base_duration
+          end
 
         %{
           building

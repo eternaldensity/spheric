@@ -438,6 +438,20 @@ const GameRenderer = {
       }
     });
 
+    // Object of Power: Pneumatic Transit Network — teleport camera to terminal
+    this.handleEvent("teleport_to_terminal", ({ face, row, col }) => {
+      const point = this.getTileCenter(face, row, col);
+      if (point) {
+        this.droneCamera.flyTo(point.normalize());
+      }
+    });
+
+    // Terminal list for teleportation UI — store for panel display
+    this.handleEvent("terminal_list", ({ terminals }) => {
+      this.terminalList = terminals;
+      this.pushEvent("terminal_list_received", { terminals });
+    });
+
     this.handleEvent("save_waypoints", ({ waypoints }) => {
       try {
         localStorage.setItem("spheric_waypoints", JSON.stringify(waypoints));

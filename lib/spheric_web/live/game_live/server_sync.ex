@@ -116,7 +116,12 @@ defmodule SphericWeb.GameLive.ServerSync do
     Helpers.refresh_research(socket)
   end
 
-  def handle_info({:object_of_power_granted, _object}, socket) do
+  def handle_info({:object_of_power_granted, object}, socket) do
+    # Astral Projection: subscribe to global creature topic when granted
+    if object.id == :creature_sight do
+      Phoenix.PubSub.subscribe(Spheric.PubSub, "world:creatures")
+    end
+
     objects = Spheric.Game.ObjectsOfPower.player_objects(socket.assigns.player_id)
     {:noreply, assign(socket, :objects_of_power, objects)}
   end
@@ -186,6 +191,28 @@ defmodule SphericWeb.GameLive.ServerSync do
     socket = push_event(socket, "creature_captured", %{id: creature_id})
     roster = Creatures.get_player_roster(socket.assigns.player_id)
     {:noreply, assign(socket, :creature_roster, roster)}
+  end
+
+  def handle_info({:creature_sync, :all, creatures}, socket) do
+    # Astral Projection: global creature sync — group by face and push each
+    by_face = Enum.group_by(creatures, fn c -> c.face end)
+
+    socket =
+      Enum.reduce(by_face, socket, fn {face_id, face_creatures}, sock ->
+        # Skip faces the player already sees (they get the per-face broadcast)
+        if MapSet.member?(sock.assigns.visible_faces, face_id) do
+          sock
+        else
+          serialized =
+            Enum.map(face_creatures, fn c ->
+              %{id: c.id, type: Atom.to_string(c.type), face: c.face, row: c.row, col: c.col}
+            end)
+
+          push_event(sock, "creature_sync", %{face: face_id, creatures: serialized})
+        end
+      end)
+
+    {:noreply, socket}
   end
 
   def handle_info({:creature_sync, face_id, creatures}, socket) do

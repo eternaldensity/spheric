@@ -69,6 +69,7 @@ defmodule Spheric.Game.TickProcessor do
         else
           updated = tick_with_boost(key, building, &Behaviors.Smelter.tick/2)
           record_production_stats(key, building, updated)
+          updated = apply_purified_smelting(building, updated)
           {key, updated}
         end
       end)
@@ -81,6 +82,7 @@ defmodule Spheric.Game.TickProcessor do
         else
           updated = tick_with_boost(key, building, &Behaviors.Refinery.tick/2)
           record_production_stats(key, building, updated)
+          updated = apply_purified_smelting(building, updated)
           {key, updated}
         end
       end)
@@ -105,6 +107,7 @@ defmodule Spheric.Game.TickProcessor do
         else
           updated = tick_with_boost(key, building, &Behaviors.AdvancedSmelter.tick/2)
           record_production_stats(key, building, updated)
+          updated = apply_purified_smelting(building, updated)
           {key, updated}
         end
       end)
@@ -935,11 +938,11 @@ defmodule Spheric.Game.TickProcessor do
 
   defp get_push_request(
          key,
-         %{type: :smelter, orientation: dir, state: %{output_buffer: item}},
+         %{type: :smelter, orientation: dir, state: %{output_buffer: item} = state},
          n
        )
        when not is_nil(item) do
-    case TileNeighbors.neighbor(key, dir, n) do
+    case resolve_output_dest(key, dir, n, state) do
       {:ok, dest_key} -> {key, dest_key, item}
       :boundary -> nil
     end
@@ -1032,11 +1035,11 @@ defmodule Spheric.Game.TickProcessor do
 
   defp get_push_request(
          key,
-         %{type: :assembler, orientation: dir, state: %{output_buffer: item}},
+         %{type: :assembler, orientation: dir, state: %{output_buffer: item} = state},
          n
        )
        when not is_nil(item) do
-    case TileNeighbors.neighbor(key, dir, n) do
+    case resolve_output_dest(key, dir, n, state) do
       {:ok, dest_key} -> {key, dest_key, item}
       :boundary -> nil
     end
@@ -1044,11 +1047,11 @@ defmodule Spheric.Game.TickProcessor do
 
   defp get_push_request(
          key,
-         %{type: :refinery, orientation: dir, state: %{output_buffer: item}},
+         %{type: :refinery, orientation: dir, state: %{output_buffer: item} = state},
          n
        )
        when not is_nil(item) do
-    case TileNeighbors.neighbor(key, dir, n) do
+    case resolve_output_dest(key, dir, n, state) do
       {:ok, dest_key} -> {key, dest_key, item}
       :boundary -> nil
     end
@@ -1081,7 +1084,7 @@ defmodule Spheric.Game.TickProcessor do
   # All other buildings with output_buffer + orientation push forward
   defp get_push_request(
          key,
-         %{type: type, orientation: dir, state: %{output_buffer: item}},
+         %{type: type, orientation: dir, state: %{output_buffer: item} = state},
          n
        )
        when type in [
@@ -1096,7 +1099,7 @@ defmodule Spheric.Game.TickProcessor do
               :gathering_post,
               :essence_extractor
             ] and not is_nil(item) do
-    case TileNeighbors.neighbor(key, dir, n) do
+    case resolve_output_dest(key, dir, n, state) do
       {:ok, dest_key} -> {key, dest_key, item}
       :boundary -> nil
     end
@@ -1106,6 +1109,22 @@ defmodule Spheric.Game.TickProcessor do
   # (handled separately in resolve_conduit_teleports)
 
   defp get_push_request(_key, _building, _n), do: nil
+
+  # Altered item: teleport_output — resolve destination, skipping one tile if active.
+  # Falls back to the immediate neighbor if the skip target doesn't exist.
+  defp resolve_output_dest(key, dir, n, state) do
+    if state[:altered_effect] == :teleport_output do
+      with {:ok, skip_key} <- TileNeighbors.neighbor(key, dir, n),
+           {:ok, dest_key} <- TileNeighbors.neighbor(skip_key, dir, n) do
+        {:ok, dest_key}
+      else
+        # Can't skip (boundary or edge) — fall back to immediate neighbor
+        _ -> TileNeighbors.neighbor(key, dir, n)
+      end
+    else
+      TileNeighbors.neighbor(key, dir, n)
+    end
+  end
 
   # Check if a building's input slot is full (for balancer logic)
   defp downstream_full?(key) do
@@ -2006,7 +2025,14 @@ defmodule Spheric.Game.TickProcessor do
       if building && building.state[:altered_effect] == :duplication &&
            building.state[:output_buffer] == nil &&
            (building.state[:output_remaining] || 0) == 0 do
-        if :rand.uniform(100) <= 5 do
+        # Object of Power: Altered Resonance doubles the duplication chance (5% -> 10%)
+        chance =
+          if building[:owner_id] &&
+               ObjectsOfPower.player_has?(building.owner_id, :altered_resonance),
+            do: 10,
+            else: 5
+
+        if :rand.uniform(100) <= chance do
           Map.put(acc, src_key, %{
             building
             | state: Map.put(building.state, :output_buffer, item)
@@ -2018,6 +2044,34 @@ defmodule Spheric.Game.TickProcessor do
         acc
       end
     end)
+  end
+
+  # Altered item: purified_smelting doubles output for smelters/refineries.
+  # When a production cycle just completed (output_buffer went from nil to an item),
+  # double the total output by increasing output_remaining.
+  defp apply_purified_smelting(old_building, updated) do
+    if updated.state[:altered_effect] == :purified_smelting and
+         old_building.state[:output_buffer] == nil and
+         updated.state[:output_buffer] != nil do
+      # Double the output: original total = 1 (in buffer) + output_remaining
+      # Doubled total = 2 * (1 + output_remaining) = 2 + 2*output_remaining
+      # New output_remaining = doubled_total - 1 (the one already in buffer)
+      original_remaining = updated.state[:output_remaining] || 0
+      doubled_remaining = (original_remaining + 1) * 2 - 1
+
+      # Altered Resonance OoP doubles the effect again (4x total)
+      final_remaining =
+        if updated[:owner_id] &&
+             ObjectsOfPower.player_has?(updated.owner_id, :altered_resonance) do
+          (original_remaining + 1) * 4 - 1
+        else
+          doubled_remaining
+        end
+
+      %{updated | state: Map.put(updated.state, :output_remaining, final_remaining)}
+    else
+      updated
+    end
   end
 
   # Record production/consumption stats by comparing building state before and after tick.
@@ -2159,7 +2213,7 @@ defmodule Spheric.Game.TickProcessor do
   # Efficiency boost: chance to not consume input when producing output
   defp apply_efficiency_effects(buildings) do
     Enum.reduce(buildings, buildings, fn {key, building}, acc ->
-      eff = Creatures.efficiency_chance(key)
+      eff = Creatures.efficiency_chance(key, building[:owner_id])
 
       if eff > 0 and building.state[:output_buffer] != nil do
         # If the building just produced and has efficiency boost,
@@ -2189,7 +2243,7 @@ defmodule Spheric.Game.TickProcessor do
       building = Map.get(acc, src_key)
 
       if building do
-        output_chance = Creatures.output_chance(src_key)
+        output_chance = Creatures.output_chance(src_key, building[:owner_id])
 
         if output_chance > 0 and building.state[:output_buffer] == nil and
              (building.state[:output_remaining] || 0) == 0 do
@@ -2234,12 +2288,18 @@ defmodule Spheric.Game.TickProcessor do
   defp compute_effective_rate(key, building) do
     case building.state do
       %{rate: base_rate} ->
-        boosted = Creatures.boosted_rate(key, base_rate)
+        boosted = Creatures.boosted_rate(key, base_rate, building[:owner_id])
 
-        # Altered item: overclock halves the effective rate
+        # Altered item: overclock halves the effective rate (doubled with Altered Resonance OoP)
         boosted =
           if building.state[:altered_effect] == :overclock do
-            max(1, div(boosted, 2))
+            divisor =
+              if building[:owner_id] &&
+                   ObjectsOfPower.player_has?(building.owner_id, :altered_resonance),
+                do: 4,
+                else: 2
+
+            max(1, div(boosted, divisor))
           else
             boosted
           end

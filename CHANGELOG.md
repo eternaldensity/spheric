@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Wire 3 unimplemented altered item effects: purified_smelting, trap_radius, teleport_output (#159)
+- Implement all 6 missing Objects of Power effects (L2-L4, L6-L8) (#158)
 - Add delivery drone and delivery cargo upgrades to user guide (#157)
 - Per-tier conduit movement speed (#153)
 - Reduce drone fuel consumption when idle and near ground (#125)

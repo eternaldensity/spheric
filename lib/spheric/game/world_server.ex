@@ -898,6 +898,18 @@ defmodule Spheric.Game.WorldServer do
         {:creature_sync, face_id, creatures}
       )
     end
+
+    # Astral Projection OoP: broadcast all creatures to the global topic
+    all_creatures =
+      Enum.flat_map(creatures_by_face, fn {_face_id, creatures} -> creatures end)
+
+    if all_creatures != [] do
+      Phoenix.PubSub.broadcast(
+        Spheric.PubSub,
+        "world:creatures",
+        {:creature_sync, :all, all_creatures}
+      )
+    end
   end
 
   # --- Hiss Corruption Broadcast Helpers ---

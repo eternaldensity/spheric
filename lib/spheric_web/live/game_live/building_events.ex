@@ -732,4 +732,50 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     end
   end
 
+  # Object of Power: Pneumatic Transit Network — teleport between owned terminals
+  def handle_event(
+        "teleport_to_terminal",
+        %{"face" => face, "row" => row, "col" => col},
+        socket
+      ) do
+    player_id = socket.assigns.player_id
+
+    if Spheric.Game.ObjectsOfPower.player_has?(player_id, :terminal_network) do
+      dest = {Helpers.to_int(face), Helpers.to_int(row), Helpers.to_int(col)}
+      building = WorldStore.get_building(dest)
+
+      if building && building.type == :submission_terminal &&
+           building.owner_id == player_id do
+        {f, r, c} = dest
+        socket = push_event(socket, "teleport_to_terminal", %{face: f, row: r, col: c})
+        {:noreply, socket}
+      else
+        {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # List all owned terminals for teleportation menu
+  def handle_event("list_terminals", _params, socket) do
+    player_id = socket.assigns.player_id
+
+    if Spheric.Game.ObjectsOfPower.player_has?(player_id, :terminal_network) do
+      terminals =
+        for face_id <- 0..29,
+            {key, building} <- WorldStore.get_face_buildings(face_id),
+            building.type == :submission_terminal,
+            building.owner_id == player_id do
+          {f, r, c} = key
+          %{face: f, row: r, col: c}
+        end
+
+      socket = push_event(socket, "terminal_list", %{terminals: terminals})
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
 end

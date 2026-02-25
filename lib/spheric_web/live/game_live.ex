@@ -95,6 +95,11 @@ defmodule SphericWeb.GameLive do
       Phoenix.PubSub.subscribe(Spheric.PubSub, "research:#{player_id}")
       Phoenix.PubSub.subscribe(Spheric.PubSub, "drone:#{player_id}")
       Phoenix.PubSub.subscribe(Spheric.PubSub, "world:events")
+
+      # Astral Projection OoP: subscribe to global creature topic
+      if ObjectsOfPower.player_has?(player_id, :creature_sight) do
+        Phoenix.PubSub.subscribe(Spheric.PubSub, "world:creatures")
+      end
     end
 
     # Track presence (only when connected)
@@ -1526,6 +1531,14 @@ defmodule SphericWeb.GameLive do
   @impl true
   def handle_event("upgrade_arm", params, socket),
     do: BuildingEvents.handle_event("upgrade_arm", params, socket)
+
+  @impl true
+  def handle_event("teleport_to_terminal", params, socket),
+    do: BuildingEvents.handle_event("teleport_to_terminal", params, socket)
+
+  @impl true
+  def handle_event("list_terminals", params, socket),
+    do: BuildingEvents.handle_event("list_terminals", params, socket)
 
   # Panel events
   @impl true

@@ -15,7 +15,7 @@ defmodule Spheric.Game.Hiss do
   Player creatures auto-combat Hiss entities when nearby.
   """
 
-  alias Spheric.Game.{WorldStore, Creatures}
+  alias Spheric.Game.{WorldStore, Creatures, ObjectsOfPower}
   alias Spheric.Geometry.TileNeighbors
 
   require Logger
@@ -210,7 +210,7 @@ defmodule Spheric.Game.Hiss do
         if building && building.type not in [:purification_beacon, :defense_turret] do
           damage_ticks = data[:building_damage_ticks] || 0
           # Defense boost from assigned creature reduces damage accumulation
-          defense = Creatures.defense_value(key)
+          defense = Creatures.defense_value(key, building[:owner_id])
           increment = if defense > 0, do: max(0.0, 1.0 - defense), else: 1.0
           new_damage = damage_ticks + increment
 
@@ -478,7 +478,8 @@ defmodule Spheric.Game.Hiss do
   defp gather_protection_zones do
     stabilizer_radius = Spheric.Game.Behaviors.DimensionalStabilizer.radius()
 
-    zones =
+    # Standard protection zones: purification beacons and dimensional stabilizers
+    static_zones =
       for face_id <- 0..29,
           {key, building} <- WorldStore.get_face_buildings(face_id),
           building.type in [:purification_beacon, :dimensional_stabilizer] do
@@ -490,7 +491,30 @@ defmodule Spheric.Game.Hiss do
         {key, radius}
       end
 
-    Enum.group_by(zones, fn {{face, _r, _c}, _radius} -> face end)
+    # Object of Power: Board's Favor — every building owned by qualifying players
+    # creates a 10-tile corruption immunity zone
+    favor_player_ids = boards_favor_players()
+
+    favor_zones =
+      if favor_player_ids == [] do
+        []
+      else
+        for face_id <- 0..29,
+            {key, building} <- WorldStore.get_face_buildings(face_id),
+            building[:owner_id] in favor_player_ids do
+          {key, 10}
+        end
+      end
+
+    Enum.group_by(static_zones ++ favor_zones, fn {{face, _r, _c}, _radius} -> face end)
+  end
+
+  # Cache the set of player IDs with Board's Favor to avoid per-building OoP lookups.
+  defp boards_favor_players do
+    ObjectsOfPower.all_grants()
+    |> Enum.filter(fn {{_pid, obj_id}, _obj} -> obj_id == :boards_favor end)
+    |> Enum.map(fn {{pid, _obj_id}, _obj} -> pid end)
+    |> Enum.uniq()
   end
 
   # Check if a tile falls within any cached protection zone.

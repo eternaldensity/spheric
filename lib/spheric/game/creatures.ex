@@ -321,14 +321,31 @@ defmodule Spheric.Game.Creatures do
     Enum.flat_map(traps, fn {trap_key, trap} ->
       {trap_face, trap_row, trap_col} = trap_key
 
+      # Altered item: trap_radius triples the capture radius (3 -> 9)
+      # Altered Resonance OoP further doubles it (3 -> 18)
+      radius =
+        if trap.state[:altered_effect] == :trap_radius do
+          base_mult = 3
+
+          mult =
+            if trap[:owner_id] &&
+                 Spheric.Game.ObjectsOfPower.player_has?(trap.owner_id, :altered_resonance),
+              do: base_mult * 2,
+              else: base_mult
+
+          @capture_radius * mult
+        else
+          @capture_radius
+        end
+
       # Find nearest wild creature within radius
       nearest =
         all_wild_creatures()
         |> Enum.filter(fn {_id, c} ->
           # Simple Manhattan-ish distance check on same face
           c.face == trap_face and
-            abs(c.row - trap_row) <= @capture_radius and
-            abs(c.col - trap_col) <= @capture_radius
+            abs(c.row - trap_row) <= radius and
+            abs(c.col - trap_col) <= radius
         end)
         |> Enum.sort_by(fn {_id, c} ->
           abs(c.row - trap_row) + abs(c.col - trap_col)
@@ -505,7 +522,7 @@ defmodule Spheric.Game.Creatures do
 
   Returns the modified rate (lower = faster production).
   """
-  def boosted_rate(building_key, base_rate) do
+  def boosted_rate(building_key, base_rate, owner_id \\ nil) do
     case get_assigned_creature(building_key) do
       nil ->
         base_rate
@@ -519,13 +536,16 @@ defmodule Spheric.Game.Creatures do
             # Evolved creatures get 2x boost
             multiplier = if creature[:evolved], do: 2.0, else: 1.0
 
+            # Object of Power: Entity Communion gives +50% creature boost
+            communion_bonus = communion_multiplier(owner_id)
+
             case info.boost_type do
               :speed ->
-                boost = info.boost_amount * multiplier
+                boost = info.boost_amount * multiplier * communion_bonus
                 max(1, round(base_rate * (1.0 - boost)))
 
               :all ->
-                boost = info.boost_amount * multiplier
+                boost = info.boost_amount * multiplier * communion_bonus
                 max(1, round(base_rate * (1.0 - boost)))
 
               # Efficiency/output/defense/area don't affect tick rate
@@ -540,35 +560,35 @@ defmodule Spheric.Game.Creatures do
   Check if an assigned creature grants an efficiency bonus (chance to not consume input).
   Returns the efficiency chance (0.0-1.0) or 0.0 if none.
   """
-  def efficiency_chance(building_key) do
-    get_boost_value(building_key, :efficiency)
+  def efficiency_chance(building_key, owner_id \\ nil) do
+    get_boost_value(building_key, :efficiency, owner_id)
   end
 
   @doc """
   Check if an assigned creature grants an output bonus (chance to produce double output).
   Returns the output chance (0.0-1.0) or 0.0 if none.
   """
-  def output_chance(building_key) do
-    get_boost_value(building_key, :output)
+  def output_chance(building_key, owner_id \\ nil) do
+    get_boost_value(building_key, :output, owner_id)
   end
 
   @doc """
   Get the defense value for a building's assigned creature.
   Returns the defense value (0.0+) or 0.0 if none.
   """
-  def defense_value(building_key) do
-    get_boost_value(building_key, :defense)
+  def defense_value(building_key, owner_id \\ nil) do
+    get_boost_value(building_key, :defense, owner_id)
   end
 
   @doc """
   Get the area multiplier for a building's assigned creature.
   Returns the area multiplier (0.0+) or 0.0 if none.
   """
-  def area_value(building_key) do
-    get_boost_value(building_key, :area)
+  def area_value(building_key, owner_id \\ nil) do
+    get_boost_value(building_key, :area, owner_id)
   end
 
-  defp get_boost_value(building_key, target_type) do
+  defp get_boost_value(building_key, target_type, owner_id) do
     case get_assigned_creature(building_key) do
       nil ->
         0.0
@@ -580,14 +600,22 @@ defmodule Spheric.Game.Creatures do
 
           info ->
             multiplier = if creature[:evolved], do: 2.0, else: 1.0
+            communion_bonus = communion_multiplier(owner_id)
 
             if info.boost_type == target_type or info.boost_type == :all do
-              info.boost_amount * multiplier
+              info.boost_amount * multiplier * communion_bonus
             else
               0.0
             end
         end
     end
+  end
+
+  # Object of Power: Entity Communion gives +50% creature boost stacking
+  defp communion_multiplier(nil), do: 1.0
+
+  defp communion_multiplier(owner_id) do
+    if Spheric.Game.ObjectsOfPower.player_has?(owner_id, :entity_communion), do: 1.5, else: 1.0
   end
 
   @doc """
