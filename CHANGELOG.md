@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Add freezer machine with dual-output production support (#167)
 - Add cost for loader/unloader stack_upgrade (#163)
 - Implement resonance cascade world event effect (#162)
 - Implement area creature boost for 5 buildings (#161)

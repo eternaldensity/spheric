@@ -29,6 +29,7 @@ const COLORS = {
   loader: 0x55aa77,
   unloader: 0x77aa55,
   mixer: 0x8855aa,
+  freezer: 0x66bbdd,
   filtered_splitter: 0x22aa66,
   overflow_gate: 0xaa7722,
   priority_merger: 0x6644bb,
@@ -138,6 +139,10 @@ const _SHARED_GEOMETRIES_RAW = {
   mixer_vat: new THREE.CylinderGeometry(s * 0.8, s * 0.7, s * 0.9, 8),
   mixer_funnel: new THREE.CylinderGeometry(s * 0.15, s * 0.25, s * 0.4, 6),
   mixer_blade: new THREE.BoxGeometry(s * 0.6, s * 0.05, s * 0.1),
+  // Freezer
+  freezer_body: new THREE.CylinderGeometry(s * 0.75, s * 0.85, s * 1.0, 8),
+  freezer_coil: new THREE.TorusGeometry(s * 0.55, s * 0.07, 6, 10),
+  freezer_vent: new THREE.BoxGeometry(s * 0.2, s * 0.3, s * 0.15),
   // Loader / Unloader arms
   arm_base: new THREE.CylinderGeometry(s * 0.7, s * 0.8, s * 0.3, 6),
   arm_pillar: new THREE.CylinderGeometry(s * 0.12, s * 0.15, s * 1.0, 6),
@@ -787,6 +792,46 @@ function createMixer() {
   return group;
 }
 
+function createFreezer() {
+  const group = new THREE.Group();
+  const s = BUILDING_SCALE;
+  const mat = makeMaterial(COLORS.freezer);
+
+  // Main cylindrical body
+  const body = new THREE.Mesh(SHARED_GEOMETRIES.freezer_body, mat);
+  body.position.y = s * 0.5;
+  group.add(body);
+
+  // Two input funnels on top (reuse mixer funnels)
+  const funnelMat = makeMaterial(0x4488aa);
+  const funnel1 = new THREE.Mesh(SHARED_GEOMETRIES.mixer_funnel, funnelMat);
+  funnel1.position.set(-s * 0.35, s * 1.2, 0);
+  group.add(funnel1);
+
+  const funnel2 = new THREE.Mesh(SHARED_GEOMETRIES.mixer_funnel, funnelMat);
+  funnel2.position.set(s * 0.35, s * 1.2, 0);
+  group.add(funnel2);
+
+  // Cooling coil around the body
+  const coilMat = makeMaterial(0x99ddff);
+  const coil = new THREE.Mesh(SHARED_GEOMETRIES.freezer_coil, coilMat);
+  coil.position.y = s * 0.5;
+  coil.rotation.x = Math.PI / 2;
+  group.add(coil);
+
+  // Side vents
+  const ventMat = makeMaterial(0x446677);
+  const vent1 = new THREE.Mesh(SHARED_GEOMETRIES.freezer_vent, ventMat);
+  vent1.position.set(0, s * 0.3, s * 0.8);
+  group.add(vent1);
+
+  const vent2 = new THREE.Mesh(SHARED_GEOMETRIES.freezer_vent, ventMat);
+  vent2.position.set(0, s * 0.3, -s * 0.8);
+  group.add(vent2);
+
+  return group;
+}
+
 function createFilteredSplitter() {
   const group = new THREE.Group();
   const s = BUILDING_SCALE;
@@ -888,6 +933,7 @@ const BUILDERS = {
   loader: createLoader,
   unloader: createUnloader,
   mixer: createMixer,
+  freezer: createFreezer,
   filtered_splitter: createFilteredSplitter,
   overflow_gate: createOverflowGate,
   priority_merger: createPriorityMerger,

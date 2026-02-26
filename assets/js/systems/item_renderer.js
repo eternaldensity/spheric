@@ -50,6 +50,12 @@ export const ITEM_COLORS = {
   whispering_powder: 0xc8b8d8,
   whispering_ingot: 0xa090c0,
 
+  // Cryogenic / fluid
+  ice: 0xcceeff,
+  thermal_slurry: 0xff6633,
+  water: 0x3399dd,
+  coolant_cube: 0x88ddff,
+
   // Creature / fuel
   biofuel: 0x66aa44,
   catalysed_fuel: 0xcc8822,

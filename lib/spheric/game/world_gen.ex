@@ -310,8 +310,8 @@ defmodule Spheric.Game.WorldGen do
       {:iron, 0.12},
       {:titanium, 0.13},
       {:oil, 0.06},
-      {:sulfur, 0.10},
-      {:uranium, 0.05}
+      {:sulfur, 0.8},
+      {:ice, 0.07}
     ]
 
   defp pick_weighted(_roll, [{type, _weight}]), do: type

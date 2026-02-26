@@ -9,6 +9,8 @@ defmodule Spheric.Game.Behaviors.Production do
 
     * `:recipes` — list of recipe maps (required). Each recipe is:
         `%{inputs: [item: qty, ...], output: {item, qty}}`
+      or for dual-output recipes:
+        `%{inputs: [item: qty, ...], output: [{item1, qty1}, {item2, qty2}]}`
       Input slot count is derived from the max number of distinct inputs.
     * `:rate` — default processing rate in ticks (required)
     * `:requires_creature` — whether tick requires an assigned creature (default: false)
@@ -18,17 +20,11 @@ defmodule Spheric.Game.Behaviors.Production do
       # Single-input: 1 iron_ore → 1 iron_ingot
       %{inputs: [iron_ore: 1], output: {:iron_ingot, 1}}
 
-      # Single-input: 2 crude_oil → 1 polycarbonate
-      %{inputs: [crude_oil: 2], output: {:polycarbonate, 1}}
-
-      # Dual-input: 1 copper_ingot + 1 copper_ingot → 3 wire
-      %{inputs: [copper_ingot: 1, copper_ingot: 1], output: {:wire, 3}}
-
       # Dual-input: 2 iron_ingot + 1 wire → 1 motor
       %{inputs: [iron_ingot: 2, wire: 1], output: {:motor, 1}}
 
-      # Triple-input: 2 adv_circuit + 1 adv_circuit + 1 plastic_sheet → 1 computer
-      %{inputs: [advanced_circuit: 2, advanced_circuit: 1, plastic_sheet: 1], output: {:computer, 1}}
+      # Dual-output: ice + thermal_slurry → water + coolant_cube
+      %{inputs: [ice: 5, thermal_slurry: 3], output: [{:water, 5}, {:coolant_cube, 1}]}
 
   ## State shape
 
@@ -36,6 +32,8 @@ defmodule Spheric.Game.Behaviors.Production do
     - `input_count` (single) or `input_a_count`, `input_b_count`, `input_c_count` (multi)
     - `output_remaining` — items left to emit after the current output_buffer
     - `output_type` — the item atom being emitted (persists during drain phase)
+    - `output_type_b` — secondary output item for dual-output recipes (nil for single)
+    - `output_remaining_b` — secondary output items left to emit
   """
 
   defmacro __using__(opts) do
@@ -80,12 +78,20 @@ defmodule Spheric.Game.Behaviors.Production do
     |> Enum.max()
   end
 
+  # Normalize output spec into {primary_item, primary_qty, secondary_item, secondary_qty}.
+  # Single-output: {item, qty} → {item, qty, nil, 0}
+  # Dual-output: [{item1, qty1}, {item2, qty2}] → {item1, qty1, item2, qty2}
+  defp normalize_output({item, qty}), do: {item, qty, nil, 0}
+  defp normalize_output([{item1, qty1}, {item2, qty2}]), do: {item1, qty1, item2, qty2}
+
   # Build two compile-time maps:
-  # 1. routing_map: maps input type tuple => output atom (for slot routing and recipe lookup)
-  # 2. qty_map: maps input type tuple => {[in_qty_per_slot], out_qty}
+  # 1. routing_map: maps input type tuple => {primary_output, secondary_output_or_nil}
+  # 2. qty_map: maps input type tuple => {[in_qty_per_slot], {out_qty_a, out_qty_b}}
   defp build_recipe_maps(recipes, inputs) do
-    Enum.reduce(recipes, {%{}, %{}}, fn %{inputs: input_list, output: {out_item, out_qty}},
+    Enum.reduce(recipes, {%{}, %{}}, fn %{inputs: input_list, output: output_spec},
                                         {routing, quantities} ->
+      {out_a, out_qty_a, out_b, out_qty_b} = normalize_output(output_spec)
+
       input_types =
         case inputs do
           1 ->
@@ -103,8 +109,8 @@ defmodule Spheric.Game.Behaviors.Production do
 
       input_qtys = Enum.map(input_list, fn {_type, qty} -> qty end)
 
-      routing = Map.put(routing, input_types, out_item)
-      quantities = Map.put(quantities, input_types, {input_qtys, out_qty})
+      routing = Map.put(routing, input_types, {out_a, out_b})
+      quantities = Map.put(quantities, input_types, {input_qtys, {out_qty_a, out_qty_b}})
       {routing, quantities}
     end)
   end
@@ -129,6 +135,8 @@ defmodule Spheric.Game.Behaviors.Production do
           output_buffer: nil,
           output_remaining: 0,
           output_type: nil,
+          output_type_b: nil,
+          output_remaining_b: 0,
           progress: 0,
           rate: @default_rate,
           powered: true
@@ -146,7 +154,7 @@ defmodule Spheric.Game.Behaviors.Production do
             # Not a valid input for any recipe
             nil
 
-          {[required_qty], _out_qty} ->
+          {[required_qty], _out_qtys} ->
             current_count = state[:input_count] || 0
 
             cond do
@@ -181,9 +189,10 @@ defmodule Spheric.Game.Behaviors.Production do
     quote do
       state = building.state
       remaining = state[:output_remaining] || 0
+      remaining_b = state[:output_remaining_b] || 0
 
       cond do
-        # Phase 1: Drain — emit remaining output items one at a time
+        # Phase 1a: Drain primary — emit remaining output items one at a time
         remaining > 0 and state.output_buffer == nil ->
           %{
             building
@@ -194,14 +203,27 @@ defmodule Spheric.Game.Behaviors.Production do
               }
           }
 
+        # Phase 1b: Drain secondary — primary done, emit secondary output
+        remaining == 0 and remaining_b > 0 and state.output_buffer == nil ->
+          %{
+            building
+            | state: %{
+                state
+                | output_buffer: state[:output_type_b],
+                  output_remaining_b: remaining_b - 1
+              }
+          }
+
         # Phase 2: Process — inputs satisfied, no pending output
-        state.input_buffer != nil and state.output_buffer == nil and remaining == 0 ->
+        state.input_buffer != nil and state.output_buffer == nil and remaining == 0 and
+            remaining_b == 0 ->
           current_count = state[:input_count] || 1
 
           case Map.get(@recipe_quantities, state.input_buffer) do
-            {[required_qty], out_qty} when current_count >= required_qty ->
+            {[required_qty], {out_qty_a, out_qty_b}} when current_count >= required_qty ->
               if state.progress + 1 >= state.rate do
-                output = Map.get(@recipe_routing, state.input_buffer, state.input_buffer)
+                {out_a, out_b} =
+                  Map.get(@recipe_routing, state.input_buffer, {state.input_buffer, nil})
 
                 # Efficiency boost: chance to keep inputs when producing
                 eff = Spheric.Game.Creatures.efficiency_chance(key, building[:owner_id])
@@ -211,9 +233,11 @@ defmodule Spheric.Game.Behaviors.Production do
                   if keep_inputs do
                     %{
                       state
-                      | output_buffer: output,
-                        output_remaining: out_qty - 1,
-                        output_type: output,
+                      | output_buffer: out_a,
+                        output_remaining: out_qty_a - 1,
+                        output_type: out_a,
+                        output_type_b: out_b,
+                        output_remaining_b: out_qty_b,
                         progress: 0
                     }
                   else
@@ -221,9 +245,11 @@ defmodule Spheric.Game.Behaviors.Production do
                       state
                       | input_buffer: nil,
                         input_count: 0,
-                        output_buffer: output,
-                        output_remaining: out_qty - 1,
-                        output_type: output,
+                        output_buffer: out_a,
+                        output_remaining: out_qty_a - 1,
+                        output_type: out_a,
+                        output_type_b: out_b,
+                        output_remaining_b: out_qty_b,
                         progress: 0
                     }
                   end
@@ -267,6 +293,8 @@ defmodule Spheric.Game.Behaviors.Production do
           output_buffer: nil,
           output_remaining: 0,
           output_type: nil,
+          output_type_b: nil,
+          output_remaining_b: 0,
           progress: 0,
           rate: @default_rate,
           powered: true
@@ -328,7 +356,7 @@ defmodule Spheric.Game.Behaviors.Production do
         end)
       end
 
-      defp recipe_output(a, b), do: Map.get(@recipe_routing, {a, b}, a)
+      defp recipe_output(a, b), do: Map.get(@recipe_routing, {a, b}, {a, nil})
 
       defp slots_ready?(state) do
         a = state.input_a
@@ -368,9 +396,10 @@ defmodule Spheric.Game.Behaviors.Production do
     quote do
       state = building.state
       remaining = state[:output_remaining] || 0
+      remaining_b = state[:output_remaining_b] || 0
 
       cond do
-        # Phase 1: Drain
+        # Phase 1a: Drain primary
         remaining > 0 and state.output_buffer == nil ->
           %{
             building
@@ -381,11 +410,25 @@ defmodule Spheric.Game.Behaviors.Production do
               }
           }
 
+        # Phase 1b: Drain secondary — primary done, emit secondary output
+        remaining == 0 and remaining_b > 0 and state.output_buffer == nil ->
+          %{
+            building
+            | state: %{
+                state
+                | output_buffer: state[:output_type_b],
+                  output_remaining_b: remaining_b - 1
+              }
+          }
+
         # Phase 2: Process
-        slots_ready?(state) and state.output_buffer == nil and remaining == 0 ->
+        slots_ready?(state) and state.output_buffer == nil and remaining == 0 and
+            remaining_b == 0 ->
           if state.progress + 1 >= state.rate do
-            {_qtys, out_qty} = Map.get(@recipe_quantities, {state.input_a, state.input_b})
-            output = recipe_output(state.input_a, state.input_b)
+            {_qtys, {out_qty_a, out_qty_b}} =
+              Map.get(@recipe_quantities, {state.input_a, state.input_b})
+
+            {out_a, out_b} = recipe_output(state.input_a, state.input_b)
 
             # Efficiency boost: chance to keep inputs when producing
             eff = Spheric.Game.Creatures.efficiency_chance(key, building[:owner_id])
@@ -395,9 +438,11 @@ defmodule Spheric.Game.Behaviors.Production do
               if keep_inputs do
                 %{
                   state
-                  | output_buffer: output,
-                    output_remaining: out_qty - 1,
-                    output_type: output,
+                  | output_buffer: out_a,
+                    output_remaining: out_qty_a - 1,
+                    output_type: out_a,
+                    output_type_b: out_b,
+                    output_remaining_b: out_qty_b,
                     progress: 0
                 }
               else
@@ -407,9 +452,11 @@ defmodule Spheric.Game.Behaviors.Production do
                     input_a_count: 0,
                     input_b: nil,
                     input_b_count: 0,
-                    output_buffer: output,
-                    output_remaining: out_qty - 1,
-                    output_type: output,
+                    output_buffer: out_a,
+                    output_remaining: out_qty_a - 1,
+                    output_type: out_a,
+                    output_type_b: out_b,
+                    output_remaining_b: out_qty_b,
                     progress: 0
                 }
               end
@@ -450,6 +497,8 @@ defmodule Spheric.Game.Behaviors.Production do
           output_buffer: nil,
           output_remaining: 0,
           output_type: nil,
+          output_type_b: nil,
+          output_remaining_b: 0,
           progress: 0,
           rate: @default_rate,
           powered: true
@@ -544,7 +593,7 @@ defmodule Spheric.Game.Behaviors.Production do
         end)
       end
 
-      defp recipe_output(a, b, c), do: Map.get(@recipe_routing, {a, b, c}, a)
+      defp recipe_output(a, b, c), do: Map.get(@recipe_routing, {a, b, c}, {a, nil})
 
       defp slots_ready?(state) do
         a = state.input_a
@@ -588,9 +637,10 @@ defmodule Spheric.Game.Behaviors.Production do
     quote do
       state = building.state
       remaining = state[:output_remaining] || 0
+      remaining_b = state[:output_remaining_b] || 0
 
       cond do
-        # Phase 1: Drain
+        # Phase 1a: Drain primary
         remaining > 0 and state.output_buffer == nil ->
           %{
             building
@@ -601,13 +651,25 @@ defmodule Spheric.Game.Behaviors.Production do
               }
           }
 
+        # Phase 1b: Drain secondary — primary done, emit secondary output
+        remaining == 0 and remaining_b > 0 and state.output_buffer == nil ->
+          %{
+            building
+            | state: %{
+                state
+                | output_buffer: state[:output_type_b],
+                  output_remaining_b: remaining_b - 1
+              }
+          }
+
         # Phase 2: Process
-        slots_ready?(state) and state.output_buffer == nil and remaining == 0 ->
+        slots_ready?(state) and state.output_buffer == nil and remaining == 0 and
+            remaining_b == 0 ->
           if state.progress + 1 >= state.rate do
-            {_qtys, out_qty} =
+            {_qtys, {out_qty_a, out_qty_b}} =
               Map.get(@recipe_quantities, {state.input_a, state.input_b, state.input_c})
 
-            output = recipe_output(state.input_a, state.input_b, state.input_c)
+            {out_a, out_b} = recipe_output(state.input_a, state.input_b, state.input_c)
 
             # Efficiency boost: chance to keep inputs when producing
             eff = Spheric.Game.Creatures.efficiency_chance(key, building[:owner_id])
@@ -617,9 +679,11 @@ defmodule Spheric.Game.Behaviors.Production do
               if keep_inputs do
                 %{
                   state
-                  | output_buffer: output,
-                    output_remaining: out_qty - 1,
-                    output_type: output,
+                  | output_buffer: out_a,
+                    output_remaining: out_qty_a - 1,
+                    output_type: out_a,
+                    output_type_b: out_b,
+                    output_remaining_b: out_qty_b,
                     progress: 0
                 }
               else
@@ -631,9 +695,11 @@ defmodule Spheric.Game.Behaviors.Production do
                     input_b_count: 0,
                     input_c: nil,
                     input_c_count: 0,
-                    output_buffer: output,
-                    output_remaining: out_qty - 1,
-                    output_type: output,
+                    output_buffer: out_a,
+                    output_remaining: out_qty_a - 1,
+                    output_type: out_a,
+                    output_type_b: out_b,
+                    output_remaining_b: out_qty_b,
                     progress: 0
                 }
               end

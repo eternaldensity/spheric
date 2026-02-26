@@ -35,6 +35,8 @@ defmodule Spheric.Game.Lore do
   def display_name(:frame), do: "Astral Frame"
   def display_name(:hiss_residue), do: "Hiss Residue"
   def display_name(:whispering_powder), do: "Whispering Powder"
+  def display_name(:water), do: "The Moyst"
+  def display_name(:titanium_dust), do: "Astral Powder"
 
   # Buildings
   def display_name(:conveyor), do: "Conduit"
@@ -74,6 +76,7 @@ defmodule Spheric.Game.Lore do
   def display_name(:raw_uranium), do: "Threshold Radiant (Raw)"
   def display_name(:enriched_uranium), do: "Enriched Radiant"
   def display_name(:quartz_crystal), do: "Refined Resonance Crystal"
+  def display_name(:ice), do: "Crystalized Water"
 
   # New processed items
   def display_name(:motor), do: "Kinetic Driver"
@@ -97,6 +100,8 @@ defmodule Spheric.Game.Lore do
   def display_name(:catalysed_fuel), do: "Catalysed Ichor Fuel"
   def display_name(:unstable_fuel), do: "Unstable Mixed Fuel"
   def display_name(:stable_fuel), do: "Stable Mixed Fuel"
+  def display_name(:thermal_slurry), do: "Liquefacted Stars"
+  def display_name(:coolant_cube), do: "Shivering Ingot"
 
   # Creature items
   def display_name(:biofuel), do: "Entity Biofuel"
@@ -119,6 +124,7 @@ defmodule Spheric.Game.Lore do
   def display_name(:loader), do: "Insertion Arm"
   def display_name(:unloader), do: "Extraction Arm"
   def display_name(:mixer), do: "Compound Mixer"
+  def display_name(:freezer), do: "Cryogenic Processor"
 
   # New creatures
   def display_name(:flux_serpent), do: "Flux Serpent"

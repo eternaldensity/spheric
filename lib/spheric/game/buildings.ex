@@ -47,6 +47,7 @@ defmodule Spheric.Game.Buildings do
     :loader,
     :unloader,
     :mixer,
+    :freezer,
     :filtered_splitter,
     :overflow_gate,
     :priority_merger
@@ -98,6 +99,7 @@ defmodule Spheric.Game.Buildings do
   def display_name(:loader), do: "Loader"
   def display_name(:unloader), do: "Unloader"
   def display_name(:mixer), do: "Mixer"
+  def display_name(:freezer), do: "Freezer"
   def display_name(:filtered_splitter), do: "Filtered Splitter"
   def display_name(:overflow_gate), do: "Overflow Gate"
   def display_name(:priority_merger), do: "Priority Merger"
@@ -142,6 +144,7 @@ defmodule Spheric.Game.Buildings do
   def category(:assembler), do: :production
   def category(:refinery), do: :production
   def category(:mixer), do: :production
+  def category(:freezer), do: :production
   def category(:advanced_smelter), do: :production
   def category(:advanced_assembler), do: :production
   def category(:fabrication_plant), do: :advanced
@@ -292,6 +295,9 @@ defmodule Spheric.Game.Buildings do
 
   def initial_state(:mixer),
     do: Spheric.Game.Behaviors.Mixer.initial_state()
+
+  def initial_state(:freezer),
+    do: Spheric.Game.Behaviors.Freezer.initial_state()
 
   def initial_state(:filtered_splitter),
     do: Spheric.Game.Behaviors.FilteredSplitter.initial_state()

@@ -213,7 +213,7 @@ defmodule Spheric.Game.Research do
       :priority_merger
     ],
     4 => [:bio_generator, :substation, :transfer_station, :advanced_smelter, :loader, :unloader],
-    5 => [:mixer, :advanced_assembler, :fabrication_plant, :essence_extractor],
+    5 => [:mixer, :freezer, :advanced_assembler, :fabrication_plant, :essence_extractor],
     6 => [:particle_collider, :nuclear_refinery],
     7 => [:dimensional_stabilizer, :paranatural_synthesizer, :astral_projection_chamber],
     8 => [:board_interface]

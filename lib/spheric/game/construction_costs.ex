@@ -51,6 +51,7 @@ defmodule Spheric.Game.ConstructionCosts do
 
     # Tier 5
     mixer: %{heavy_frame: 15, advanced_circuit: 2, cable: 8},
+    freezer: %{heavy_frame: 12, advanced_circuit: 2, heat_sink: 10},
     advanced_assembler: %{heavy_frame: 20, advanced_circuit: 3, motor: 4},
     fabrication_plant: %{heavy_frame: 30, advanced_circuit: 5, motor: 9, cable: 15},
     essence_extractor: %{frame: 30, circuit: 5, quartz_crystal: 10},
@@ -102,6 +103,7 @@ defmodule Spheric.Game.ConstructionCosts do
     loader: 4,
     unloader: 4,
     mixer: 5,
+    freezer: 5,
     advanced_assembler: 5,
     fabrication_plant: 5,
     essence_extractor: 5,
