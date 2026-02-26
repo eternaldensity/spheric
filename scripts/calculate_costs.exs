@@ -29,6 +29,7 @@ recipe_modules = [
   Behaviors.NuclearRefinery,
   Behaviors.Assembler,
   Behaviors.Mixer,
+  Behaviors.Freezer,
   Behaviors.AdvancedAssembler,
   Behaviors.AdvancedSmelter,
   Behaviors.FabricationPlant,
@@ -40,9 +41,18 @@ recipe_modules = [
 recipe_lookup =
   recipe_modules
   |> Enum.flat_map(& &1.recipes())
-  |> Enum.reduce(%{}, fn %{inputs: inputs, output: {out_item, out_qty}}, acc ->
+  |> Enum.reduce(%{}, fn recipe, acc ->
     # Later recipes (higher-tier buildings) override earlier ones for the same output
-    Map.put(acc, out_item, {inputs, out_qty})
+    case recipe.output do
+      {out_item, out_qty} ->
+        Map.put(acc, out_item, {recipe.inputs, out_qty})
+
+      [{out_a, out_qty_a}, {out_b, out_qty_b}] ->
+        # Dual-output recipe: register both outputs with the same inputs
+        acc
+        |> Map.put(out_a, {recipe.inputs, out_qty_a})
+        |> Map.put(out_b, {recipe.inputs, out_qty_b})
+    end
   end)
 
 # Raw materials (no recipe to make them — they are mined or gathered)
@@ -374,7 +384,7 @@ cond do
       splitter: 10, merger: 10, balancer: 5,
       # Production chain
       miner: 15, smelter: 10, assembler: 6, refinery: 4,
-      advanced_smelter: 3, advanced_assembler: 3,
+      advanced_smelter: 3, advanced_assembler: 3, freezer: 1,
       fabrication_plant: 2, particle_collider: 2, nuclear_refinery: 1,
       # Endgame
       paranatural_synthesizer: 1, dimensional_stabilizer: 1,

@@ -23,6 +23,25 @@ At Clearance 4–5, you unlock higher-tier production buildings that process mor
 
 ---
 
+## Cryogenic Processor (Freezer)
+
+*Unlocked at Clearance 5*
+
+- **Dual-input, dual-output** building — the first machine that produces two different items per cycle
+- Processing time: **20 ticks**
+- Produces coolant cubes for future nuclear reactor recipes
+
+| Input A | Input B | Output A | Output B |
+|---|---|---|---|
+| Crystalized Water ×5 | Liquefacted Stars ×3 | The Moyst ×5 | Shivering Ingot ×1 |
+
+> [!note] Dual Output
+> The Cryogenic Processor is unique — it outputs **two different item types** per cycle. The primary output (The Moyst) drains first, then the secondary output (Shivering Ingot). Both outputs use the same conduit exit point, so downstream routing may need a [[Advanced Logistics#Selective Distributor (Filtered Splitter)|Selective Distributor]] to separate them.
+
+**Cost:** 12 Heavy Astral Frame, 10 Thermal Regulator, 2 Advanced Resonance Circuit
+
+---
+
 ## Advanced Processor (Advanced Smelter)
 
 *Unlocked at Clearance 4*

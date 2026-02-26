@@ -79,7 +79,7 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 
 **Cost:** 3 Structural Plate, 2 Resonance Circuit, 1 Astral Frame
 
-**Mirror Mode Upgrade:** 1 Resonance Circuit, 1 Structural Plate — drop materials on the building's tile, then click **Enable** in the tile info panel. Swaps left/right routing (matching items go right, non-matching go left). *Alternatively, with the [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]] drone upgrade, click **Request Drone Delivery** for automated material delivery.*
+**Mirror Mode Upgrade:** 1 Structural Plate, 1 Resonance Circuit — drop materials on the building's tile, then click **Enable** in the tile info panel. Swaps left/right routing (matching items go right, non-matching go left). *Alternatively, with [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]], click **Request Drone Delivery** for automated delivery.*
 
 **Dual Filter Upgrade:** 3 Resonance Circuit, 2 Astral Frame — drop materials on the building's tile, then click **Enable** in the tile info panel. Adds a second filter: left filter matches go left, right filter matches go right, non-matching items pass straight through. *Alternatively, with [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]], click **Request Drone Delivery** for automated delivery.*
 
@@ -97,9 +97,9 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 - When the forward destination is full or blocked, items overflow to the **left** side instead
 - If both outputs are full, the item is held
 
-**Cost:** 4 Structural Plate, 1 Resonance Circuit, 1 Astral Frame
+**Cost:** 4 Structural Plate, 1 Astral Frame, 1 Resonance Circuit
 
-**Mirror Mode Upgrade:** 1 Resonance Circuit, 1 Structural Plate — drop materials on the building's tile, then click **Enable** in the tile info panel. Overflow routes to the **right** side instead of the left. *Alternatively, with [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]], click **Request Drone Delivery** for automated delivery.*
+**Mirror Mode Upgrade:** 1 Structural Plate, 1 Resonance Circuit — drop materials on the building's tile, then click **Enable** in the tile info panel. Overflow routes to the **right** side instead of the left. *Alternatively, with [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]], click **Request Drone Delivery** for automated delivery.*
 
 > [!tip] Handle excess production
 > Place a Surplus Router inline on a conduit feeding a machine. When the machine backs up, excess items automatically route to the side — into a Containment Vault, a secondary production line, or an Exchange Terminal.
@@ -115,9 +115,9 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 - The right input only feeds when no item is pending from the left
 - Use to create a "main line with supplement" pattern
 
-**Cost:** 4 Paraelectric Bar, 1 Resonance Circuit, 1 Astral Frame
+**Cost:** 4 Paraelectric Bar, 1 Astral Frame, 1 Resonance Circuit
 
-**Mirror Mode Upgrade:** 1 Resonance Circuit, 1 Structural Plate — drop materials on the building's tile, then click **Enable** in the tile info panel. The **right** input becomes the priority side instead of the left. *Alternatively, with [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]], click **Request Drone Delivery** for automated delivery.*
+**Mirror Mode Upgrade:** 1 Structural Plate, 1 Resonance Circuit — drop materials on the building's tile, then click **Enable** in the tile info panel. The **right** input becomes the priority side instead of the left. *Alternatively, with [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]], click **Request Drone Delivery** for automated delivery.*
 
 > [!tip] Supplement a primary supply
 > Feed your main production output into the priority (left) side and a backup source into the right. The right side only activates when the main line can't keep up, ensuring smooth throughput without waste.
@@ -175,7 +175,7 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 
 **Cost:** 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver
 
-**Bulk Transfer Upgrade:** 2 Shielded Conductor, 1 Resonance Circuit, 1 Whispering Ingot, 1 Kinetic Driver — drop materials on the arm's tile, then click **Enable** in the tile info panel. *Alternatively, with the [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]] drone upgrade, click **Request Drone Delivery** for automated material delivery.*
+**Bulk Transfer Upgrade:** 2 Shielded Conductor, 1 Resonance Circuit, 1 Kinetic Driver, 1 Whispering Ingot — drop materials on the arm's tile, then click **Enable** in the tile info panel. *Alternatively, with the [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]] drone upgrade, click **Request Drone Delivery** for automated material delivery.*
 
 > [!tip] Use arms to solve throughput bottlenecks
 > Some recipes consume inputs faster than a single conduit can deliver. Even a Mk-III conduit maxes out at 1 item/tick (5/sec). An Insertion Arm pulling from a Containment Vault provides a parallel feed channel, keeping machines running at full speed.
@@ -196,7 +196,7 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 
 **Cost:** 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver
 
-**Bulk Transfer Upgrade:** 2 Shielded Conductor, 1 Resonance Circuit, 1 Whispering Ingot, 1 Kinetic Driver — drop materials on the arm's tile, then click **Enable** in the tile info panel. *Alternatively, with [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]], click **Request Drone Delivery** for automated delivery.*
+**Bulk Transfer Upgrade:** 2 Shielded Conductor, 1 Resonance Circuit, 1 Kinetic Driver, 1 Whispering Ingot — drop materials on the arm's tile, then click **Enable** in the tile info panel. *Alternatively, with the [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]] drone upgrade, click **Request Drone Delivery** for automated material delivery.*
 
 > [!tip] Pair arms with Containment Vaults
 > The typical pattern is: **Extraction Arm → Vault → Insertion Arm**. The unloader grabs output from a machine, the vault buffers it, and the loader feeds it into the next machine. This decouples production stages and smooths throughput.

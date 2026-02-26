@@ -25,7 +25,7 @@ Before you can build the Board Interface, you must complete all Clearance 8 [[Re
 
 | Case File | Requirement |
 |---|---|
-| Dimensional Mastery | 3 Dimensional Core, 3 Astral Projection Lens |
+| Dimensional Mastery | 3 Astral Projection Lens, 3 Dimensional Core |
 | Board Resonance Protocol | 1 Board Resonator |
 
 This requires the full [[Paranatural Synthesis|Paranatural Synthesis]] chain to be operational.

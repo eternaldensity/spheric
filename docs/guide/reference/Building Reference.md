@@ -24,8 +24,8 @@ Construction costs are the resources you must deliver to a building's constructi
 | Insertion Arm | Loader | 4 | 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver | Vault → target (range 2) |
 | Extraction Arm | Unloader | 4 | 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver | Source → vault (range 2) |
 | Selective Distributor | Filtered Splitter | 3 | 3 Structural Plate, 2 Resonance Circuit, 1 Astral Frame | Filter-based routing |
-| Surplus Router | Overflow Gate | 3 | 4 Structural Plate, 1 Resonance Circuit, 1 Astral Frame | Forward primary, side overflow |
-| Priority Converger | Priority Merger | 3 | 4 Paraelectric Bar, 1 Resonance Circuit, 1 Astral Frame | Priority-side input merging |
+| Surplus Router | Overflow Gate | 3 | 4 Structural Plate, 1 Astral Frame, 1 Resonance Circuit | Forward primary, side overflow |
+| Priority Converger | Priority Merger | 3 | 4 Paraelectric Bar, 1 Astral Frame, 1 Resonance Circuit | Priority-side input merging |
 
 See [[Advanced Logistics]] and [[The Conduit Network]] for usage guides.
 
@@ -40,6 +40,7 @@ See [[Advanced Logistics]] and [[The Conduit Network]] for usage guides.
 | Fabricator | Assembler | 1 | 8 Ferric Standard, 5 Paraelectric Bar, 2 Astral Ingot | Dual-input |
 | Distiller | Refinery | 2 | 15 Structural Plate, 6 Conductive Filament, 4 Astral Ingot | Liquids/volatiles |
 | Compound Mixer | Mixer | 5 | 15 Heavy Astral Frame, 8 Shielded Conductor, 2 Advanced Resonance Circuit | Dual-input mixing |
+| Cryogenic Processor | Freezer | 5 | 12 Heavy Astral Frame, 10 Thermal Regulator, 2 Advanced Resonance Circuit | Dual-input, dual-output |
 | Advanced Processor | Advanced Smelter | 4 | 12 Heavy Astral Frame, 8 Thermal Regulator, 5 Resonance Circuit | Fast + uranium |
 | Advanced Fabricator | Advanced Assembler | 5 | 20 Heavy Astral Frame, 4 Kinetic Driver, 3 Advanced Resonance Circuit | Advanced recipes |
 | Fabrication Plant | Fabrication Plant | 5 | 30 Heavy Astral Frame, 15 Shielded Conductor, 9 Kinetic Driver, 5 Advanced Resonance Circuit | Triple-input |
@@ -94,9 +95,9 @@ See [[Submitting Research]], [[Trading with Other Operators]], [[Creatures & Con
 | Bureau Name | Common Name | Tier | Construction Cost | Notes |
 |---|---|---|---|---|
 | Jurisdiction Beacon | Claim Beacon | 1 | 5 Ferric Standard, 3 Paraelectric Bar | Radius 8 territory |
-| Trap | Containment Trap | 3 | 5 Conductive Filament, 2 Resonance Circuit, 2 Astral Frame | Capture creatures (r3) |
+| Trap | Containment Trap | 3 | 5 Conductive Filament, 2 Astral Frame, 2 Resonance Circuit | Capture creatures (r3) |
 | Defense Array | Defense Turret | 3 | 5 Structural Plate, 3 Astral Frame, 2 Resonance Circuit | Auto-attacks Hiss (r3) |
-| Purification Beacon | Purification Beacon | 3 | 5 Refined Resonance Crystal, 3 Resonance Circuit, 3 Astral Frame | Radius 5 anti-corruption |
+| Purification Beacon | Purification Beacon | 3 | 5 Refined Resonance Crystal, 3 Astral Frame, 3 Resonance Circuit | Radius 5 anti-corruption |
 | Dimensional Stabilizer | Dimensional Stabilizer | 7 | 25 Paranatural Composite, 6 Anomaly Containment Module, 2 Hypercomputation Core | Wide-area stability |
 | Astral Projection Chamber | Astral Projection Chamber | 7 | 12 Anomaly Containment Module, 2 Hypercomputation Core, 1 Astral Projection Lens | Reveal creatures |
 

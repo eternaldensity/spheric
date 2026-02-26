@@ -52,7 +52,7 @@ Both unlocked at **Clearance 3**:
 > [!tip] Defensive Strategy
 > Use Defense Arrays to fight entities and collect Hiss Residue, and Purification Beacons to hold ground and prevent re-corruption. A perimeter of both is the most effective defense.
 
-**Cost:** 5 Refined Resonance Crystal, 3 Resonance Circuit, 3 Astral Frame
+**Cost:** 5 Refined Resonance Crystal, 3 Astral Frame, 3 Resonance Circuit
 
 ---
 

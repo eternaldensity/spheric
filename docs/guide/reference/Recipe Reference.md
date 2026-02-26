@@ -45,6 +45,7 @@ Complete production recipe tables for all buildings in Spheric.
 | Conductive Filament | Stabilized Polymer | Shielded Conductor |
 | Structural Plate | Ferric Standard | Reinforced Plate |
 | Paraelectric Bar | Threshold Compound | Thermal Regulator |
+| Astral Ingot | Refined Resonance Crystal | Astral Powder |
 
 ---
 
@@ -57,6 +58,17 @@ Complete production recipe tables for all buildings in Spheric.
 | Black Rock Ichor (Crude) | Astral Ingot | Catalysed Ichor Fuel |
 | Catalysed Ichor Fuel | Refined Entity Fuel | Unstable Mixed Fuel |
 | Unstable Mixed Fuel | Threshold Compound | Stable Mixed Fuel |
+| The Moyst | Astral Powder | Liquefacted Stars |
+
+---
+
+## Cryogenic Processor (Freezer) — 20 ticks
+
+*Unlocked at Clearance 5. See [[Advanced Production]].*
+
+| Input A | Input B | Output A | Output B |
+|---|---|---|---|
+| Crystalized Water ×5 | Liquefacted Stars ×3 | The Moyst ×5 | Shivering Ingot |
 
 ---
 

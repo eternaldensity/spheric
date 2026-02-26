@@ -15,7 +15,7 @@
 #   mix run scripts/update_guide_costs.exs --dry-run  # preview changes only
 
 alias Spheric.Game.{ConstructionCosts, Lore, Research}
-alias Spheric.Game.Behaviors.{DroneBay, Loader, Unloader, FilteredSplitter, OverflowGate, PriorityMerger}
+alias Spheric.Game.Behaviors.{DroneBay, Freezer, Loader, Unloader, FilteredSplitter, OverflowGate, PriorityMerger}
 
 dry_run? = "--dry-run" in System.argv()
 
@@ -75,6 +75,7 @@ defmodule GuideUpdater do
       board_interface: "Board Interface",
       loader: "Loader", unloader: "Unloader",
       mixer: "Mixer",
+      freezer: "Freezer",
       filtered_splitter: "Filtered Splitter", overflow_gate: "Overflow Gate",
       priority_merger: "Priority Merger"
     }
@@ -205,6 +206,7 @@ if building_ref do
     {:assembler, "Dual-input"},
     {:refinery, "Liquids/volatiles"},
     {:mixer, "Dual-input mixing"},
+    {:freezer, "Dual-input, dual-output"},
     {:advanced_smelter, "Fast + uranium"},
     {:advanced_assembler, "Advanced recipes"},
     {:fabrication_plant, "Triple-input"}
@@ -345,6 +347,7 @@ if recipe_ref do
 
   assembler_recipes = Spheric.Game.Behaviors.Assembler.recipes()
   mixer_recipes = Spheric.Game.Behaviors.Mixer.recipes()
+  freezer_recipes = Freezer.recipes()
   advanced_assembler_recipes = Spheric.Game.Behaviors.AdvancedAssembler.recipes()
   fabrication_plant_recipes = Spheric.Game.Behaviors.FabricationPlant.recipes()
   particle_collider_recipes = Spheric.Game.Behaviors.ParticleCollider.recipes()
@@ -391,6 +394,27 @@ if recipe_ref do
         [a, b, c] -> "| #{a} | #{b} | #{c} | #{format_input.(out_type)} |"
         [a, b] -> "| #{a} | #{b} | — | #{format_input.(out_type)} |"
         _ -> "| #{Enum.join(input_names, " + ")} | | | #{format_input.(out_type)} |"
+      end
+    end)
+    [header | rows] |> Enum.join("\n")
+  end
+
+  # Dual-input dual-output recipe table (for freezer)
+  dual_output_table = fn recipes ->
+    header = "| Input A | Input B | Output A | Output B |\n|---|---|---|---|"
+    rows = Enum.map(recipes, fn recipe ->
+      inputs = recipe.inputs
+      [{out_a, out_qty_a}, {out_b, out_qty_b}] = recipe.output
+      input_names = Enum.map(inputs, fn {item, qty} ->
+        base = format_input.(item)
+        if qty > 1, do: "#{base} ×#{qty}", else: base
+      end)
+      out_a_str = if out_qty_a > 1, do: "#{format_input.(out_a)} ×#{out_qty_a}", else: format_input.(out_a)
+      out_b_str = if out_qty_b > 1, do: "#{format_input.(out_b)} ×#{out_qty_b}", else: format_input.(out_b)
+      case input_names do
+        [a, b] -> "| #{a} | #{b} | #{out_a_str} | #{out_b_str} |"
+        [a] -> "| #{a} | — | #{out_a_str} | #{out_b_str} |"
+        _ -> "| #{Enum.join(input_names, " + ")} | | #{out_a_str} | #{out_b_str} |"
       end
     end)
     [header | rows] |> Enum.join("\n")
@@ -453,6 +477,14 @@ if recipe_ref do
   *Unlocked at Clearance 5. See [[Advanced Production]].*
 
   #{dual_table.(mixer_recipes)}
+
+  ---
+
+  ## Cryogenic Processor (Freezer) — 20 ticks
+
+  *Unlocked at Clearance 5. See [[Advanced Production]].*
+
+  #{dual_output_table.(freezer_recipes)}
 
   ---
 
@@ -531,7 +563,7 @@ if research_content do
     2 => "[[The Distiller|Distiller]], Conduit Mk-III, Load Equalizer, Subsurface Link, Transit Interchange",
     3 => "[[Creatures & Containment|Trap]], Purification Beacon, Defense Array, Shadow Panel, Lamp, [[Advanced Logistics|Selective Distributor, Surplus Router, Priority Converger]]",
     4 => "[[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Logistics|Insertion Arm, Extraction Arm]], [[Advanced Production|Advanced Processor]]",
-    5 => "[[Advanced Production|Compound Mixer, Advanced Fabricator, Fabrication Plant]], Essence Extractor",
+    5 => "[[Advanced Production|Compound Mixer, Cryogenic Processor, Advanced Fabricator, Fabrication Plant]], Essence Extractor",
     6 => "[[High-Tech Manufacturing|Particle Collider, Nuclear Distiller]]",
     7 => "[[Endgame Buildings|Dimensional Stabilizer, Astral Projection Chamber]], [[Paranatural Synthesis|Paranatural Synthesizer]]",
     8 => "[[The Board Interface]]"
@@ -658,6 +690,7 @@ if adv_prod do
   # We need to replace each one contextually.
   costs = %{
     mixer: ConstructionCosts.cost(:mixer),
+    freezer: ConstructionCosts.cost(:freezer),
     advanced_smelter: ConstructionCosts.cost(:advanced_smelter),
     advanced_assembler: ConstructionCosts.cost(:advanced_assembler),
     fabrication_plant: ConstructionCosts.cost(:fabrication_plant),
@@ -671,6 +704,7 @@ if adv_prod do
 
   new_content = adv_prod
   |> re_cost.(~r/(## Compound Mixer.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.mixer))
+  |> re_cost.(~r/(## Cryogenic Processor.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.freezer))
   |> re_cost.(~r/(## Advanced Processor.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.advanced_smelter))
   |> re_cost.(~r/(## Advanced Fabricator.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.advanced_assembler))
   |> re_cost.(~r/(## Fabrication Plant.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.fabrication_plant))

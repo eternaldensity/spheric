@@ -64,10 +64,10 @@ Click a Drone Bay to open its upgrade panel. The bay offers six permanent upgrad
 | **Auto-Refuel** | 5 Ferric Standard, 3 Paraelectric Bar, 2 Conductive Filament | Bay accepts biofuel into a buffer and auto-refuels your drone when you fly nearby |
 | **Expanded Tank** | 4 Conductive Filament, 3 Structural Plate, 2 Resonance Circuit | Increases tank capacity from 5 to **10 slots** |
 | **Drone Spotlight** | 4 Ferric Standard, 3 Conductive Filament, 2 Paraelectric Bar | Toggleable light (press **L**); burns fuel at **2x speed** while on |
-| **Expanded Cargo** | 1 | 5 Structural Plate, 3 Resonance Circuit, 6 Conductive Filament | Increases drone cargo capacity from 1 to **4 items** |
-| **Delivery Drone** | 3 | 3 Astral Frame, 3 Resonance Circuit, 2 Kinetic Driver, 5 Entity Biofuel | Adds an automated delivery drone to this bay (see below) |
-| **Delivery Cargo** | 4 | 2 Heavy Astral Frame, 1 Advanced Resonance Circuit, 2 Kinetic Driver | Increases delivery drone cargo capacity from 2 to **4 items** |
-| **Upgrade Delivery** | 4 | 3 Heavy Astral Frame, 2 Advanced Resonance Circuit, 1 Kinetic Driver, 4 Shielded Conductor | Delivery drone also delivers materials for building upgrades (arms, splitters, etc.) |
+| **Expanded Cargo** | 1 | 6 Conductive Filament, 5 Structural Plate, 3 Resonance Circuit | Increases drone cargo capacity from 1 to **4 items** |
+| **Delivery Drone** | 3 | 5 Entity Biofuel, 3 Astral Frame, 3 Resonance Circuit, 2 Kinetic Driver | Adds an automated delivery drone to this bay (see below) |
+| **Delivery Cargo** | 4 | 2 Kinetic Driver, 2 Heavy Astral Frame, 1 Advanced Resonance Circuit | Increases delivery drone cargo capacity from 2 to **4 items** |
+| **Upgrade Delivery** | 4 | 4 Shielded Conductor, 3 Heavy Astral Frame, 2 Advanced Resonance Circuit, 1 Kinetic Driver | Delivery drone also delivers materials for building upgrades (arms, splitters, etc.) |
 
 ### Installing an Upgrade
 
