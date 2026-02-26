@@ -25,7 +25,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Fabrication Protocol Alpha | 40 Conductive Filament, 40 Structural Plate |
+| Fabrication Protocol Alpha | 40 Structural Plate, 40 Conductive Filament |
 | Astral Ore Refinement | 30 Astral Ingot |
 
 **Unlocks:** [[The Distiller|Distiller]], Conduit Mk-III, Load Equalizer, Subsurface Link, Transit Interchange
@@ -53,7 +53,7 @@ See [[Submitting Research]] for how the research system works.
 | Industrial Requisition | 30 Thermal Regulator, 20 Shielded Conductor, 20 Kinetic Driver |
 | Organic Energy Mandate | 50 Entity Biofuel, 20 Refined Entity Fuel |
 
-**Unlocks:** [[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Logistics|Insertion Arm, Extraction Arm]], [[Advanced Production|Advanced Processor]]
+**Unlocks:** [[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Logistics|Insertion Arm, Extraction Arm]], [[Advanced Production|Advanced Processor, Matter Recycler]]
 
 **Object of Power:** Power Surge — +25% generator fuel duration
 
@@ -63,7 +63,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Heavy Industry Protocol | 15 Heavy Astral Frame, 15 Advanced Resonance Circuit |
+| Heavy Industry Protocol | 15 Advanced Resonance Circuit, 15 Heavy Astral Frame |
 | Entity Research Program | 30 Anomalous Essence, 10 Polymer Membrane |
 
 **Unlocks:** [[Advanced Production|Compound Mixer, Cryogenic Processor, Advanced Fabricator, Fabrication Plant]], Essence Extractor
@@ -89,7 +89,7 @@ See [[Submitting Research]] for how the research system works.
 
 | Case File | Requirements |
 |---|---|
-| Paranatural Convergence | 10 Radiant Cell, 5 Hypercomputation Core, 5 Paranatural Composite |
+| Paranatural Convergence | 10 Radiant Cell, 5 Paranatural Composite, 5 Hypercomputation Core |
 | Entity Containment Mastery | 5 Anomalous Essence, 3 Anomaly Containment Module |
 
 **Unlocks:** [[Endgame Buildings|Dimensional Stabilizer, Astral Projection Chamber]], [[Paranatural Synthesis|Paranatural Synthesizer]]

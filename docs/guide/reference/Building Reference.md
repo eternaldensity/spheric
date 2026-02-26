@@ -41,6 +41,7 @@ See [[Advanced Logistics]] and [[The Conduit Network]] for usage guides.
 | Distiller | Refinery | 2 | 15 Structural Plate, 6 Conductive Filament, 4 Astral Ingot | Liquids/volatiles |
 | Compound Mixer | Mixer | 5 | 15 Heavy Astral Frame, 8 Shielded Conductor, 2 Advanced Resonance Circuit | Dual-input mixing |
 | Cryogenic Processor | Freezer | 5 | 12 Heavy Astral Frame, 10 Thermal Regulator, 2 Advanced Resonance Circuit | Dual-input, dual-output |
+| Matter Recycler | Recycler | 4 | 8 Heavy Astral Frame, 4 Resonance Circuit, 3 Kinetic Driver | Any 10 items → 1 random resource |
 | Advanced Processor | Advanced Smelter | 4 | 12 Heavy Astral Frame, 8 Thermal Regulator, 5 Resonance Circuit | Fast + uranium |
 | Advanced Fabricator | Advanced Assembler | 5 | 20 Heavy Astral Frame, 4 Kinetic Driver, 3 Advanced Resonance Circuit | Advanced recipes |
 | Fabrication Plant | Fabrication Plant | 5 | 30 Heavy Astral Frame, 15 Shielded Conductor, 9 Kinetic Driver, 5 Advanced Resonance Circuit | Triple-input |
@@ -66,8 +67,8 @@ See [[High-Tech Manufacturing]], [[Paranatural Synthesis]], [[The Board Interfac
 
 | Bureau Name | Common Name | Tier | Construction Cost | Notes |
 |---|---|---|---|---|
-| Bio Generator | Bio Generator | 4 | 3 Shielded Conductor, 3 Astral Frame, 2 Kinetic Driver | Burns fuel items |
-| Shadow panel | Shadow Panel | 3 | 3 Refined Resonance Crystal, 2 Conductive Filament, 2 Astral Frame | Alt. power |
+| Bio Generator | Bio Generator | 4 | 3 Astral Frame, 3 Shielded Conductor, 2 Kinetic Driver | Burns fuel items |
+| Shadow panel | Shadow Panel | 3 | 3 Refined Resonance Crystal, 2 Astral Frame, 2 Conductive Filament | Alt. power |
 | Substation | Substation | 4 | 10 Paraelectric Bar, 6 Structural Plate, 5 Shielded Conductor | Radius 10 power |
 | Lamp | Lamp | 3 | 3 Paraelectric Bar, 2 Conductive Filament, 1 Resonance Circuit | Decorative |
 | Essence Extractor | Essence Extractor | 5 | 30 Astral Frame, 10 Refined Resonance Crystal, 5 Resonance Circuit | Creature essence |

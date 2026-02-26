@@ -76,6 +76,7 @@ defmodule GuideUpdater do
       loader: "Loader", unloader: "Unloader",
       mixer: "Mixer",
       freezer: "Freezer",
+      recycler: "Recycler",
       filtered_splitter: "Filtered Splitter", overflow_gate: "Overflow Gate",
       priority_merger: "Priority Merger"
     }
@@ -207,6 +208,7 @@ if building_ref do
     {:refinery, "Liquids/volatiles"},
     {:mixer, "Dual-input mixing"},
     {:freezer, "Dual-input, dual-output"},
+    {:recycler, "Any 10 items → 1 random resource"},
     {:advanced_smelter, "Fast + uranium"},
     {:advanced_assembler, "Advanced recipes"},
     {:fabrication_plant, "Triple-input"}
@@ -488,6 +490,18 @@ if recipe_ref do
 
   ---
 
+  ## Matter Recycler (Recycler) — 30 ticks
+
+  *Unlocked at Clearance 4. See [[Advanced Production]].*
+
+  | Input | Output |
+  |---|---|
+  | Any Item ×10 | 1 random raw resource (biome-weighted) |
+
+  Output is a random raw ore/resource weighted by the biome the recycler sits on. Possible outputs: Ferric Compound, Paraelectric Ore, Resonance Crystal, Astral Ore, Black Rock Ichor, Threshold Dust, Threshold Radiant, Crystalized Water (tundra only).
+
+  ---
+
   ## Advanced Processor (Advanced Smelter) — 8 ticks
 
   *Unlocked at Clearance 4. See [[Advanced Production]].*
@@ -562,7 +576,7 @@ if research_content do
     1 => "Distributor, Converger, Jurisdiction Beacon, Exchange Terminal, Conduit Mk-II, Containment Vault, [[The Fabricator|Fabricator]], Drone Bay",
     2 => "[[The Distiller|Distiller]], Conduit Mk-III, Load Equalizer, Subsurface Link, Transit Interchange",
     3 => "[[Creatures & Containment|Trap]], Purification Beacon, Defense Array, Shadow Panel, Lamp, [[Advanced Logistics|Selective Distributor, Surplus Router, Priority Converger]]",
-    4 => "[[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Logistics|Insertion Arm, Extraction Arm]], [[Advanced Production|Advanced Processor]]",
+    4 => "[[Power & Energy|Bio Generator, Substation]], Transfer Station, [[Advanced Logistics|Insertion Arm, Extraction Arm]], [[Advanced Production|Advanced Processor, Matter Recycler]]",
     5 => "[[Advanced Production|Compound Mixer, Cryogenic Processor, Advanced Fabricator, Fabrication Plant]], Essence Extractor",
     6 => "[[High-Tech Manufacturing|Particle Collider, Nuclear Distiller]]",
     7 => "[[Endgame Buildings|Dimensional Stabilizer, Astral Projection Chamber]], [[Paranatural Synthesis|Paranatural Synthesizer]]",
@@ -691,6 +705,7 @@ if adv_prod do
   costs = %{
     mixer: ConstructionCosts.cost(:mixer),
     freezer: ConstructionCosts.cost(:freezer),
+    recycler: ConstructionCosts.cost(:recycler),
     advanced_smelter: ConstructionCosts.cost(:advanced_smelter),
     advanced_assembler: ConstructionCosts.cost(:advanced_assembler),
     fabrication_plant: ConstructionCosts.cost(:fabrication_plant),
@@ -705,6 +720,7 @@ if adv_prod do
   new_content = adv_prod
   |> re_cost.(~r/(## Compound Mixer.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.mixer))
   |> re_cost.(~r/(## Cryogenic Processor.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.freezer))
+  |> re_cost.(~r/(## Matter Recycler.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.recycler))
   |> re_cost.(~r/(## Advanced Processor.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.advanced_smelter))
   |> re_cost.(~r/(## Advanced Fabricator.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.advanced_assembler))
   |> re_cost.(~r/(## Fabrication Plant.*?)\*\*Cost:\*\* [^\n]+/s, GuideUpdater.format_cost(costs.fabrication_plant))

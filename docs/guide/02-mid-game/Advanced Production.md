@@ -43,6 +43,28 @@ At Clearance 4–5, you unlock higher-tier production buildings that process mor
 
 ---
 
+## Matter Recycler (Recycler)
+
+*Unlocked at Clearance 4*
+
+- Accepts **any 10 items** (mixed types allowed) as input
+- Processing time: **30 ticks** (slow, heavy machine)
+- Outputs **1 random raw resource** weighted by the biome the recycler sits on
+
+| Input | Output |
+|---|---|
+| Any Item ×10 | 1 random raw resource (biome-weighted) |
+
+> [!tip] Biome Placement Matters
+> The recycler's output is weighted by the biome it's built on. A recycler on a **Volcanic** biome favors Ferric Compound and Astral Ore, while one in a **Forest** biome favors Paraelectric Ore and Resonance Crystal. Place recyclers strategically to target the resources you need most. See [[Biomes & Resources]] for full biome distributions.
+
+> [!note] Universal Input
+> Unlike other production buildings, the Matter Recycler has no recipe constraints — it accepts *any* item from a conduit. This makes it ideal for consuming excess or unwanted items. Feed it junk and get raw resources back.
+
+**Cost:** 8 Heavy Astral Frame, 4 Resonance Circuit, 3 Kinetic Driver
+
+---
+
 ## Advanced Processor (Advanced Smelter)
 
 *Unlocked at Clearance 4*

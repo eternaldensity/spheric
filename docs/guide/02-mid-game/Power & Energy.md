@@ -28,7 +28,7 @@ The primary power source. Consumes fuel to generate power.
 > [!tip] Fuel Efficiency
 > **Stable Mixed Fuel** is the most efficient fuel by far (325 ticks), but requires the Compound Mixer and a multi-step blending chain. Early on, stick with Entity Biofuel or Refined Entity Fuel from the Distiller.
 
-**Cost:** 3 Shielded Conductor, 3 Astral Frame, 2 Kinetic Driver
+**Cost:** 3 Astral Frame, 3 Shielded Conductor, 2 Kinetic Driver
 
 ---
 
@@ -59,7 +59,7 @@ An alternative power source that generates power from darkness.
 
 Shadow Panels are useful on the dark side of the sphere where solar cycles provide long shadow periods. They complement Bio Generators for round-the-clock power.
 
-**Cost:** 3 Refined Resonance Crystal, 2 Conductive Filament, 2 Astral Frame
+**Cost:** 3 Refined Resonance Crystal, 2 Astral Frame, 2 Conductive Filament
 
 ---
 

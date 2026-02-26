@@ -73,6 +73,18 @@ Complete production recipe tables for all buildings in Spheric.
 
 ---
 
+## Matter Recycler (Recycler) — 30 ticks
+
+*Unlocked at Clearance 4. See [[Advanced Production]].*
+
+| Input | Output |
+|---|---|
+| Any Item ×10 | 1 random raw resource (biome-weighted) |
+
+Output is a random raw ore/resource weighted by the biome the recycler sits on. Possible outputs: Ferric Compound, Paraelectric Ore, Resonance Crystal, Astral Ore, Black Rock Ichor, Threshold Dust, Threshold Radiant, Crystalized Water (tundra only).
+
+---
+
 ## Advanced Processor (Advanced Smelter) — 8 ticks
 
 *Unlocked at Clearance 4. See [[Advanced Production]].*
