@@ -46,6 +46,13 @@ defmodule Spheric.Game.Behaviors.DroneBay do
     stable_fuel: 480.0
   }
 
+  # Tiles moved per tick per fuel type.  Most fuels move 1 tile/tick.
+  # Unstable fuel is the "nitro" — double speed but only 30 s of fuel.
+  @fuel_move_steps %{
+    unstable_fuel: 2
+  }
+  @default_move_steps 1
+
   def initial_state do
     %{
       mode: :idle,
@@ -361,8 +368,8 @@ defmodule Spheric.Game.Behaviors.DroneBay do
                 delivery_items_needed: items_needed
             }
 
-            # Move one step immediately
-            {state, _} = move_one_step(state)
+            # Move immediately
+            {state, _} = move_steps(state)
             {state, buildings}
         end
       end
@@ -396,7 +403,7 @@ defmodule Spheric.Game.Behaviors.DroneBay do
               delivery_items_needed: []
           }
 
-          {state, _} = move_one_step(state)
+          {state, _} = move_steps(state)
           {state, buildings}
         else
           # Compute path to construction site
@@ -411,12 +418,12 @@ defmodule Spheric.Game.Behaviors.DroneBay do
               delivery_cargo: cargo
           }
 
-          {state, _} = move_one_step(state)
+          {state, _} = move_steps(state)
           {state, buildings}
         end
 
       _path ->
-        {state, _} = move_one_step(state)
+        {state, _} = move_steps(state)
         {state, buildings}
     end
   end
@@ -442,11 +449,11 @@ defmodule Spheric.Game.Behaviors.DroneBay do
             delivery_items_needed: []
         }
 
-        {state, _} = move_one_step(state)
+        {state, _} = move_steps(state)
         {state, buildings}
 
       _path ->
-        {state, _} = move_one_step(state)
+        {state, _} = move_steps(state)
         {state, buildings}
     end
   end
@@ -469,17 +476,28 @@ defmodule Spheric.Game.Behaviors.DroneBay do
         {state, buildings}
 
       _path ->
-        {state, _} = move_one_step(state)
+        {state, _} = move_steps(state)
         {state, buildings}
     end
   end
 
   defp delivery_state_machine(_bay_key, state, buildings, _owner_id), do: {state, buildings}
 
-  defp move_one_step(%{delivery_path: []} = state), do: {state, false}
+  defp move_steps(state) do
+    fuel_type = case state.delivery_fuel do
+      {ft, _remaining} -> ft
+      _ -> nil
+    end
 
-  defp move_one_step(%{delivery_path: [next | rest]} = state) do
-    {%{state | delivery_pos: next, delivery_path: rest}, true}
+    steps = Map.get(@fuel_move_steps, fuel_type, @default_move_steps)
+    do_move_steps(state, steps, false)
+  end
+
+  defp do_move_steps(state, 0, moved), do: {state, moved}
+  defp do_move_steps(%{delivery_path: []} = state, _n, moved), do: {state, moved}
+
+  defp do_move_steps(%{delivery_path: [next | rest]} = state, n, _moved) do
+    do_move_steps(%{state | delivery_pos: next, delivery_path: rest}, n - 1, true)
   end
 
   @upgradeable_types [:loader, :unloader, :filtered_splitter, :overflow_gate, :priority_merger]

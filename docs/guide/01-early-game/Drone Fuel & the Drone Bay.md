@@ -123,16 +123,16 @@ Delivery drones consume fuel from the same pool as your camera drone's Auto-Refu
 - It automatically draws fuel from the bay's Auto-Refuel buffer when its tank has room
 - **If the drone runs out of fuel**, it drops any carried items on the ground and returns to the bay
 
-| Fuel Type | Duration | Camera Drone Speed |
-|---|---|---|
-| Entity Biofuel | 60 seconds | 100% (baseline) |
-| Catalysed Ichor Fuel | 90 seconds | 120% |
-| Refined Entity Fuel | 150 seconds | 110% |
-| Unstable Mixed Fuel | 30 seconds | 160% |
-| Stable Mixed Fuel | 480 seconds | 85% |
+| Fuel Type | Duration | Camera Drone Speed | Delivery Drone Speed |
+|---|---|---|---|
+| Entity Biofuel | 60 seconds | 100% (baseline) | 1 tile/tick |
+| Catalysed Ichor Fuel | 90 seconds | 120% | 1 tile/tick |
+| Refined Entity Fuel | 150 seconds | 110% | 1 tile/tick |
+| Unstable Mixed Fuel | 30 seconds | 160% | **2 tiles/tick** |
+| Stable Mixed Fuel | 480 seconds | 85% | 1 tile/tick |
 
 > [!info] Fuel Efficiency
-> Faster fuels burn through their duration at the same rate — they don't last longer just because you move faster. Unstable Mixed Fuel gives the highest speed but the worst range per unit. Stable Mixed Fuel is the slowest but by far the most fuel-efficient for long exploration sessions.
+> Faster fuels burn through their duration at the same rate — they don't last longer just because you move faster. Unstable Mixed Fuel gives the highest speed for both camera and delivery drones, but the worst range per unit. Stable Mixed Fuel is the slowest but by far the most fuel-efficient for long sessions. For delivery drones, Unstable Mixed Fuel doubles movement speed — useful for rushing urgent construction, but it will burn out fast.
 
 > [!warning] Keep the Bay Fueled
 > Make sure your Drone Bay has Auto-Refuel installed and a steady supply of fuel routed in via Conduit. Without fuel, the delivery drone will sit idle.
