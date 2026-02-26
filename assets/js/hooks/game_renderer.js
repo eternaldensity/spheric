@@ -122,8 +122,10 @@ const GameRenderer = {
     this.droneFuel = new DroneFuelSystem((event, payload) => this.pushEvent(event, payload));
     this.droneFuel.initFromStorage();
     this.droneFuel.onLowPowerChange = (isLow) => {
-      this.droneCamera._flySpeed = isLow ? 0.1 : 0.4;
       this._applyLowPowerEffect(isLow);
+    };
+    this.droneFuel.onSpeedChange = (multiplier) => {
+      this.droneCamera._flySpeed = 0.4 * multiplier;
     };
     this.droneFuel.onFuelChange = () => { this._updateFuelHUD(); this._updateCargoHUD(); };
 
@@ -173,6 +175,7 @@ const GameRenderer = {
     this.animate();
     this._updateFuelHUD();
     this._updateCargoHUD();
+    this.droneCamera._flySpeed = 0.4 * this.droneFuel.speedMultiplier;
 
     this._onResize = () => this.onResize();
     window.addEventListener("resize", this._onResize);
@@ -1032,6 +1035,12 @@ const GameRenderer = {
     if (this.droneFuel.spotlightUnlocked) {
       const cls = this.droneFuel.spotlightOn ? "fuel-spotlight-indicator" : "fuel-spotlight-indicator spotlight-off";
       html += `<div class="${cls}">L</div>`;
+    }
+    const spd = this.droneFuel.speedMultiplier;
+    if (spd !== 1.0 && !this.droneFuel.isLowPower) {
+      const label = spd > 1.0 ? `${Math.round(spd * 100)}%` : `${Math.round(spd * 100)}%`;
+      const color = spd > 1.2 ? "#ff6b4a" : spd > 1.0 ? "#ffcc44" : "#66aadd";
+      html += `<div style="font-size:8px;color:${color};margin-left:3px;letter-spacing:0.05em;">${label}</div>`;
     }
     gauge.innerHTML = html;
   },

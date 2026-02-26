@@ -41,7 +41,7 @@ The **fuel gauge** appears at the bottom center of the screen, just above the to
 - **Dark**: Empty slot
 - **Flashing red**: Low fuel warning
 
-When the tank empties, the drone enters [[Drone Fuel & the Drone Bay#Low Power Mode|low power mode]] (25% speed). See [[Drone Fuel & the Drone Bay]] for the full fuel system guide.
+Different fuel types affect drone speed — a **speed percentage** appears next to the gauge when using non-baseline fuel. When the tank empties, the drone enters [[Drone Fuel & the Drone Bay#Low Power Mode|low power mode]] (25% speed). See [[Drone Fuel & the Drone Bay]] for the full fuel system guide.
 
 ## Tile Info Panel
 

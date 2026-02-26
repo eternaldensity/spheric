@@ -6,10 +6,12 @@ Your camera drone runs on fuel. Managing your fuel supply is an early-game conce
 
 The drone carries a **5-slot fuel tank**. Each slot holds one unit of fuel.
 
-| Fuel Type | Duration | Available At |
-|---|---|---|
-| Entity Biofuel | 60 seconds | Clearance 0 (Gathering Post output) |
-| Refined Entity Fuel | 150 seconds | Clearance 2 (Distiller output) |
+| Fuel Type | Duration | Drone Speed | Available At |
+|---|---|---|---|
+| Entity Biofuel | 60 seconds | 100% (baseline) | Clearance 0 (Gathering Post output) |
+| Refined Entity Fuel | 150 seconds | 110% | Clearance 2 (Distiller output) |
+
+Different fuels change your **drone movement speed**. Higher-tier fuels generally last longer, but the speed bonus is deliberately modest — faster fuels burn through range more quickly, so cheap biofuel remains the most efficient option for casual exploration.
 
 Fuel is consumed in real time while you play. The active fuel unit drains first; when it empties, the next unit in the tank is loaded automatically.
 
@@ -24,7 +26,7 @@ When the tank runs dry, the drone enters **low power mode**:
 - A red vignette overlay appears on screen
 - The fuel gauge flickers
 
-You can still fly and build in low power mode — it's just much slower. Pick up fuel to restore full speed immediately.
+You can still fly and build in low power mode — it's just much slower. Pick up fuel to restore speed immediately (the exact speed depends on the fuel type loaded).
 
 ## The Fuel Gauge
 
@@ -35,7 +37,7 @@ The fuel gauge appears at the **bottom center** of the screen, just above the to
 - **Dark pip**: Empty slot
 - **Flashing red**: Warning — fuel is critically low
 
-The leftmost pip is the active (draining) fuel unit.
+The leftmost pip is the active (draining) fuel unit. When a non-baseline fuel is active, a **speed percentage** appears next to the gauge (e.g. "110%" for Refined Entity Fuel, or "85%" for Stable Mixed Fuel).
 
 ## Picking Up Fuel
 
@@ -121,13 +123,16 @@ Delivery drones consume fuel from the same pool as your camera drone's Auto-Refu
 - It automatically draws fuel from the bay's Auto-Refuel buffer when its tank has room
 - **If the drone runs out of fuel**, it drops any carried items on the ground and returns to the bay
 
-| Fuel Type | Duration |
-|---|---|
-| Entity Biofuel | 60 seconds |
-| Catalysed Ichor Fuel | 90 seconds |
-| Refined Entity Fuel | 150 seconds |
-| Unstable Mixed Fuel | 30 seconds |
-| Stable Mixed Fuel | 480 seconds |
+| Fuel Type | Duration | Camera Drone Speed |
+|---|---|---|
+| Entity Biofuel | 60 seconds | 100% (baseline) |
+| Catalysed Ichor Fuel | 90 seconds | 120% |
+| Refined Entity Fuel | 150 seconds | 110% |
+| Unstable Mixed Fuel | 30 seconds | 160% |
+| Stable Mixed Fuel | 480 seconds | 85% |
+
+> [!info] Fuel Efficiency
+> Faster fuels burn through their duration at the same rate — they don't last longer just because you move faster. Unstable Mixed Fuel gives the highest speed but the worst range per unit. Stable Mixed Fuel is the slowest but by far the most fuel-efficient for long exploration sessions.
 
 > [!warning] Keep the Bay Fueled
 > Make sure your Drone Bay has Auto-Refuel installed and a steady supply of fuel routed in via Conduit. Without fuel, the delivery drone will sit idle.

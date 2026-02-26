@@ -19,6 +19,16 @@ const UNSTABLE_FUEL_DURATION = 30;
 const STABLE_FUEL_DURATION = 480;
 const LOW_POWER_SPEED = 0.25;
 const NORMAL_SPEED = 1.0;
+
+// Speed multiplier per fuel type. Higher = faster drone movement.
+// Deliberately NOT proportional to duration — fast fuels burn through range faster.
+const FUEL_SPEEDS = {
+  biofuel: 1.0,           // baseline
+  catalysed_fuel: 1.2,    // 20% faster, 90s duration → 108 effective range
+  refined_fuel: 1.1,      // 10% faster, 150s duration → 165 effective range
+  unstable_fuel: 1.6,     // 60% faster, 30s duration → 48 effective range (worst efficiency)
+  stable_fuel: 0.85,      // 15% slower, 480s duration → 408 effective range (best efficiency)
+};
 const PICKUP_COOLDOWN_MS = 1500;
 
 export class DroneFuelSystem {
@@ -44,6 +54,8 @@ export class DroneFuelSystem {
 
     /** @type {((isLowPower: boolean) => void) | null} */
     this.onLowPowerChange = null;
+    /** @type {((speedMultiplier: number) => void) | null} */
+    this.onSpeedChange = null;
     /** @type {(() => void) | null} */
     this.onFuelChange = null;
   }
@@ -61,7 +73,9 @@ export class DroneFuelSystem {
   }
 
   get speedMultiplier() {
-    return this._lowPower ? LOW_POWER_SPEED : NORMAL_SPEED;
+    if (this._lowPower) return LOW_POWER_SPEED;
+    if (this._currentFuel) return FUEL_SPEEDS[this._currentFuel.type] || NORMAL_SPEED;
+    return NORMAL_SPEED;
   }
 
   get spotlightOn() {
@@ -363,5 +377,6 @@ export class DroneFuelSystem {
 
   _notifyFuelChange() {
     if (this.onFuelChange) this.onFuelChange();
+    if (this.onSpeedChange) this.onSpeedChange(this.speedMultiplier);
   }
 }
