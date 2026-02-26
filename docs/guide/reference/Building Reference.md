@@ -18,7 +18,7 @@ Construction costs are the resources you must deliver to a building's constructi
 | Distributor | Splitter | 1 | 3 Ferric Standard, 2 Paraelectric Bar | 1 in → 3 out |
 | Converger | Merger | 1 | 3 Ferric Standard, 2 Paraelectric Bar | Many in → 1 out |
 | Load Equalizer | Balancer | 2 | 5 Structural Plate, 1 Resonance Circuit | 1 in → 4 even out |
-| Subsurface Link | Underground Conduit | 2 | 8 Structural Plate, 5 Conductive Filament | Tunnel under 1 tile |
+| Subsurface Link | Underground Conduit | 2 | 8 Structural Plate, 5 Conductive Filament | Tunnel between adjacent faces |
 | Transit Interchange | Crossover | 2 | 4 Structural Plate, 1 Conductive Filament | Cross paths |
 | Transfer Station | Transfer Station | 4 | 10 Shielded Conductor, 6 Resonance Circuit, 2 Astral Frame | Bridge substations |
 | Insertion Arm | Loader | 4 | 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver | Vault → target (range 2) |

@@ -46,7 +46,7 @@ Once you unlock [[Advanced Logistics|advanced logistics]] buildings at Clearance
 - **[[Advanced Logistics#Distributor (Splitter)|Distributor]]** — 1 input → 3 outputs
 - **[[Advanced Logistics#Converger (Merger)|Converger]]** — multiple inputs → 1 output
 - **[[Advanced Logistics#Load Equalizer (Balancer)|Load Equalizer]]** — 1 input → 4 even outputs
-- **[[Advanced Logistics#Subsurface Link (Underground Conduit)|Subsurface Link]]** — tunnel under 1 tile
+- **[[Advanced Logistics#Subsurface Link (Underground Conduit)|Subsurface Link]]** — tunnel items between adjacent faces
 - **[[Advanced Logistics#Transit Interchange (Crossover)|Transit Interchange]]** — cross paths without merging
 
 ---

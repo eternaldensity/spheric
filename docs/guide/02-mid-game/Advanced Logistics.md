@@ -128,10 +128,11 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 
 *Unlocked at Clearance 2*
 
-- Tunnels items under one tile to a paired exit
-- Place two Subsurface Links and use the **Link** button in the tile info panel to pair them
+- Tunnels items between two paired exits on **adjacent faces** (faces that share an edge)
+- Place two Subsurface Links on neighboring faces and use the **Link** button in the tile info panel to pair them
 - Items enter at one end and emerge at the other, bypassing surface buildings
-- Use to route around obstacles or cross paths without a Transit Interchange
+- Cannot link conduits on the same face or across non-adjacent faces
+- Use to route items between faces or cross paths without a Transit Interchange
 
 **Cost:** 8 Structural Plate, 5 Conductive Filament
 

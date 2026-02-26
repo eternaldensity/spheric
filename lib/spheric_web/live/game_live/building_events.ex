@@ -7,6 +7,7 @@ defmodule SphericWeb.GameLive.BuildingEvents do
   alias Spheric.Game.{WorldServer, WorldStore, Buildings, StarterKit, GroundItems, Research}
   alias Spheric.Game.Behaviors.{DroneBay, Loader, Unloader, FilteredSplitter, OverflowGate, PriorityMerger}
   alias Spheric.Game.Persistence
+  alias Spheric.Geometry.Adjacency
   alias SphericWeb.GameLive.Helpers
 
   require Logger
@@ -179,11 +180,15 @@ defmodule SphericWeb.GameLive.BuildingEvents do
     building_a = WorldStore.get_building(conduit_key)
     building_b = WorldStore.get_building(target_key)
 
+    face_a = elem(conduit_key, 0)
+    face_b = elem(target_key, 0)
+
     valid =
       conduit_key != target_key and
         building_a != nil and building_b != nil and
         building_a.type == :underground_conduit and
         building_b.type == :underground_conduit and
+        faces_adjacent?(face_a, face_b) and
         (building_a.owner_id == nil or building_a.owner_id == socket.assigns.player_id) and
         (building_b.owner_id == nil or building_b.owner_id == socket.assigns.player_id)
 
@@ -218,8 +223,24 @@ defmodule SphericWeb.GameLive.BuildingEvents do
 
       {:noreply, socket}
     else
-      {:noreply, assign(socket, :conduit_linking, nil)}
+      socket =
+        socket
+        |> assign(:conduit_linking, nil)
+        |> push_event("place_error", %{
+          face: face_b,
+          row: elem(target_key, 1),
+          col: elem(target_key, 2),
+          reason: "link_failed"
+        })
+
+      {:noreply, socket}
     end
+  end
+
+  defp faces_adjacent?(face_a, face_b) do
+    adj = Adjacency.adjacency_map()
+    neighbors = Map.get(adj, face_a, [])
+    Enum.any?(neighbors, fn info -> info != nil and info.face == face_b end)
   end
 
   defp arm_within_range?({f1, r1, c1}, {f2, r2, c2}) do
