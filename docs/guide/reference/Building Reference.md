@@ -67,7 +67,7 @@ See [[High-Tech Manufacturing]], [[Paranatural Synthesis]], [[The Board Interfac
 | Bureau Name | Common Name | Tier | Power | Construction Cost | Notes |
 |---|---|---|---|---|---|
 | Bio Generator | Bio Generator | 4 | +20W | 3 Astral Frame, 3 Shielded Conductor, 2 Kinetic Driver | Burns fuel items |
-| Shadow Panel | Shadow Panel | 3 | +10W | 3 Refined Resonance Crystal, 2 Astral Frame, 2 Conductive Filament | Alt. power (darkness) |
+| Shadow Panel | Shadow Panel | 3 | +0–10W | 3 Refined Resonance Crystal, 2 Astral Frame, 2 Conductive Filament | Variable output (scales with darkness) |
 | Substation | Substation | 4 | 0W | 10 Paraelectric Bar, 6 Structural Plate, 5 Shielded Conductor | Radius 4 power distribution |
 | Transfer Station | Transfer Station | 4 | 0W | 10 Shielded Conductor, 6 Resonance Circuit, 2 Astral Frame | Radius 8 network bridge |
 | Lamp | Lamp | 3 | 1W | 3 Paraelectric Bar, 2 Conductive Filament, 1 Resonance Circuit | Lighting, suppresses shadow panels |

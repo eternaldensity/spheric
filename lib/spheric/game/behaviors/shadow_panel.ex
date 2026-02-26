@@ -13,20 +13,40 @@ defmodule Spheric.Game.Behaviors.ShadowPanel do
   @lamp_suppress_radius 3
   # Max scan radius accounts for area-boosted lamps (base 3 * max ~2.8x = ~9)
   @lamp_scan_radius 9
+  @max_output 10
+  # Full output below this illumination, ramps to 0 at @cutoff
+  @dark_threshold 0.15
+  @cutoff 0.50
 
   def initial_state do
     %{power_output: 0, rate: 1}
   end
 
   def tick({face, row, col} = key, building) do
-    producing = ShiftCycle.tile_dark?(face, row, col) and not lamp_nearby?(key)
-    new_output = if producing, do: 10, else: 0
+    new_output =
+      if lamp_nearby?(key) do
+        0
+      else
+        illumination = ShiftCycle.tile_illumination(face, row, col)
+        output_for_illumination(illumination)
+      end
 
     if new_output != building.state.power_output do
       %{building | state: %{building.state | power_output: new_output}}
     else
       building
     end
+  end
+
+  @doc "Compute wattage output for a given illumination level (0.0–1.0)."
+  def output_for_illumination(illumination) when illumination < @dark_threshold, do: @max_output
+
+  def output_for_illumination(illumination) when illumination >= @cutoff, do: 0
+
+  def output_for_illumination(illumination) do
+    # Linear ramp: 10W at threshold, 0W at cutoff
+    t = (illumination - @dark_threshold) / (@cutoff - @dark_threshold)
+    round(@max_output * (1.0 - t))
   end
 
   @doc "Check if the shadow panel is currently producing power."

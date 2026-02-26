@@ -142,9 +142,14 @@ defmodule Spheric.Game.Power do
 
         if seeding_generators != [] do
           # Sum generator wattage = capacity
+          # Use actual state output for shadow panels (varies with illumination),
+          # static max for other generators.
           capacity =
             Enum.reduce(seeding_generators, 0, fn {_key, gen}, acc ->
-              acc + ConstructionCosts.power_output(gen.type)
+              case gen.type do
+                :shadow_panel -> acc + (gen.state[:power_output] || 0)
+                _ -> acc + ConstructionCosts.power_output(gen.type)
+              end
             end)
 
           # Find all buildings within powered substation radius

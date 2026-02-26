@@ -91,15 +91,17 @@ Bridges long distances between substations without directly powering buildings.
 
 ## Shadow Panel
 
-An alternative power source that generates power from darkness.
+An alternative power source that generates power from darkness. Output scales with how dark the cell is.
 
-- **Output:** 10W
-- Produces power when its cell is in **shadow** (sun on the far side of the sphere)
+- **Output:** 0–10W (scales with darkness)
+- Full 10W in deep shadow (illumination below 15%)
+- Ramps linearly from 10W down to 0W between 15% and 50% illumination
+- 0W above 50% illumination
 - Uses per-cell illumination for precise shadow boundaries
 - **Disabled** if a powered Lamp is within radius 3
 - No fuel required — completely passive
 
-Shadow Panels are useful on the dark side of the sphere where solar cycles provide long shadow periods. They complement Bio Generators for round-the-clock power, but at half the output you'll need twice as many to match a generator.
+Shadow Panels are most effective on the dark side of the sphere where illumination is near zero. During twilight transitions they produce partial power, making the transition from day to night gradual rather than abrupt. They complement Bio Generators for round-the-clock power, but their variable output means you'll want extras to maintain reliable capacity through the dimmer periods.
 
 **Cost:** 3 Refined Resonance Crystal, 2 Astral Frame, 2 Conductive Filament
 

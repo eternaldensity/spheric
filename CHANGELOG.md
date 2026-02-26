@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Make shadow panel output scale with solar intensity (#174)
 - Capacity-based power system: wattage generation and draw (#172)
 - Add freezer machine with dual-output production support (#167)
 - Add cost for loader/unloader stack_upgrade (#163)
