@@ -2587,7 +2587,7 @@ defmodule Spheric.Game.TickProcessor do
                   nil ->
                     # Not connected to any network — legacy tier penalty
                     tier = ConstructionCosts.tier(building.type)
-                    if tier > 0, do: boosted * (tier + 1), else: boosted
+                    if tier > 0, do: boosted * (tier + 1.5), else: boosted
 
                   ratio when ratio <= 1.0 ->
                     # Network has enough capacity — no penalty
