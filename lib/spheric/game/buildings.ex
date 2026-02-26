@@ -50,7 +50,8 @@ defmodule Spheric.Game.Buildings do
     :freezer,
     :filtered_splitter,
     :overflow_gate,
-    :priority_merger
+    :priority_merger,
+    :recycler
   ]
 
   @doc "Returns the list of all building type atoms."
@@ -103,6 +104,7 @@ defmodule Spheric.Game.Buildings do
   def display_name(:filtered_splitter), do: "Filtered Splitter"
   def display_name(:overflow_gate), do: "Overflow Gate"
   def display_name(:priority_merger), do: "Priority Merger"
+  def display_name(:recycler), do: "Recycler"
 
   @categories [
     :logistics,
@@ -145,6 +147,7 @@ defmodule Spheric.Game.Buildings do
   def category(:refinery), do: :production
   def category(:mixer), do: :production
   def category(:freezer), do: :production
+  def category(:recycler), do: :production
   def category(:advanced_smelter), do: :production
   def category(:advanced_assembler), do: :production
   def category(:fabrication_plant), do: :advanced
@@ -307,6 +310,9 @@ defmodule Spheric.Game.Buildings do
 
   def initial_state(:priority_merger),
     do: Spheric.Game.Behaviors.PriorityMerger.initial_state()
+
+  def initial_state(:recycler),
+    do: Spheric.Game.Behaviors.Recycler.initial_state()
 
   def initial_state(_type), do: %{}
 end

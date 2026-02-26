@@ -149,6 +149,18 @@ defmodule Spheric.Game.TickProcessor do
         end
       end)
 
+    # Phase 2e4: Recyclers tick
+    recycler_updates =
+      Enum.map(classified.recyclers, fn {key, building} ->
+        if building.state[:powered] == false do
+          {key, building}
+        else
+          updated = tick_with_boost(key, building, &Behaviors.Recycler.tick/2)
+          record_production_stats(key, building, updated)
+          {key, updated}
+        end
+      end)
+
     # Phase 2f: Fabrication plants tick
     fab_plant_updates =
       Enum.map(classified.fabrication_plants, fn {key, building} ->
@@ -292,6 +304,7 @@ defmodule Spheric.Game.TickProcessor do
         adv_assembler_updates ++
         mixer_updates ++
         freezer_updates ++
+        recycler_updates ++
         fab_plant_updates ++
         collider_updates ++
         nuclear_updates ++
@@ -418,6 +431,7 @@ defmodule Spheric.Game.TickProcessor do
       essence_extractors: [],
       mixers: [],
       freezers: [],
+      recyclers: [],
       drone_bays: [],
       arms: [],
       others: []
@@ -448,6 +462,7 @@ defmodule Spheric.Game.TickProcessor do
         :essence_extractor -> %{acc | essence_extractors: [pair | acc.essence_extractors]}
         :mixer -> %{acc | mixers: [pair | acc.mixers]}
         :freezer -> %{acc | freezers: [pair | acc.freezers]}
+        :recycler -> %{acc | recyclers: [pair | acc.recyclers]}
         :drone_bay -> %{acc | drone_bays: [pair | acc.drone_bays]}
         type when type in [:loader, :unloader] -> %{acc | arms: [pair | acc.arms]}
         _ -> %{acc | others: [pair | acc.others]}
@@ -716,6 +731,7 @@ defmodule Spheric.Game.TickProcessor do
              :refinery,
              :mixer,
              :freezer,
+             :recycler,
              :advanced_smelter,
              :nuclear_refinery,
              :assembler,
@@ -831,6 +847,7 @@ defmodule Spheric.Game.TickProcessor do
   defp production_behavior(:particle_collider), do: Behaviors.ParticleCollider
   defp production_behavior(:paranatural_synthesizer), do: Behaviors.ParanaturalSynthesizer
   defp production_behavior(:board_interface), do: Behaviors.BoardInterface
+  defp production_behavior(:recycler), do: Behaviors.Recycler
 
   @doc """
   Resolve item movement. Returns `{final_buildings, movements}`.
@@ -1199,7 +1216,8 @@ defmodule Spheric.Game.TickProcessor do
               :paranatural_synthesizer,
               :board_interface,
               :gathering_post,
-              :essence_extractor
+              :essence_extractor,
+              :recycler
             ] and not is_nil(item) do
     case resolve_output_dest(key, dir, n, state) do
       {:ok, dest_key} -> {key, dest_key, item}
@@ -1292,6 +1310,9 @@ defmodule Spheric.Game.TickProcessor do
 
       %{type: :freezer, state: state} ->
         Behaviors.Freezer.full?(state)
+
+      %{type: :recycler, state: state} ->
+        Behaviors.Recycler.full?(state)
 
       %{type: :advanced_smelter, state: state} ->
         Behaviors.AdvancedSmelter.full?(state)
@@ -1462,6 +1483,21 @@ defmodule Spheric.Game.TickProcessor do
       {:ok, valid_src} ->
         Enum.find(requests, fn {src, _dest, item} ->
           src == valid_src and Behaviors.Freezer.try_accept_item(state, item) != nil
+        end)
+
+      :boundary ->
+        nil
+    end
+  end
+
+  # Recycler: accepts any item from rear
+  defp try_accept(dest_key, %{type: :recycler, orientation: dir, state: state}, requests, n) do
+    rear_dir = rem(dir + 2, 4)
+
+    case TileNeighbors.neighbor(dest_key, rear_dir, n) do
+      {:ok, valid_src} ->
+        Enum.find(requests, fn {src, _dest, item} ->
+          src == valid_src and Behaviors.Recycler.try_accept_item(state, item) != nil
         end)
 
       :boundary ->
@@ -1823,7 +1859,8 @@ defmodule Spheric.Game.TickProcessor do
                    :paranatural_synthesizer,
                    :board_interface,
                    :gathering_post,
-                   :essence_extractor
+                   :essence_extractor,
+                   :recycler
                  ] ->
               %{b | state: %{b.state | output_buffer: nil}}
 
@@ -1954,6 +1991,12 @@ defmodule Spheric.Game.TickProcessor do
 
           :freezer ->
             case Behaviors.Freezer.try_accept_item(b.state, item) do
+              nil -> b
+              new_state -> %{b | state: new_state}
+            end
+
+          :recycler ->
+            case Behaviors.Recycler.try_accept_item(b.state, item) do
               nil -> b
               new_state -> %{b | state: new_state}
             end

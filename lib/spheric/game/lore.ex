@@ -125,6 +125,7 @@ defmodule Spheric.Game.Lore do
   def display_name(:unloader), do: "Extraction Arm"
   def display_name(:mixer), do: "Compound Mixer"
   def display_name(:freezer), do: "Cryogenic Processor"
+  def display_name(:recycler), do: "Matter Recycler"
 
   # New creatures
   def display_name(:flux_serpent), do: "Flux Serpent"

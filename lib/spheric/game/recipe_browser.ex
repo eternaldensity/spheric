@@ -31,7 +31,8 @@ defmodule Spheric.Game.RecipeBrowser do
       particle_collider_recipes() ++
       nuclear_refinery_recipes() ++
       paranatural_synthesizer_recipes() ++
-      board_interface_recipes()
+      board_interface_recipes() ++
+      recycler_recipes()
   end
 
   @doc """
@@ -100,6 +101,18 @@ defmodule Spheric.Game.RecipeBrowser do
   defp nuclear_refinery_recipes, do: recipes_for(:nuclear_refinery, Behaviors.NuclearRefinery)
   defp paranatural_synthesizer_recipes, do: recipes_for(:paranatural_synthesizer, Behaviors.ParanaturalSynthesizer)
   defp board_interface_recipes, do: recipes_for(:board_interface, Behaviors.BoardInterface)
+
+  defp recycler_recipes do
+    [
+      %{
+        id: "recycler_any",
+        building: :recycler,
+        building_name: Lore.display_name(:recycler),
+        inputs: [%{item: :any, name: "Any Item", count: 10}],
+        output: %{item: :random_resource, name: "Random Resource", count: 1}
+      }
+    ]
+  end
 
   defp recipes_for(building_type, module) do
     module.recipes()
