@@ -16,7 +16,8 @@ defmodule SphericWeb.GameLive.Helpers do
     Territory,
     Persistence,
     GroundItems,
-    ConstructionCosts
+    ConstructionCosts,
+    Power
   }
 
   alias SphericWeb.Presence
@@ -225,6 +226,24 @@ defmodule SphericWeb.GameLive.Helpers do
           nil
         end
 
+      power_info =
+        if not under_construction do
+          draw = ConstructionCosts.power_draw(building.type)
+          output = ConstructionCosts.power_output(building.type)
+          network_stats = Power.network_stats(key)
+          connected = Power.powered?(key)
+
+          %{
+            draw: draw,
+            output: output,
+            connected: connected,
+            network_capacity: if(network_stats, do: network_stats.capacity, else: 0),
+            network_load: if(network_stats, do: network_stats.load, else: 0)
+          }
+        else
+          nil
+        end
+
       Map.merge(base, %{
         building_name: Lore.display_name(building.type),
         building_orientation: building.orientation,
@@ -235,7 +254,8 @@ defmodule SphericWeb.GameLive.Helpers do
         arm_info: arm_info,
         conduit_info: conduit_info,
         filter_info: filter_info,
-        logistics_upgrade_info: logistics_upgrade_info
+        logistics_upgrade_info: logistics_upgrade_info,
+        power_info: power_info
       })
     else
       Map.merge(base, %{
@@ -248,7 +268,8 @@ defmodule SphericWeb.GameLive.Helpers do
         arm_info: nil,
         conduit_info: nil,
         filter_info: nil,
-        logistics_upgrade_info: nil
+        logistics_upgrade_info: nil,
+        power_info: nil
       })
     end
   end
@@ -481,6 +502,23 @@ defmodule SphericWeb.GameLive.Helpers do
         buf_count = length(state[:fuel_buffer] || [])
         if buf_count > 0, do: "Fuel buffer: #{buf_count}/5", else: "Idle"
     end
+  end
+
+  def building_status_text(%{type: :bio_generator, state: state}) do
+    cond do
+      state.fuel_remaining > 0 ->
+        "Burning #{Lore.display_name(state.fuel_type)} (#{state.fuel_remaining} ticks)"
+
+      state.input_buffer != nil ->
+        "Loading #{Lore.display_name(state.input_buffer)}"
+
+      true ->
+        "No fuel"
+    end
+  end
+
+  def building_status_text(%{type: :shadow_panel, state: state}) do
+    if state.power_output > 0, do: "Active", else: "Inactive — needs shadow"
   end
 
   def building_status_text(_building), do: nil

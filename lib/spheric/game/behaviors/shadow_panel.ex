@@ -20,7 +20,7 @@ defmodule Spheric.Game.Behaviors.ShadowPanel do
 
   def tick({face, row, col} = key, building) do
     producing = ShiftCycle.tile_dark?(face, row, col) and not lamp_nearby?(key)
-    new_output = if producing, do: 1, else: 0
+    new_output = if producing, do: 10, else: 0
 
     if new_output != building.state.power_output do
       %{building | state: %{building.state | power_output: new_output}}

@@ -225,7 +225,7 @@ defmodule Spheric.Game.Persistence do
     |> Enum.each(fn b ->
       key = {b.face_id, b.row, b.col}
       type = String.to_atom(b.type)
-      state = atomize_state_keys(b.state) |> repair_rate(type)
+      state = atomize_state_keys(b.state) |> repair_rate(type) |> repair_power_output(type)
 
       building_data = %{
         type: type,
@@ -268,6 +268,23 @@ defmodule Spheric.Game.Persistence do
       _ -> state
     end
   end
+
+  # Repair legacy binary power_output (0|1) to wattage values (0|20 or 0|10).
+  defp repair_power_output(state, :bio_generator) when is_map(state) do
+    case state[:power_output] do
+      1 -> %{state | power_output: 20}
+      _ -> state
+    end
+  end
+
+  defp repair_power_output(state, :shadow_panel) when is_map(state) do
+    case state[:power_output] do
+      1 -> %{state | power_output: 10}
+      _ -> state
+    end
+  end
+
+  defp repair_power_output(state, _type), do: state
 
   # Convert string-keyed JSONB map to atom-keyed map, also converting
   # known atom values back from strings (item types like "iron_ore").

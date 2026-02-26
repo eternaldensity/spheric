@@ -2572,15 +2572,31 @@ defmodule Spheric.Game.TickProcessor do
             boosted
           end
 
-        # Unpowered penalty: tier > 0 buildings without power are slower
+        # Power penalty: capacity-based brownout or disconnected slowdown
         boosted =
           if building.type not in [:conveyor, :conveyor_mk2, :conveyor_mk3] do
-            tier = ConstructionCosts.tier(building.type)
+            draw = ConstructionCosts.power_draw(building.type)
 
-            if tier > 0 and not Power.powered?(key) do
-              boosted * (tier + 1)
-            else
-              boosted
+            cond do
+              draw == 0 ->
+                # Zero-draw buildings (logistics, infrastructure, generators) — no penalty
+                boosted
+
+              true ->
+                case Power.load_ratio(key) do
+                  nil ->
+                    # Not connected to any network — legacy tier penalty
+                    tier = ConstructionCosts.tier(building.type)
+                    if tier > 0, do: boosted * (tier + 1), else: boosted
+
+                  ratio when ratio <= 1.0 ->
+                    # Network has enough capacity — no penalty
+                    boosted
+
+                  ratio ->
+                    # Brownout: proportional slowdown (ceil so even slight overload is felt)
+                    round(Float.ceil(boosted * ratio))
+                end
             end
           else
             boosted

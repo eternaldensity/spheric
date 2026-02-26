@@ -371,6 +371,23 @@ defmodule SphericWeb.GameLive do
         <div :if={@tile_info.building_status} style="color: var(--fbc-text-dim); font-size: 11px;">
           {@tile_info.building_status}
         </div>
+        <div :if={@tile_info.power_info && @tile_info.power_info.draw > 0} style="color: var(--fbc-text-dim); font-size: 11px;">
+          Power: {@tile_info.power_info.draw}W
+          <%= if @tile_info.power_info.connected do %>
+            — {@tile_info.power_info.network_load}W / {@tile_info.power_info.network_capacity}W
+            <%= if @tile_info.power_info.network_load > @tile_info.power_info.network_capacity do %>
+              <span style="color: var(--fbc-accent);">BROWNOUT</span>
+            <% end %>
+          <% else %>
+            — <span style="color: var(--fbc-accent);">DISCONNECTED</span>
+          <% end %>
+        </div>
+        <div :if={@tile_info.power_info && @tile_info.power_info.output > 0} style="color: var(--fbc-text-dim); font-size: 11px;">
+          Generating: {@tile_info.power_info.output}W
+          <%= if @tile_info.power_info.connected do %>
+            — {@tile_info.power_info.network_load}W / {@tile_info.power_info.network_capacity}W
+          <% end %>
+        </div>
         <div :if={@tile_info.building_owner_name} style="color: var(--fbc-text-dim); font-size: 11px;">
           Operator: <span style="color: var(--fbc-info);">{@tile_info.building_owner_name}</span>
         </div>

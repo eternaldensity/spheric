@@ -57,7 +57,7 @@ defmodule Spheric.Game.Behaviors.BioGenerator do
               | input_buffer: nil,
                 fuel_type: state.input_buffer,
                 fuel_remaining: duration,
-                power_output: 1
+                power_output: 20
             }
         }
 

@@ -117,6 +117,37 @@ defmodule Spheric.Game.ConstructionCosts do
     board_interface: 8
   }
 
+  # Power draw in watts per building type. 0 = no power draw.
+  @power_draw %{
+    # Tier 0
+    conveyor: 0, miner: 2, smelter: 2, submission_terminal: 0, gathering_post: 0,
+    # Tier 1 — logistics & storage: 0W, production: 2W
+    conveyor_mk2: 0, drone_bay: 0, splitter: 0, merger: 0, claim_beacon: 0,
+    trade_terminal: 0, storage_container: 0, assembler: 2,
+    # Tier 2 — logistics: 0W, production: 4W
+    conveyor_mk3: 0, crossover: 0, refinery: 4, balancer: 0, underground_conduit: 0,
+    # Tier 3 — defense: 6W, generators/logistics/lamp: 0-1W
+    containment_trap: 6, purification_beacon: 6, defense_turret: 6,
+    shadow_panel: 0, lamp: 1, filtered_splitter: 0, overflow_gate: 0, priority_merger: 0,
+    # Tier 4 — infrastructure: 0W, production: 8W
+    bio_generator: 0, substation: 0, transfer_station: 0,
+    advanced_smelter: 8, recycler: 12, loader: 8, unloader: 8,
+    # Tier 5 — 12W
+    mixer: 12, freezer: 12, advanced_assembler: 12, fabrication_plant: 12, essence_extractor: 12,
+    # Tier 6 — 20W
+    particle_collider: 20, nuclear_refinery: 20,
+    # Tier 7 — 30W
+    dimensional_stabilizer: 30, paranatural_synthesizer: 30, astral_projection_chamber: 30,
+    # Tier 8 — 50W
+    board_interface: 50
+  }
+
+  # Power output in watts for generator building types.
+  @power_output %{
+    bio_generator: 20,
+    shadow_panel: 10
+  }
+
   @doc "Returns the construction cost for a building type, or nil if free."
   def cost(type), do: Map.get(@costs, type)
 
@@ -128,6 +159,12 @@ defmodule Spheric.Game.ConstructionCosts do
 
   @doc "Returns all tier mappings."
   def all_tiers, do: @tiers
+
+  @doc "Returns the power draw in watts for a building type."
+  def power_draw(type), do: Map.get(@power_draw, type, 0)
+
+  @doc "Returns the power output in watts for a generator building type."
+  def power_output(type), do: Map.get(@power_output, type, 0)
 
   @doc "Check if a building type is always free (no construction cost ever)."
   def always_free?(type), do: Map.get(@costs, type) == nil

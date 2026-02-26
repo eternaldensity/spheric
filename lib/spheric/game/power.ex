@@ -1,18 +1,24 @@
 defmodule Spheric.Game.Power do
   @moduledoc """
-  Power network resolution.
+  Capacity-based power network resolution.
 
-  Manages the power distribution network: generators produce power,
+  Manages the power distribution network: generators produce wattage,
   substations distribute it locally, transfer stations bridge long distances.
+  Each isolated substation cluster forms its own network with independent
+  capacity (total generator watts) and load (total building draw).
+
+  When a network is overloaded (load > capacity), all buildings in that
+  network experience proportional brownout (slowdown).
 
   Power state is resolved every 5 ticks and cached for O(1) lookups.
   """
 
-  alias Spheric.Game.WorldStore
+  alias Spheric.Game.{WorldStore, ConstructionCosts}
   alias Spheric.Game.Behaviors.{BioGenerator, ShadowPanel, Substation, TransferStation}
 
   @table :spheric_power_cache
   @resolve_interval 5
+  @gen_radius 3
 
   def init do
     unless :ets.whereis(@table) != :undefined do
@@ -22,7 +28,7 @@ defmodule Spheric.Game.Power do
     :ok
   end
 
-  @doc "Check if a building at key is powered. O(1) ETS lookup."
+  @doc "Check if a building at key is connected to a power network. O(1) ETS lookup."
   def powered?(key) do
     case :ets.whereis(@table) do
       :undefined ->
@@ -30,9 +36,51 @@ defmodule Spheric.Game.Power do
 
       _ ->
         case :ets.lookup(@table, key) do
-          [{^key, true}] -> true
+          [{^key, _network_id}] -> true
           _ -> false
         end
+    end
+  end
+
+  @doc """
+  Get power network stats for a building's network.
+  Returns %{capacity: integer, load: integer} or nil if disconnected.
+  """
+  def network_stats(key) do
+    case :ets.whereis(@table) do
+      :undefined ->
+        nil
+
+      _ ->
+        case :ets.lookup(@table, key) do
+          [{^key, network_id}] ->
+            case :ets.lookup(@table, {:network, network_id}) do
+              [{{:network, ^network_id}, stats}] -> stats
+              _ -> nil
+            end
+
+          _ ->
+            nil
+        end
+    end
+  end
+
+  @doc """
+  Get the load ratio for a building's network.
+  Returns a float >= 1.0 when overloaded, 1.0 when at or under capacity,
+  or nil if the building is not connected to any network.
+  """
+  def load_ratio(key) do
+    case network_stats(key) do
+      %{capacity: cap, load: load} when cap > 0 ->
+        if load > cap, do: load / cap, else: 1.0
+
+      %{capacity: 0} ->
+        # Network exists but has no active generators (all ran out of fuel)
+        nil
+
+      _ ->
+        nil
     end
   end
 
@@ -43,7 +91,7 @@ defmodule Spheric.Game.Power do
     end
   end
 
-  @doc "Full power network resolution. BFS from fueled generators through substations."
+  @doc "Full power network resolution with capacity-based tracking."
   def resolve do
     # Clear cache
     if :ets.whereis(@table) != :undefined do
@@ -66,28 +114,83 @@ defmodule Spheric.Game.Power do
     if fueled_generators == [] do
       :ok
     else
-      # BFS: find all substations/transfer_stations reachable from fueled generators
-      powered_nodes = bfs_power_network(fueled_generators, substations, transfer_stations)
-
-      # Mark all machines within powered substation radius as powered
-      powered_substations =
-        Enum.filter(powered_nodes, fn key ->
-          building = WorldStore.get_building(key)
-          building && building.type == :substation
-        end)
-
+      all_power_nodes = substations ++ transfer_stations
       all_buildings = gather_all_buildings()
+      buildings_map = Map.new(all_buildings)
 
-      for sub_key <- powered_substations,
-          {machine_key, _building} <- all_buildings,
-          within_radius?(sub_key, machine_key, Substation.radius()) do
-        :ets.insert(@table, {machine_key, true})
-      end
+      # Find connected components among power nodes
+      components = find_connected_components(all_power_nodes)
 
-      # Also mark generators and substations themselves as powered
-      for key <- powered_nodes do
-        :ets.insert(@table, {key, true})
-      end
+      # For each component, check if any fueled generator seeds into it
+      components
+      |> Enum.with_index()
+      |> Enum.each(fn {component_keys, network_id} ->
+        # Filter to substations in this component (generators only seed substations)
+        component_substations =
+          Enum.filter(component_keys, fn key ->
+            building = WorldStore.get_building(key)
+            building && building.type == :substation
+          end)
+
+        # Find generators that seed into this component
+        seeding_generators =
+          Enum.filter(fueled_generators, fn {gen_key, _gen} ->
+            Enum.any?(component_substations, fn sub_key ->
+              within_radius?(gen_key, sub_key, @gen_radius)
+            end)
+          end)
+
+        if seeding_generators != [] do
+          # Sum generator wattage = capacity
+          capacity =
+            Enum.reduce(seeding_generators, 0, fn {_key, gen}, acc ->
+              acc + ConstructionCosts.power_output(gen.type)
+            end)
+
+          # Find all buildings within powered substation radius
+          powered_keys =
+            for sub_key <- component_substations,
+                {bld_key, _bld} <- all_buildings,
+                within_radius?(sub_key, bld_key, Substation.radius()),
+                into: MapSet.new(),
+                do: bld_key
+
+          # Sum building power draw = load
+          # Exclude user-toggled-off buildings and buildings under construction
+          load =
+            Enum.reduce(powered_keys, 0, fn bld_key, acc ->
+              case Map.get(buildings_map, bld_key) do
+                nil ->
+                  acc
+
+                bld ->
+                  if bld.state[:powered] == false or
+                       (bld.state[:construction] && bld.state.construction[:complete] == false) do
+                    acc
+                  else
+                    acc + ConstructionCosts.power_draw(bld.type)
+                  end
+              end
+            end)
+
+          # Write network stats
+          :ets.insert(@table, {{:network, network_id}, %{capacity: capacity, load: load}})
+
+          # Write per-building membership for all powered buildings
+          for key <- powered_keys do
+            :ets.insert(@table, {key, network_id})
+          end
+
+          # Also mark generators and power nodes as part of the network
+          for {gen_key, _} <- seeding_generators do
+            :ets.insert(@table, {gen_key, network_id})
+          end
+
+          for node_key <- component_keys do
+            :ets.insert(@table, {node_key, network_id})
+          end
+        end
+      end)
 
       :ok
     end
@@ -99,6 +202,8 @@ defmodule Spheric.Game.Power do
       :ets.delete_all_objects(@table)
     end
   end
+
+  # -- Private helpers --
 
   # Gather all power-related buildings grouped by type
   defp gather_power_buildings do
@@ -117,65 +222,80 @@ defmodule Spheric.Game.Power do
         do: {key, building}
   end
 
-  # BFS from fueled generators through the power network
-  defp bfs_power_network(fueled_generators, substations, transfer_stations) do
-    # Seed: substations within generator radius (3) of a fueled generator
-    gen_radius = 3
+  # Find connected components among power nodes (substations + transfer stations).
+  # Returns a list of lists, where each inner list is a set of keys in one component.
+  defp find_connected_components(nodes) do
+    # Build a map from key to building for quick lookup
+    node_map = Map.new(nodes, fn {key, building} -> {key, building} end)
+    all_keys = Map.keys(node_map)
 
-    initial_powered =
-      for {gen_key, _} <- fueled_generators,
-          {sub_key, _} <- substations,
-          within_radius?(gen_key, sub_key, gen_radius),
-          into: MapSet.new(),
-          do: sub_key
+    # Iterative flood fill to find connected components
+    {components, _visited} =
+      Enum.reduce(all_keys, {[], MapSet.new()}, fn key, {comps, visited} ->
+        if MapSet.member?(visited, key) do
+          {comps, visited}
+        else
+          # BFS from this unvisited node
+          {component, new_visited} = bfs_component(key, node_map, visited)
+          {[component | comps], new_visited}
+        end
+      end)
 
-    # BFS through substations and transfer stations
-    all_nodes = substations ++ transfer_stations
-    bfs_expand(initial_powered, initial_powered, all_nodes)
+    components
   end
 
-  defp bfs_expand(frontier, visited, all_nodes) do
+  # BFS to find all nodes in the same connected component as start_key.
+  defp bfs_component(start_key, node_map, visited) do
+    bfs_expand_component(
+      [start_key],
+      MapSet.put(visited, start_key),
+      [start_key],
+      node_map
+    )
+  end
+
+  defp bfs_expand_component([], visited, component, _node_map) do
+    {component, visited}
+  end
+
+  defp bfs_expand_component(frontier, visited, component, node_map) do
     new_frontier =
       for frontier_key <- frontier,
-          {node_key, node_building} <- all_nodes,
+          {node_key, node_building} <- node_map,
           not MapSet.member?(visited, node_key),
-          connectable?(frontier_key, node_key, node_building),
-          into: MapSet.new(),
+          connectable?(frontier_key, node_key, node_building, node_map),
           do: node_key
 
-    if MapSet.size(new_frontier) == 0 do
-      visited
-    else
-      bfs_expand(new_frontier, MapSet.union(visited, new_frontier), all_nodes)
-    end
+    new_frontier = Enum.uniq(new_frontier)
+    new_visited = Enum.reduce(new_frontier, visited, &MapSet.put(&2, &1))
+    new_component = component ++ new_frontier
+
+    bfs_expand_component(new_frontier, new_visited, new_component, node_map)
   end
 
   # Check if two power nodes can connect based on their types and radii
-  defp connectable?(from_key, to_key, to_building) do
-    from_building = WorldStore.get_building(from_key)
-
-    cond do
-      from_building == nil ->
+  defp connectable?(from_key, to_key, to_building, node_map) do
+    case Map.get(node_map, from_key) do
+      nil ->
         false
 
-      # Substations connect to other substations within substation radius
-      from_building.type == :substation and to_building.type == :substation ->
-        within_radius?(from_key, to_key, Substation.radius())
+      from_building ->
+        cond do
+          from_building.type == :substation and to_building.type == :substation ->
+            within_radius?(from_key, to_key, Substation.radius())
 
-      # Substations connect to transfer stations within substation radius
-      from_building.type == :substation and to_building.type == :transfer_station ->
-        within_radius?(from_key, to_key, Substation.radius())
+          from_building.type == :substation and to_building.type == :transfer_station ->
+            within_radius?(from_key, to_key, Substation.radius())
 
-      # Transfer stations connect to substations within transfer radius
-      from_building.type == :transfer_station and to_building.type == :substation ->
-        within_radius?(from_key, to_key, TransferStation.radius())
+          from_building.type == :transfer_station and to_building.type == :substation ->
+            within_radius?(from_key, to_key, TransferStation.radius())
 
-      # Transfer stations connect to other transfer stations within transfer radius
-      from_building.type == :transfer_station and to_building.type == :transfer_station ->
-        within_radius?(from_key, to_key, TransferStation.radius())
+          from_building.type == :transfer_station and to_building.type == :transfer_station ->
+            within_radius?(from_key, to_key, TransferStation.radius())
 
-      true ->
-        false
+          true ->
+            false
+        end
     end
   end
 
