@@ -175,7 +175,7 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 
 **Cost:** 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver
 
-**Bulk Transfer Upgrade:** 2 Shielded Conductor, 1 Resonance Circuit, 1 Kinetic Driver, 1 Whispering Ingot — drop materials on the arm's tile, then click **Enable** in the tile info panel. *Alternatively, with the [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]] drone upgrade, click **Request Drone Delivery** for automated material delivery.*
+**Bulk Transfer Upgrade:** 2 Shielded Conductor, 1 Kinetic Driver, 1 Resonance Circuit, 1 Whispering Ingot — drop materials on the arm's tile, then click **Enable** in the tile info panel. *Alternatively, with the [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]] drone upgrade, click **Request Drone Delivery** for automated material delivery.*
 
 > [!tip] Use arms to solve throughput bottlenecks
 > Some recipes consume inputs faster than a single conduit can deliver. Even a Mk-III conduit maxes out at 1 item/tick (5/sec). An Insertion Arm pulling from a Containment Vault provides a parallel feed channel, keeping machines running at full speed.
@@ -196,7 +196,7 @@ See [[The Conduit Network]] for full details on conduit mechanics and Line Mode.
 
 **Cost:** 3 Shielded Conductor, 2 Astral Frame, 1 Kinetic Driver
 
-**Bulk Transfer Upgrade:** 2 Shielded Conductor, 1 Resonance Circuit, 1 Kinetic Driver, 1 Whispering Ingot — drop materials on the arm's tile, then click **Enable** in the tile info panel. *Alternatively, with the [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]] drone upgrade, click **Request Drone Delivery** for automated material delivery.*
+**Bulk Transfer Upgrade:** 2 Shielded Conductor, 1 Kinetic Driver, 1 Resonance Circuit, 1 Whispering Ingot — drop materials on the arm's tile, then click **Enable** in the tile info panel. *Alternatively, with the [[Drone Fuel & the Drone Bay#Upgrade Delivery (Clearance 4)|Upgrade Delivery]] drone upgrade, click **Request Drone Delivery** for automated material delivery.*
 
 > [!tip] Pair arms with Containment Vaults
 > The typical pattern is: **Extraction Arm → Vault → Insertion Arm**. The unloader grabs output from a machine, the vault buffers it, and the loader feeds it into the next machine. This decouples production stages and smooths throughput.

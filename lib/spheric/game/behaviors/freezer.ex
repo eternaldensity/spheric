@@ -10,6 +10,7 @@ defmodule Spheric.Game.Behaviors.Freezer do
   use Spheric.Game.Behaviors.Production,
     rate: 20,
     recipes: [
-      %{inputs: [ice: 5, thermal_slurry: 3], output: [{:water, 5}, {:coolant_cube, 1}]}
+      %{inputs: [ice: 5, thermal_slurry: 3], output: [{:water, 5}, {:coolant_cube, 1}]},
+      %{inputs: [water: 20, coolant_cube: 2], output: [{:ice, 20}, {:coolant_cube, 2}]}
     ]
 end

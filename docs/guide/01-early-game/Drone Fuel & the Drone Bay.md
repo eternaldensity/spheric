@@ -66,7 +66,7 @@ Click a Drone Bay to open its upgrade panel. The bay offers six permanent upgrad
 | **Drone Spotlight** | 4 Ferric Standard, 3 Conductive Filament, 2 Paraelectric Bar | Toggleable light (press **L**); burns fuel at **2x speed** while on |
 | **Expanded Cargo** | 1 | 6 Conductive Filament, 5 Structural Plate, 3 Resonance Circuit | Increases drone cargo capacity from 1 to **4 items** |
 | **Delivery Drone** | 3 | 5 Entity Biofuel, 3 Astral Frame, 3 Resonance Circuit, 2 Kinetic Driver | Adds an automated delivery drone to this bay (see below) |
-| **Delivery Cargo** | 4 | 2 Kinetic Driver, 2 Heavy Astral Frame, 1 Advanced Resonance Circuit | Increases delivery drone cargo capacity from 2 to **4 items** |
+| **Delivery Cargo** | 4 | 2 Heavy Astral Frame, 2 Kinetic Driver, 1 Advanced Resonance Circuit | Increases delivery drone cargo capacity from 2 to **4 items** |
 | **Upgrade Delivery** | 4 | 4 Shielded Conductor, 3 Heavy Astral Frame, 2 Advanced Resonance Circuit, 1 Kinetic Driver | Delivery drone also delivers materials for building upgrades (arms, splitters, etc.) |
 
 ### Installing an Upgrade

@@ -34,9 +34,10 @@ At Clearance 4–5, you unlock higher-tier production buildings that process mor
 | Input A | Input B | Output A | Output B |
 |---|---|---|---|
 | Crystalized Water ×5 | Liquefacted Stars ×3 | The Moyst ×5 | Shivering Ingot ×1 |
+| The Moyst ×20 | Shivering Ingot ×2 | Crystalized Water ×20 | Shivering Ingot ×2 |
 
 > [!note] Dual Output
-> The Cryogenic Processor is unique — it outputs **two different item types** per cycle. The primary output (The Moyst) drains first, then the secondary output (Shivering Ingot). Both outputs use the same conduit exit point, so downstream routing may need a [[Advanced Logistics#Selective Distributor (Filtered Splitter)|Selective Distributor]] to separate them.
+> The Cryogenic Processor is unique — it outputs **two different item types** per cycle. The primary output drains first, then the secondary output. Both outputs use the same conduit exit point, so downstream routing may need a [[Advanced Logistics#Selective Distributor (Filtered Splitter)|Selective Distributor]] to separate them. The **Refreeze** recipe reverses the process, converting water back into ice while recycling coolant cubes.
 
 **Cost:** 12 Heavy Astral Frame, 10 Thermal Regulator, 2 Advanced Resonance Circuit
 

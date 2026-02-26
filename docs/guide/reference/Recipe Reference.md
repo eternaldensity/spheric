@@ -69,6 +69,7 @@ Complete production recipe tables for all buildings in Spheric.
 | Input A | Input B | Output A | Output B |
 |---|---|---|---|
 | Crystalized Water ×5 | Liquefacted Stars ×3 | The Moyst ×5 | Shivering Ingot |
+| The Moyst ×20 | Shivering Ingot ×2 | Crystalized Water ×20 | Shivering Ingot ×2 |
 
 ---
 
