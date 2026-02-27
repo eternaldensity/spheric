@@ -78,24 +78,16 @@ The reactor takes **nuclear cells** as fuel (already an expensive crafted item: 
 
 **The reactor only makes sense if power becomes quantitative (capacity-based).**
 
-Currently power is binary — 1 generator powers unlimited buildings through chained substations. A reactor producing "more power" has no meaning in this system.
-
-The plan: rework power so generators produce wattage, buildings draw wattage, and networks can be overloaded. Then:
-
-- Bio generator: low wattage (e.g., 10W)
-- Shadow panel: low wattage (e.g., 5W)
-- Nuclear reactor: massive wattage (e.g., 100-200W)
-- Buildings draw wattage scaled by tier
+Power used to be binary, now it's been changed to be capacity-based.
 
 This makes the reactor's enormous production chain worthwhile — it powers an entire high-tier factory cluster that would otherwise need 10-20 bio generators.
 
-### Intermediate Items (To Be Designed)
+### Intermediate Items
 
-The water/ice thermal management items are TBD. Possibilities:
+The water/ice thermal management items have been added:
 
-- **Coolant rods** (ice + copper_ingot?) — consumed during cooling phase
-- **Thermal regulators** (water + heat_sink?) — consumed during heating phase
-- Or: reactor directly accepts water and ice, alternating which slot it pulls from
+- **Coolant rods** (ice + plastic + coolant cube) — consumed during cooling phase
+- **Thermal regulators** (water + plastic + heat_sink) — consumed during heating phase
 
 ### Open Questions
 
@@ -104,3 +96,4 @@ The water/ice thermal management items are TBD. Possibilities:
 - What happens on overheat/overcool — reduced output? Shutdown? Meltdown (area damage)?
 - Construction cost and tier placement (likely Tier 6-7)
 - 3D model design
+- multi-tile structure?
