@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Fuel efficiency script: compare against biofuel baseline (#177)
+- Power efficiency analysis script for fuel types (#176)
 - Make shadow panel output scale with solar intensity (#174)
 - Capacity-based power system: wattage generation and draw (#172)
 - Add freezer machine with dual-output production support (#167)

@@ -123,23 +123,23 @@ defmodule Spheric.Game.ConstructionCosts do
     conveyor: 0, miner: 2, smelter: 2, submission_terminal: 0, gathering_post: 0,
     # Tier 1 — logistics & storage: 0W, production: 2W
     conveyor_mk2: 0, drone_bay: 0, splitter: 0, merger: 0, claim_beacon: 0,
-    trade_terminal: 0, storage_container: 0, assembler: 2,
+    trade_terminal: 0, storage_container: 0, assembler: 4,
     # Tier 2 — logistics: 0W, production: 4W
-    conveyor_mk3: 0, crossover: 0, refinery: 4, balancer: 0, underground_conduit: 0,
+    conveyor_mk3: 0, crossover: 0, refinery: 8, balancer: 0, underground_conduit: 0,
     # Tier 3 — defense: 6W, generators/logistics/lamp: 0-1W
     containment_trap: 6, purification_beacon: 6, defense_turret: 6,
     shadow_panel: 0, lamp: 1, filtered_splitter: 0, overflow_gate: 0, priority_merger: 0,
     # Tier 4 — infrastructure: 0W, production: 8W
     bio_generator: 0, substation: 0, transfer_station: 0,
-    advanced_smelter: 8, recycler: 12, loader: 8, unloader: 8,
+    advanced_smelter: 12, recycler: 25, loader: 8, unloader: 8,
     # Tier 5 — 12W
-    mixer: 12, freezer: 12, advanced_assembler: 12, fabrication_plant: 12, essence_extractor: 12,
+    mixer: 30, freezer: 8, advanced_assembler: 12, fabrication_plant: 16, essence_extractor: 12,
     # Tier 6 — 20W
-    particle_collider: 20, nuclear_refinery: 20,
+    particle_collider: 60, nuclear_refinery: 40,
     # Tier 7 — 30W
-    dimensional_stabilizer: 30, paranatural_synthesizer: 30, astral_projection_chamber: 30,
+    dimensional_stabilizer: 75, paranatural_synthesizer: 100, astral_projection_chamber: 50,
     # Tier 8 — 50W
-    board_interface: 50
+    board_interface: 150
   }
 
   # Power output in watts for generator building types.
