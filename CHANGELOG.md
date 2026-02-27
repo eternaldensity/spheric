@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Update reactor design notes and add nuclear power efficiency analysis to fuel script (#179)
 - Fuel script: add opportunity cost comparison for mixed fuels (#178)
 - Fuel efficiency script: compare against biofuel baseline (#177)
 - Power efficiency analysis script for fuel types (#176)

@@ -1,6 +1,9 @@
 # The directory Mix will write compiled artifacts to.
 /_build/
 
+# Erlang crash dumps (can be enormous)
+erl_crash.dump
+
 # If you run "mix test --cover", coverage assets end up here.
 /cover/
 
