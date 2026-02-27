@@ -279,6 +279,109 @@ Enum.each(fuels, fn fuel ->
   FuelChain.print_chain(fuel, recipe_lookup, production_buildings)
 end)
 
+# ── Opportunity cost: mixing vs burning ingredients directly ─────────────────
+#
+# Unstable fuel uses catalysed + refined fuel as inputs.
+# Stable fuel uses unstable fuel (+ sulfur_compound) as input.
+# Is it worth mixing, or better to burn the ingredients as-is?
+
+IO.puts("")
+IO.puts("╔══════════════════════════════════════════════════════════════════════════╗")
+IO.puts("║                  OPPORTUNITY COST: MIX vs BURN DIRECTLY                 ║")
+IO.puts("╚══════════════════════════════════════════════════════════════════════════╝")
+
+# Helper: energy from burning N units of a fuel type
+burn_energy = fn fuel_type, qty ->
+  qty * generator_output_w * fuel_durations[fuel_type]
+end
+
+# Helper: production cost for the mixer step only (not including input costs)
+mixer_info = production_buildings[:mixer]
+{_mod, mixer_rate, mixer_draw} = mixer_info
+mixer_cycle_cost = mixer_draw * mixer_rate
+
+# ── Unstable Fuel: 8 catalysed + 8 refined → 16 unstable ──
+IO.puts("")
+IO.puts("── Unstable Fuel: 8 catalysed + 8 refined → 16 unstable ──")
+IO.puts("")
+
+burn_catalysed_8 = burn_energy.(:catalysed_fuel, 8)
+burn_refined_8 = burn_energy.(:refined_fuel, 8)
+burn_inputs_directly = burn_catalysed_8 + burn_refined_8
+
+burn_unstable_16 = burn_energy.(:unstable_fuel, 16)
+
+IO.puts("  Burn 8 catalysed directly:  #{burn_catalysed_8} Wt")
+IO.puts("  Burn 8 refined directly:    #{burn_refined_8} Wt")
+IO.puts("  Total (burn inputs as-is):  #{burn_inputs_directly} Wt")
+IO.puts("")
+IO.puts("  Burn 16 unstable instead:   #{burn_unstable_16} Wt")
+IO.puts("  Mixer cost to combine:      #{mixer_cycle_cost} Wt")
+IO.puts("  Net from mixing:            #{burn_unstable_16 - mixer_cycle_cost} Wt")
+IO.puts("")
+
+diff_unstable = burn_unstable_16 - mixer_cycle_cost - burn_inputs_directly
+
+if diff_unstable > 0 do
+  IO.puts("  → Mixing GAINS #{diff_unstable} Wt (+#{Float.round(diff_unstable / burn_inputs_directly * 100, 1)}%)")
+else
+  IO.puts("  → Mixing LOSES #{abs(diff_unstable)} Wt (#{Float.round(diff_unstable / burn_inputs_directly * 100, 1)}%)")
+  IO.puts("    Better to burn catalysed + refined fuel directly!")
+end
+
+# ── Stable Fuel: 5 unstable + 1 sulfur_compound → 2 stable ──
+# Compare: burn 5 unstable directly vs burn 2 stable
+# (sulfur_compound has no fuel value, so it's "free" in opportunity terms)
+IO.puts("")
+IO.puts("── Stable Fuel: 5 unstable + 1 sulfur_compound → 2 stable ──")
+IO.puts("")
+
+burn_unstable_5 = burn_energy.(:unstable_fuel, 5)
+burn_stable_2 = burn_energy.(:stable_fuel, 2)
+
+IO.puts("  Burn 5 unstable directly:   #{burn_unstable_5} Wt")
+IO.puts("")
+IO.puts("  Burn 2 stable instead:      #{burn_stable_2} Wt")
+IO.puts("  Mixer cost to combine:      #{mixer_cycle_cost} Wt")
+IO.puts("  Net from mixing:            #{burn_stable_2 - mixer_cycle_cost} Wt")
+IO.puts("")
+
+diff_stable = burn_stable_2 - mixer_cycle_cost - burn_unstable_5
+
+if diff_stable > 0 do
+  IO.puts("  → Mixing GAINS #{diff_stable} Wt (+#{Float.round(diff_stable / burn_unstable_5 * 100, 1)}%)")
+else
+  IO.puts("  → Mixing LOSES #{abs(diff_stable)} Wt (#{Float.round(diff_stable / burn_unstable_5 * 100, 1)}%)")
+  IO.puts("    Better to burn unstable fuel directly!")
+end
+
+# ── Full chain: what if you burned the original catalysed+refined instead of going all the way to stable?
+IO.puts("")
+IO.puts("── Full chain: 8 catalysed + 8 refined → 16 unstable → 6.4 stable ──")
+IO.puts("   (3.2 mixer cycles at 5 unstable each, yielding 6.4 stable, ignoring sulfur cost)")
+IO.puts("")
+
+# 16 unstable → 16/5 = 3.2 mixer cycles → 6.4 stable
+stable_from_16_unstable = 16.0 / 5 * 2
+burn_stable_from_chain = stable_from_16_unstable * generator_output_w * fuel_durations[:stable_fuel]
+extra_mixer_cycles = 16.0 / 5
+extra_mixer_cost = extra_mixer_cycles * mixer_cycle_cost
+
+IO.puts("  Burn inputs directly:          #{burn_inputs_directly} Wt  (8 catalysed + 8 refined)")
+IO.puts("  Burn as #{Float.round(stable_from_16_unstable, 1)} stable:       #{round(burn_stable_from_chain)} Wt")
+IO.puts("  Extra mixer cost (#{Float.round(extra_mixer_cycles, 1)}+1 cycles): #{round(extra_mixer_cost + mixer_cycle_cost)} Wt")
+IO.puts("  Net from full chain:           #{round(burn_stable_from_chain - extra_mixer_cost - mixer_cycle_cost)} Wt")
+
+diff_full = burn_stable_from_chain - extra_mixer_cost - mixer_cycle_cost - burn_inputs_directly
+
+IO.puts("")
+
+if diff_full > 0 do
+  IO.puts("  → Full chain GAINS #{round(diff_full)} Wt vs burning ingredients (+#{Float.round(diff_full / burn_inputs_directly * 100, 1)}%)")
+else
+  IO.puts("  → Full chain LOSES #{abs(round(diff_full))} Wt vs burning ingredients (#{Float.round(diff_full / burn_inputs_directly * 100, 1)}%)")
+end
+
 IO.puts("")
 IO.puts("Units: Wt = Watt-ticks (power draw × ticks). Ratio = energy out / energy in.")
 IO.puts("Higher ratio = more efficient fuel. Net energy = surplus power after production costs.")

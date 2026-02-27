@@ -133,7 +133,7 @@ defmodule Spheric.Game.ConstructionCosts do
     bio_generator: 0, substation: 0, transfer_station: 0,
     advanced_smelter: 12, recycler: 25, loader: 8, unloader: 8,
     # Tier 5 — 12W
-    mixer: 30, freezer: 8, advanced_assembler: 12, fabrication_plant: 16, essence_extractor: 12,
+    mixer: 20, freezer: 8, advanced_assembler: 12, fabrication_plant: 16, essence_extractor: 12,
     # Tier 6 — 20W
     particle_collider: 60, nuclear_refinery: 40,
     # Tier 7 — 30W

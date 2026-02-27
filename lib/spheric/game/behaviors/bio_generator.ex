@@ -7,8 +7,8 @@ defmodule Spheric.Game.Behaviors.BioGenerator do
   """
 
   @biofuel_duration 50
-  @catalysed_fuel_duration 75
-  @refined_fuel_duration 100
+  @catalysed_fuel_duration 100
+  @refined_fuel_duration 65
   @unstable_fuel_duration 20
   @stable_fuel_duration 325
 

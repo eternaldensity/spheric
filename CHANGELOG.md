@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Fuel script: add opportunity cost comparison for mixed fuels (#178)
 - Fuel efficiency script: compare against biofuel baseline (#177)
 - Power efficiency analysis script for fuel types (#176)
 - Make shadow panel output scale with solar intensity (#174)
