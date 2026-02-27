@@ -225,7 +225,11 @@ defmodule Spheric.Game.Persistence do
     |> Enum.each(fn b ->
       key = {b.face_id, b.row, b.col}
       type = String.to_atom(b.type)
-      state = atomize_state_keys(b.state) |> repair_rate(type) |> repair_power_output(type)
+      state =
+        atomize_state_keys(b.state)
+        |> repair_rate(type)
+        |> repair_power_output(type)
+        |> backfill_initial_state(type)
 
       building_data = %{
         type: type,
@@ -286,6 +290,21 @@ defmodule Spheric.Game.Persistence do
 
   defp repair_power_output(state, _type), do: state
 
+  # Fill in any keys from the building's initial_state that are missing
+  # from the loaded state. This handles schema evolution (e.g. output_type_b
+  # added after existing buildings were already saved).
+  defp backfill_initial_state(state, type) when is_map(state) do
+    defaults = Spheric.Game.Buildings.initial_state(type)
+
+    if map_size(defaults) > 0 do
+      Map.merge(defaults, state)
+    else
+      state
+    end
+  end
+
+  defp backfill_initial_state(state, _type), do: state
+
   # Convert string-keyed JSONB map to atom-keyed map, also converting
   # known atom values back from strings (item types like "iron_ore").
   defp atomize_state_keys(state) when is_map(state) do
@@ -311,6 +330,7 @@ defmodule Spheric.Game.Persistence do
     :fuel_type,
     :item_type,
     :output_type,
+    :output_type_b,
     :mode,
     :selected_upgrade,
     :last_transferred,

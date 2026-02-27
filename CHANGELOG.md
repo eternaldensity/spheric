@@ -31,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Add deep production chains: Assembler activation, Refinery, 4 new resources, multi-tier recipes (#40)
 
 ### Fixed
+- Fix KeyError on output_type_b when loading legacy smelter state (#175)
 - Add whispering_powder and whispering_ingot to item renderer (#164)
 - Fix move_ticks KeyError in advance_conveyor_cooldowns (#155)
 - Storage vault: separate stored vs inserted items for arm transfer fairness (#154)
