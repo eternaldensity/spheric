@@ -63,7 +63,7 @@ bearing_tiers = [
   {"No bearings (base)", 0.10, 1.0, 0.40},
   {"Bronze Bearings",    0.07, 1.5, 0.55},
   {"Steel Bearings",     0.05, 2.0, 0.75},
-  {"Titanium Bearings",  0.03, 3.0, 1.00}
+  {"Titanium Bearings",  0.027, 3.0, 1.00}
 ]
 
 IO.puts("")

@@ -123,11 +123,24 @@ Critically, bearings also reduce friction, which increases terminal speed for th
 | No bearings (base) | 0.10 | 480 | 0.40 | **3** | **240W** | 100% |
 | Bronze Bearings | 0.07 | 720 | 0.55 | **4** | **345W** | 144% |
 | Steel Bearings | 0.05 | 960 | 0.75 | **6** | **477W** | 199% |
-| Titanium Bearings | 0.03 | 1440 | 1.00 | **11** | **720W** | 300% |
+| Titanium Bearings | 0.027 | 1440 | 1.00 | **12** | **720W** | 300% |
 
 The upgrade path requires BOTH better bearings AND more turbines. Upgrading bearings without adding turbines is catastrophic — bronze bearings on 3 turbines drops output from 240W to 155W (overspeed). Titanium on 3 turbines produces essentially nothing.
 
 Steam turbines produce **water** as a byproduct, which can be recycled into the reactor's thermal regulator supply chain.
+
+#### Steam Distribution: Pressure Model
+
+Steam is not transported as discrete items on conveyors. Instead, the reactor and its turbines share a **steam pressure header** — an internal fluid value, not a countable resource.
+
+- The reactor adds pressure to the header each tick based on its temperature
+- Each connected turbine draws pressure from the header at a continuous rate
+- The header pressure determines whether turbines are fully fed, starved, or over-pressured
+- No conveyor belts, no item sprites — steam is invisible internal state between reactor and turbines
+
+This avoids the discrete-item problem: at 0.167 steam/tick per turbine, there's no sensible way to represent steam as whole items on a belt. A pressure model gives smooth, continuous flow that matches the bell curve efficiency physics exactly.
+
+The player's interaction with steam is indirect — they see the reactor's temperature gauge, the turbines' speed indicators, and the power output. The "plumbing" is implicit in how buildings are connected (adjacency or pipe connections).
 
 ### Thermal Cycling Mechanic
 
@@ -191,7 +204,7 @@ Power is capacity-based. The reactor's progression tells a clear story:
 
 - **Base (3 turbines, 240W)**: Matches 12 bio generators in half the footprint. Barely positive ROI — the investment is in density, not efficiency.
 - **Bronze-Steel (4-6 turbines, 345-477W)**: Reactor surpasses what bio generators can deliver. Worth the production chain investment.
-- **Titanium (11 turbines, 720W)**: Endgame powerhouse. 3x the output of a full bio generator array. Powers an entire high-tier factory cluster from a single fuel source.
+- **Titanium (12 turbines, 720W)**: Endgame powerhouse. 3x the output of a full bio generator array. Powers an entire high-tier factory cluster from a single fuel source.
 
 **Comparison to bio generators:**
 - 12 bio generators × 20W = 240W (equivalent to 1 base reactor + 3 turbines)
@@ -230,9 +243,9 @@ With bearing upgrades and additional turbines, the reactor scales dramatically:
 | Base (3 turbines) | 4 | 240W | 1.19x | 1x (equal power) |
 | Bronze (4 turbines) | 5 | 345W | 1.71x | 1.4x more power |
 | Steel (6 turbines) | 7 | 477W | 2.37x | 2x more power |
-| Titanium (11 turbines) | 12 | 720W | 3.58x | 3x more power |
+| Titanium (12 turbines) | 13 | 720W | 3.58x | 3x more power |
 
-At titanium bearings, a single reactor with 11 turbines produces **720W** — triple the output of 12 bio generators, from the same building count. The reactor transitions from a compact break-even power source to the dominant endgame power plant.
+At titanium bearings, a single reactor with 12 turbines produces **720W** — triple the output of 12 bio generators, from the same building count. The reactor transitions from a compact break-even power source to the dominant endgame power plant.
 
 ### Remaining Open Questions
 
@@ -244,4 +257,5 @@ At titanium bearings, a single reactor with 11 turbines produces **720W** — tr
 - Whether water byproduct from turbines is 1:1 with steam input
 - Bearing construction costs per tier (must justify the power gain)
 - Whether bearings are per-turbine upgrades or a shared reactor upgrade
-- Steam distribution mechanic: does the reactor split steam evenly, or do turbines pull individually?
+- Steam header capacity (max pressure buffer size)
+- How turbines connect to the reactor (adjacency? pipe building? implicit within radius?)
