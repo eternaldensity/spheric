@@ -8,6 +8,7 @@
 | Short (2 tiles) | Loader/Unloader arms | 5-50 items/sec | Manhattan dist ≤2 |
 | Mid-range | Underground conduits | Limited by feeder belt | Adjacent faces only |
 | Construction supply | Delivery drones | 2 items/trip | ~1 cell (~16 tiles) |
+| Vertical (up) | Mega drones + bulk vault | ~1.5-5 items/tick | Between scaffold levels |
 | Long-range bulk | ??? | — | — |
 
 ## Do We Need Mass Transit (Trains/Rails)?
@@ -29,7 +30,7 @@ Not as a logistics necessity, but as:
 - **Multiplayer trade automation** — replacing manual trade terminal exchanges with automated routes between player bases
 - **Spectacle and world-feel** — trains moving across the sphere surface make the world feel alive
 - **Endgame infrastructure hobby** — a macro-scale project for players with running factories
-- **Vertical transport** — see [vertical-building.md](vertical-building.md). Rail is the only way to send items upward through scaffold levels, giving rail a mandatory logistics role that horizontal transport doesn't need.
+- **Note**: Vertical transport (between scaffold levels) is handled by mega drones, not rail. See [vertical-building.md](vertical-building.md).
 
 ## Unique Sphere Geometry Opportunities
 

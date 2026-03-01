@@ -98,30 +98,72 @@ Items can be **dropped** from any level to the level directly below, or all the 
 
 This means raw materials processed at elevation can easily return to ground level for further logistics.
 
-### Items Going Up: Rail Elevator
+### Items Going Up: Mega Drone + Bulk Vault
 
-The **only** way to send items upward is via the rail network. This gives rail a mandatory logistics role:
+The **only** way to send items upward is via **mega drones** — heavy-lift drone variants that carry bulk storage vaults between levels. This builds naturally on the existing drone system (delivery drones, player drone camera) rather than introducing an unrelated rail mechanic.
 
-- A **rail elevator** building connects a ground-level rail station to an elevated platform
-- Items are loaded into rail cars at ground level, lifted to the target level, and unloaded
-- Each elevator serves one pair of levels (ground ↔ level 1, ground ↔ level 2, etc.)
-- Elevator throughput is limited — not all items should go up, only the ones that need elevated processing
+#### Bulk Storage Vault
 
-This asymmetry is the core of vertical logistics design:
-- **Raw materials** are gathered at ground level (gathering posts, mines)
-- **Critical intermediates** are railed up to elevated machines for fast processing
-- **Finished products** drop back down for distribution
+A **bulk storage vault** is a large container building (e.g. 50-100 item capacity) that serves as the cargo unit for vertical transport. Vaults sit on a **drone landing pad** at each level:
 
-Players must decide which production steps are worth elevating. Elevating the wrong thing wastes power and rail capacity on a non-bottleneck.
+```
+Level 2:  [Landing Pad] ← mega drone drops vault here
+              ↓ unload onto conveyors
+          [Machine] [Machine] [Machine]
 
-### Why This Asymmetry Matters
+Ground:   [Landing Pad] ← vault loaded from conveyors
+              ↑ mega drone picks up full vault
+          [Smelter] [Smelter] [Conveyor →]
+```
 
-Without the asymmetry (if items could go up freely), elevation is just "pay more power for faster machines" — a simple scaling knob. The rail-up/drop-down constraint creates genuine logistics puzzles:
+The vault is a physical building, not an inventory abstraction — it occupies a tile on the landing pad and items must be loaded/unloaded via conveyors or loader arms.
 
-- Where do you place the elevator? It needs rail access and ground-level input.
-- How do you batch items efficiently for the elevator trip?
-- Which machines justify the rail capacity investment?
-- Can you chain elevated production to avoid round-trips (up → process → process → drop)?
+#### Mega Drone
+
+The mega drone is an automated flying unit (like the delivery drone but larger) that shuttles vaults between landing pads on different levels:
+
+- **One mega drone per landing pad pair** — a ground pad and an elevated pad are linked, and the drone cycles between them
+- **Trip time scales with level height** — lifting to level 4 takes longer than level 1
+- **Fuel consumption** — mega drones consume fuel (biofuel or catalysed fuel) proportional to trip height. Higher levels = more fuel per trip
+- **Capacity per trip** — one full vault. Throughput is determined by vault size × trip frequency
+- **Visible flight** — the mega drone is a large visible model that flies vertically between levels, giving clear visual feedback of vertical logistics in action
+
+#### Throughput
+
+Mega drone throughput is intentionally limited — this is a batch transport system, not a continuous belt:
+
+| Level | Round-trip Time | Vault Size | Throughput |
+|---|---|---|---|
+| Ground → L1 | ~10 ticks | 50 items | ~5 items/tick |
+| Ground → L2 | ~16 ticks | 50 items | ~3.1 items/tick |
+| Ground → L3 | ~24 ticks | 50 items | ~2.1 items/tick |
+| Ground → L4 | ~34 ticks | 50 items | ~1.5 items/tick |
+
+Multiple landing pad pairs can operate in parallel for higher throughput, but each requires its own mega drone (expensive) and landing pad space on both levels.
+
+**Upgraded vaults** (larger capacity, e.g. 100 items) increase throughput per trip without needing more drones. This is a meaningful upgrade path — vault capacity vs more drone routes.
+
+#### Why Drones (Not Rail)
+
+The game already has drones as a core transport mechanic (delivery drones for construction supply, the player's camera is a drone). Vertical lift is a natural extension:
+
+- **No new transport system to learn** — players already understand drones
+- **Visually coherent** — flying machines lifting cargo fits the aesthetic better than rail elevators
+- **Scales with existing drone upgrades** — fuel types, speed, capacity tie into the drone bay upgrade tree
+- **Batch transport creates the same logistics puzzle** as a rail elevator: which items are worth the limited upward throughput?
+
+#### The Asymmetry
+
+The core design goal is preserved: **going up is expensive and limited, going down is free and fast.**
+
+- Drop chutes: instant, unlimited, no cost
+- Mega drones: batch-limited, fuel-consuming, requires landing pad infrastructure on both levels
+
+This creates the same interesting decisions:
+- Which production steps justify the mega drone capacity?
+- Can you chain elevated production (up → process → process → drop) to minimise round-trips?
+- How many drone routes do you allocate per level?
+- Do you build one big vault route or several smaller ones?
 
 ## Power Per Level
 
@@ -198,7 +240,8 @@ Scaffolds cannot be placed on tiles at face edges or vertices (where faces meet 
 Elevated buildings add significant visual complexity:
 - Each scaffold level is a visible structure (metallic framework, supports, walkways)
 - Elevated machines sit on platforms above the scaffolding
-- Drop chutes and rail elevators have visible vertical shafts
+- Drop chutes have visible vertical shafts; landing pads are flat platforms with beacon lights
+- Mega drones are large visible models that fly between levels
 
 **LOD implications**:
 - Distant faces: collapse all levels into ground-level rendering (just show the highest building's icon)
@@ -233,7 +276,7 @@ Open question: do darkness beams travel on a specific level, or do they penetrat
 
 ### Construction Sites
 
-Elevated construction sites need scaffolding material delivered via rail elevator before the actual building materials. This adds a bootstrapping step to building at height.
+Elevated construction sites need scaffolding material delivered via mega drone before the actual building materials. This adds a bootstrapping step: you need at least one landing pad pair and a mega drone route operational before you can build anything at a new level.
 
 ### Deconstruction
 
@@ -250,8 +293,8 @@ Deconstructing a scaffold that has levels above it should cascade — either pre
 | Scaffold cost | Exponential with height (1×, 2×, 4×, 8×) |
 | Speed bonus | -15% ticks per level (0.85× at L1, 0.40× at L4) |
 | Power penalty | 1.5× per level (1.5× at L1, 5× at L4) |
-| Items down | Gravity drop (free, fast) |
-| Items up | Rail elevator only (capacity-limited) |
+| Items down | Gravity drop chute (free, fast) |
+| Items up | Mega drone + bulk vault only (batch-limited, fuel cost) |
 | Power per level | Independent networks, power poles transfer between adjacent levels |
 | Power pole | Consumer on source level, generator on destination level, ~90% efficiency, capacity-capped |
 | Creatures | Ground level only |
@@ -264,7 +307,7 @@ Deconstructing a scaffold that has levels above it should cascade — either pre
 - **4 max levels**: enough for meaningful vertical hierarchy without excessive complexity
 - **Exponential scaffold costs**: naturally limits height usage to high-priority buildings
 - **Power poles as consumer/generator pairs**: simpler than grid linking, explicit transfer with visible throughput and efficiency loss
-- **Rail-only upward transport**: gives rail a mandatory role, creates asymmetric logistics
+- **Mega drone upward transport**: builds on existing drone system, batch-limited with fuel cost, creates asymmetric logistics without introducing rail
 - **No creatures at height**: safety incentive to elevate, boost incentive to stay grounded
 - **No conduits at height**: ground level remains the logistics backbone
 - **Reactor elevation = faster burn, not more output**: prevents free power scaling
@@ -274,7 +317,10 @@ Deconstructing a scaffold that has levels above it should cascade — either pre
 - Exact scaffold construction costs and recipes
 - Advanced scaffold unlock tier
 - Power pole transfer efficiency (90%? 85%?) and capacity cap (100W? 200W?)
-- Rail elevator throughput limits
+- Mega drone construction cost and fuel consumption rate per level
+- Bulk vault capacity (50? 100?) and upgraded vault recipe
+- Landing pad size: 1 tile or larger?
+- Can one landing pad serve multiple drone routes (e.g. ground pad linked to L1 and L2)?
 - Drop chute: instant transfer or small delay?
 - Can the player build directly at a target level, or must they always scaffold up from ground?
 - Scaffold 3D model design (industrial framework? FBC-themed supports?)
@@ -283,3 +329,5 @@ Deconstructing a scaffold that has levels above it should cascade — either pre
 - Can scaffolds be shared? (two adjacent elevated buildings sharing a scaffold column)
 - Interaction with line-drawing tool: can you draw conveyors on elevated levels?
 - Maximum buildings per level per tile: still 1, or can scaffolds enable denser packing?
+- Mega drone model design: scaled-up delivery drone? Distinct heavy-lift aesthetic?
+- Does mega drone speed benefit from fuel type upgrades (like player drone)?
