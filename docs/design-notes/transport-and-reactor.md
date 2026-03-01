@@ -319,6 +319,74 @@ With bearing upgrades and additional turbines, the reactor scales dramatically. 
 
 At titanium bearings with full optimization, a single reactor with 13 turbines produces **689W** — nearly triple the output of 12 bio generators. Even at basic setup (529W), it far exceeds bio generator capacity. The reactor transitions from a compact power source that rewards engineering skill to the dominant endgame power plant.
 
+#### Reinforced Casing: Asymmetric Heating Upgrade
+
+A **Reinforced Casing** upgrade raises the reactor's Critical Temperature from 300 to ~350, unlocking a higher-output operating mode.
+
+**The 2H-2C cycle**: Instead of alternating heat-cool-heat-cool, the player schedules two consecutive heating phases followed by two cooling phases:
+
+```
+Standard:  H-C-H-C  → 100 → 200 → 100 → 200 → 100   (peaks at 200)
+2H-2C:    H-H-C-C  → 100 → 200 → 300 → 200 → 100   (peaks at 300)
+```
+
+This doubles the average steam output (1.0/tick vs 0.5/tick) at the **same consumable cost** — still 2 regulators + 2 coolant per 240-tick nuclear cell. The player gets twice the steam for free by simply reordering their thermal management schedule.
+
+The catch: the reactor peaks at exactly 300 (Critical). Without Reinforced Casing, this triggers shutdown. With it, the player has a safe margin but is operating much closer to the edge — a missed coolant rod is catastrophic instead of merely suboptimal.
+
+**Turbine scaling for 2H-2C** (base bearings, cap=15):
+
+| Turbines | Power | Starved | Notes |
+|---|---|---|---|
+| 3 | 228W | 0% | Same as standard — steam surplus vented |
+| 5 | 335W | 8% | Good intermediate |
+| 6 | 357W | 15% | Diminishing returns begin |
+| 8 | 370W | 28% | Optimal — 62% more than standard |
+| 10 | 350W | 38% | Overshoot — too many turbines |
+
+**Cost/benefit comparison** (cap=15, optimal turbine counts):
+
+| Setup | Turbines | Power | Consumables/cell | ROI |
+|---|---|---|---|---|
+| Standard + tanks | 3 | 223W | 2 reg + 2 cool | 1.11x |
+| 2H-2C + tanks | 8 | 370W | 2 reg + 2 cool | 1.84x |
+
+The upgrade path:
+1. Build Reinforced Casing (raises Critical to ~350)
+2. Add 5 more turbines (total 8)
+3. Switch reactor scheduling to 2H-2C
+4. Result: 62% more power, same fuel cost, higher meltdown risk
+
+This creates an interesting player decision: the Reinforced Casing is a significant investment, and the player must also build 5 additional turbines and manage the tighter safety margin. But the payoff — nearly doubling power from the same fuel — is substantial.
+
+**Combining with other optimizations**: 2H-2C stacks with bearing upgrades and dual-reactor offset. The full progression at base bearings:
+
+| Stage | Buildings | Power | Per-Reactor | ROI |
+|---|---|---|---|---|
+| Bare minimum (1R 3T cap=2) | 5 | 154W | 154W | 0.77x |
+| + Pressure tank (1R 3T cap=15) | 5 | 230W | 230W | 1.15x |
+| + Dual offset (2R 6T cap=15) | 9 | 455W | 227W | 1.13x |
+| + Reinforced Casing (1R 8T cap=15) | 10 | 370W | 370W | 1.84x |
+| + Dual 2H-2C offset (2R 12T cap=15) | 15 | 866W | 433W | 2.15x |
+
+**Dual 2H-2C with offset 120**: The 2H-2C cycle is 240 ticks (H-H-C-C at 60 ticks each). Two 2H-2C reactors offset by 120 ticks (half-cycle) complement each other perfectly — when reactor A is in its heating phases, B is cooling, and vice versa. This produces **866W from 12 turbines** at base bearings with only 12% starvation and 0% vented steam. Remarkably, this configuration **doesn't need pressure tanks** — the offset itself provides all the smoothing (cap=2 through cap=50 give identical results).
+
+**Bearing tier scaling with 2H-2C**: The hotter cycle multiplies bearing gains:
+
+| Tier | Standard Optimal | 2H-2C Optimal | Gain |
+|---|---|---|---|
+| No bearings | 3T → 230W | 8T → 370W | +60% |
+| Bronze | 5T → 329W | 13T → 584W | +77% |
+| Steel | 7T → 457W | 19T → 823W | +80% |
+| Titanium | 13T → 696W | 30T → 1210W | +74% |
+
+At titanium + 2H-2C, a single reactor with 30 turbines produces **1210W** — a genuine endgame powerhouse.
+
+**Patterns that don't work well**:
+- **Triple reactor (1/3-cycle offset)**: 224W/reactor — worse per-reactor than dual offset (227W). The 1/3 offset doesn't smooth well.
+- **Short-phase cycling (30t, 15t)**: Less steam (narrower temp range) AND more consumables (more phases per cell). A trap.
+- **Mixed-mode (1 standard + 1 2H-2C)**: Awkward — different steam rates make turbine tuning difficult, and the offset timing is suboptimal for both cycles.
+
 ### Resolved Design Decisions
 
 - **Steam transfer model**: Fixed-demand pressure header (not discrete items). See simulation: `scripts/steam_pressure.exs`
@@ -328,6 +396,11 @@ At titanium bearings with full optimization, a single reactor with 13 turbines p
 - **Power formula**: `power = eff(speed) × max_eff × steam_actually_received_this_tick`
 - **Optimal turbine counts**: Base=3, Bronze=5, Steel=7, Titanium=13 (under pressure model)
 - **Bearings are per-turbine upgrades** (each turbine has its own friction, max_eff, sigma)
+- **Asymmetric heating (2H-2C)**: Viable upgrade path via Reinforced Casing. Doubles steam at same fuel cost, peaks at 300. See simulation: `scripts/steam_asymmetric.exs`
+- **Dual 2H-2C offset**: 120-tick offset (half of 240-tick 2H-2C cycle) is optimal. Produces 866W from 12T base bearings, no tanks needed. See: `scripts/steam_patterns.exs`
+- **Bearing + 2H-2C scaling**: Confirmed — 2H-2C multiplies bearing gains by ~60-80%. Titanium 2H-2C = 1210W from 30T.
+- **Triple reactor**: Not worth it — worse per-reactor efficiency than dual offset. Two reactors is the sweet spot.
+- **Short phases / temperature setpoints**: Not viable as player optimizations under current consumable-per-phase design.
 
 ### Remaining Open Questions
 
@@ -341,3 +414,7 @@ At titanium bearings with full optimization, a single reactor with 13 turbines p
 - How turbines connect to the reactor (adjacency? pipe building? implicit within radius?)
 - UI: how to display header pressure, turbine speed, starvation indicators
 - Whether dual-reactor offset is automatic (shared header by proximity) or requires explicit connection
+- Reinforced Casing: construction cost, tier, exact Critical Temperature value (350? 400?)
+- How does the player control phase scheduling? (automatic based on danger threshold, or manual setpoint?)
+- 2H-2C at titanium bearings needs 30 turbines — is that too many buildings? Space/layout constraints?
+- Does dual 2H-2C offset (no tanks needed) make Pressure Tanks obsolete for endgame players?
