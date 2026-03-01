@@ -402,19 +402,23 @@ At titanium + 2H-2C, a single reactor with 30 turbines produces **1210W** — a 
 - **Triple reactor**: Not worth it — worse per-reactor efficiency than dual offset. Two reactors is the sweet spot.
 - **Short phases / temperature setpoints**: Not viable as player optimizations under current consumable-per-phase design.
 
+### Resolved Design Decisions (Continued)
+
+- **Tier placement**: Reactor is **Tier 6**. A 2nd-stage reactor (breeder? fusion?) at Tier 7.
+- **Not a multi-tile structure**: The nuclear cell processing chain (enrichment → collider → cell) plus multiple turbines already creates enough spatial complexity. Multi-tile would add friction without adding interesting decisions.
+- **Water byproduct is negligible**: Each coolant rod / thermal regulator consumes 1 water/ice per cycle. With 2 of each per 240-tick cell, that's 4 water consumed total. Split across turbines, the per-turbine water output per cycle is a tiny fraction — not worth building a recycling loop around.
+- **Water-steam recycling requires separate water input**: For a meaningful water→steam→water loop, the reactor would need a dedicated water input beyond what thermal items consume. This is a future design question — the current model doesn't produce enough water byproduct to sustain recycling.
+- **Dual reactor offset is player-controlled**: Players must start the second reactor at the right time to achieve the offset. The game doesn't auto-synchronize reactors. This is part of the engineering skill ceiling.
+- **2H-2C scheduling mechanism**: The player controls phase scheduling by **restricting the inflow of heating/cooling consumables**. To achieve 2H-2C, the player withholds coolant rods during heating phases and withholds thermal regulators during cooling phases — the reactor's phase logic naturally extends the current phase when the next consumable is missing. This could be done via filtered input (only allow the correct item during the correct phase) or a simple toggle/mode switch on the reactor.
+- **Pressure tanks are a mid-game optimization**: At endgame with dual 2H-2C offset, pressure tanks become obsolete — the offset provides all necessary smoothing. This is acceptable. Tanks serve as the "first optimization" players discover, then get replaced by more sophisticated engineering (more turbines + offset timing). The progression is: basic → +tanks → +more turbines → +offset → tanks no longer needed.
+
 ### Remaining Open Questions
 
-- Construction cost and tier placement (likely Tier 6-7)
-- 3D model design
-- Multi-tile structure?
-- Pressure Tank building: construction cost, tier, capacity per tank
-- Steam turbine construction cost and tier
-- Whether water byproduct from turbines is 1:1 with steam input
-- Bearing construction costs per tier (must justify the power gain)
+- Construction costs: reactor, turbines, pressure tanks, reinforced casing, bearings per tier
+- 3D model designs for reactor, turbines, pressure tanks
 - How turbines connect to the reactor (adjacency? pipe building? implicit within radius?)
 - UI: how to display header pressure, turbine speed, starvation indicators
-- Whether dual-reactor offset is automatic (shared header by proximity) or requires explicit connection
-- Reinforced Casing: construction cost, tier, exact Critical Temperature value (350? 400?)
-- How does the player control phase scheduling? (automatic based on danger threshold, or manual setpoint?)
-- 2H-2C at titanium bearings needs 30 turbines — is that too many buildings? Space/layout constraints?
-- Does dual 2H-2C offset (no tanks needed) make Pressure Tanks obsolete for endgame players?
+- Reinforced Casing: exact Critical Temperature value (350? 400?)
+- 2H-2C scheduling UI: does the player use item filters on input slots, or a dedicated reactor mode toggle?
+- 2H-2C at titanium bearings needs 30 turbines — space/layout constraints on a single face?
+- Tier 7 reactor design (breeder? fusion? what differentiates it from Tier 6?)
