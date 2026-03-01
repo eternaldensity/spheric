@@ -133,14 +133,82 @@ Steam turbines produce **water** as a byproduct, which can be recycled into the 
 
 Steam is not transported as discrete items on conveyors. Instead, the reactor and its turbines share a **steam pressure header** — an internal fluid value, not a countable resource.
 
-- The reactor adds pressure to the header each tick based on its temperature
-- Each connected turbine draws pressure from the header at a continuous rate
-- The header pressure determines whether turbines are fully fed, starved, or over-pressured
-- No conveyor belts, no item sprites — steam is invisible internal state between reactor and turbines
+**Fixed-demand model**: Each turbine has a fixed steam demand per tick (the rate that produces peak rotor speed). The header pressure determines whether that demand can be met:
 
-This avoids the discrete-item problem: at 0.167 steam/tick per turbine, there's no sensible way to represent steam as whole items on a belt. A pressure model gives smooth, continuous flow that matches the bell curve efficiency physics exactly.
+- If header pressure ≥ total demand from all turbines → fully fed, each turbine gets exactly its demand
+- If header pressure < total demand → rationed proportionally (starved), turbines slow down
+- Power = `eff(speed) × max_eff × steam_actually_received` — steam is the energy source, efficiency is conversion rate
+- Surplus steam during hot phases fills the header buffer; deficit during cold phases drains it
 
-The player's interaction with steam is indirect — they see the reactor's temperature gauge, the turbines' speed indicators, and the power output. The "plumbing" is implicit in how buildings are connected (adjacency or pipe connections).
+**Demand per turbine** (tuned so full feed → peak speed):
+```
+demand = peak_speed × friction / (accel × (1 - friction))
+```
+
+| Bearing Tier | Friction | Demand/tick |
+|---|---|---|
+| No bearings | 0.10 | 0.167 |
+| Bronze | 0.07 | 0.113 |
+| Steel | 0.05 | 0.079 |
+| Titanium | 0.027 | 0.042 |
+
+At base with 3 turbines: total demand = 0.5/tick = exactly the reactor's average steam output. During hot phases (steam > 0.5), surplus builds in the header. During cold phases (steam < 0.5), the header drains. Without buffering, turbines starve ~39% of the time.
+
+**Why fixed demand (not proportional draw)**: If turbines drew proportional to pressure, the power formula self-balances (high steam × low efficiency ≈ low steam × high efficiency) and buffering doesn't help. Fixed demand creates meaningful starvation during cold phases that players can mitigate through engineering.
+
+#### Player Optimization: Steam Smoothing
+
+The temperature oscillation creates an inherent efficiency loss (~64% of theoretical maximum at base tier). Players have three tools to reduce this, forming a skill/investment ladder:
+
+**1. Pressure Tanks** (buildable buffer):
+- Each pressure tank adds header capacity
+- Stores hot-phase surplus for cold-phase use
+- Diminishing returns: the first tank helps most, extra tanks provide less marginal benefit
+
+**2. Phase-Offset Dual Reactors**:
+- Two reactors feeding a shared header, started at different times
+- Offset by half a cycle (60 ticks): when reactor A heats (high steam), reactor B cools (low steam)
+- Combined output is nearly constant → turbines rarely starve
+- This is a player discovery: the game doesn't tell you to do this, but the physics reward it
+
+**3. Bearing Upgrades** (reduce demand per turbine):
+- Better bearings → lower friction → lower demand per turbine for same peak speed
+- Lower demand means easier to keep turbines fed even during cold phases
+- Also increases max_eff and widens sigma → higher power ceiling
+
+**Efficiency by setup** (simulated, base bearings, 3 turbines):
+
+| Setup | Power | % of Theoretical | Starvation |
+|---|---|---|---|
+| Basic (cap=2, no extras) | 154W | 64% | 39% of ticks |
+| Pressure tanks (cap=15) | 223W | 93% | 11% of ticks |
+| Dual reactor + offset (cap=15) | 234W | 98% | ~0% |
+| Theoretical continuous | 240W | 100% | 0% |
+
+**Full bearing progression** (pressure-optimal turbine counts):
+
+| Tier | Opt Turbines | Basic | +Tanks | +Dual Offset | Continuous |
+|---|---|---|---|---|---|
+| No bearings | 3 | 154W (64%) | 223W (93%) | 234W (98%) | 240W |
+| Bronze | 5 | 249W (73%) | 325W (95%) | 332W (97%) | 342W |
+| Steel | 7 | 346W (73%) | 448W (95%) | 457W (97%) | 474W |
+| Titanium | 13 | 529W (73%) | 678W (94%) | 689W (96%) | 720W |
+
+The design intent: a basic reactor "just works" at ~64-73% efficiency. Players who invest in pressure tanks reach ~93-95%. Those who figure out phase-offset dual reactors approach the theoretical maximum. None of these require the game to explain the optimization — the pressure gauge and starvation indicators naturally guide discovery.
+
+#### Header Capacity
+
+The header has a base capacity (built into the reactor, e.g. 2.0) plus any connected pressure tanks. Key capacity thresholds (base, 3 turbines):
+
+| Capacity | Power | Starvation | Notes |
+|---|---|---|---|
+| 2 | 154W | 39% | Reactor only — minimal buffer |
+| 5 | 170W | 31% | Small tank |
+| 10 | 194W | 22% | Medium tank |
+| 15 | 223W | 11% | Large tank — sweet spot |
+| 20+ | 225W | 6% | Diminishing returns |
+
+The player's interaction with steam is indirect — they see the reactor's temperature gauge, the header's pressure gauge, the turbines' speed indicators, and the power output. The "plumbing" is implicit in how buildings are connected (adjacency or pipe connections).
 
 ### Thermal Cycling Mechanic
 
@@ -200,17 +268,18 @@ The reactor takes **nuclear cells** as fuel (already an expensive crafted item: 
 
 ### Power System Context
 
-Power is capacity-based. The reactor's progression tells a clear story:
+Power is capacity-based. The reactor's output depends on how well the player manages steam pressure:
 
-- **Base (3 turbines, 240W)**: Matches 12 bio generators in half the footprint. Barely positive ROI — the investment is in density, not efficiency.
-- **Bronze-Steel (4-6 turbines, 345-477W)**: Reactor surpasses what bio generators can deliver. Worth the production chain investment.
-- **Titanium (12 turbines, 720W)**: Endgame powerhouse. 3x the output of a full bio generator array. Powers an entire high-tier factory cluster from a single fuel source.
+- **Base (3 turbines, 154-234W)**: At minimum setup (154W), slightly below 12 bio generators. With pressure tanks and optimization, approaches 234W — comparable to bio gens in less space. The investment is in density and engineering skill.
+- **Bronze-Steel (5-7 turbines, 249-457W)**: Reactor surpasses bio generators even at basic setup. Pressure optimization pushes output significantly higher.
+- **Titanium (13 turbines, 529-689W)**: Endgame powerhouse. Even at basic efficiency, far exceeds bio generators. Fully optimized approaches 3x bio gen output.
 
 **Comparison to bio generators:**
-- 12 bio generators × 20W = 240W (equivalent to 1 base reactor + 3 turbines)
-- Bio generators: far better ROI (17.69x vs 1.19x) but cap out at 240W without building more
-- Reactor: lower ROI but scales to 720W with bearing upgrades — 3x more power from the same building count
-- Reactor is higher risk (meltdown) but lower logistics overhead once running
+- 12 bio generators × 20W = 240W
+- Base reactor (basic): 154W from 4 buildings — worse output but room to improve
+- Base reactor (optimized): 234W from 4 buildings + tanks — comparable in less space
+- Bio generators: far better ROI but no skill ceiling; reactor rewards engineering
+- Reactor is higher risk (meltdown) but higher reward with investment in smoothing
 
 ### Thermal Management Items
 
@@ -223,39 +292,52 @@ Already implemented in fabrication plant recipes:
 
 Run `mix fuel_efficiency` for full numbers. Key reactor metrics at base (3 turbines, no bearings):
 
-| Metric | Reactor + 3 Turbines | 12 Bio Gens (Stable Fuel) |
-|--------|---------------------|--------------------------|
-| Cell duration | 240 ticks | — |
-| Gross output | 57,600 Wt per cell | 57,600 Wt per 240 ticks |
-| Nuclear cell cost | 43,271 Wt | — |
-| Thermal cost | 5,017 Wt (4 phases) | — |
-| Total cost | 48,288 Wt | 3,256 Wt (per 120t, prorated) |
-| ROI | **1.19x** | 17.69x |
+| Metric | Basic (cap=2) | +Tanks (cap=15) | 12 Bio Gens |
+|--------|---------------|-----------------|-------------|
+| Cell duration | 240 ticks | 240 ticks | — |
+| Avg power | 154W | 223W | 240W |
+| Gross output/cell | 36,960 Wt | 53,520 Wt | 57,600 Wt |
+| Nuclear cell cost | 43,271 Wt | 43,271 Wt | — |
+| Thermal cost | 5,017 Wt | 5,017 Wt | — |
+| Total cost | 48,288 Wt | 48,288 Wt | 3,256 Wt |
+| ROI | **0.77x** | **1.11x** | 17.69x |
 
-The base reactor just barely breaks even at 1.19x ROI. Bio generators have far better energy ROI, but the reactor's value is **power density** — 240W from 4 buildings (1 reactor + 3 turbines) vs 240W from 12 bio generators.
+The basic reactor setup actually loses energy (0.77x ROI) — the temperature oscillation starves turbines too often. Adding pressure tanks pushes it above break-even (1.11x). This creates a clear upgrade path: the reactor isn't "free power" out of the box; it requires engineering investment to become profitable.
+
+**The value proposition**: Bio generators have far better ROI but require 12 buildings for 240W. The reactor with tanks produces comparable power from fewer buildings. At higher bearing tiers, the reactor far exceeds what bio generators can deliver.
 
 #### Bearing Upgrade Progression
 
-With bearing upgrades and additional turbines, the reactor scales dramatically:
+With bearing upgrades and additional turbines, the reactor scales dramatically. Numbers shown for three player skill levels:
 
-| Setup | Buildings | Total W | ROI | vs 12 Bio Gens |
-|-------|-----------|---------|-----|----------------|
-| Base (3 turbines) | 4 | 240W | 1.19x | 1x (equal power) |
-| Bronze (4 turbines) | 5 | 345W | 1.71x | 1.4x more power |
-| Steel (6 turbines) | 7 | 477W | 2.37x | 2x more power |
-| Titanium (12 turbines) | 13 | 720W | 3.58x | 3x more power |
+| Setup | Buildings | Basic W | +Tanks W | +Dual Offset W |
+|-------|-----------|---------|----------|----------------|
+| Base (3 turbines) | 4 (+tanks) | 154W | 223W | 234W |
+| Bronze (5 turbines) | 6 (+tanks) | 249W | 325W | 332W |
+| Steel (7 turbines) | 8 (+tanks) | 346W | 448W | 457W |
+| Titanium (13 turbines) | 14 (+tanks) | 529W | 678W | 689W |
 
-At titanium bearings, a single reactor with 12 turbines produces **720W** — triple the output of 12 bio generators, from the same building count. The reactor transitions from a compact break-even power source to the dominant endgame power plant.
+At titanium bearings with full optimization, a single reactor with 13 turbines produces **689W** — nearly triple the output of 12 bio generators. Even at basic setup (529W), it far exceeds bio generator capacity. The reactor transitions from a compact power source that rewards engineering skill to the dominant endgame power plant.
+
+### Resolved Design Decisions
+
+- **Steam transfer model**: Fixed-demand pressure header (not discrete items). See simulation: `scripts/steam_pressure.exs`
+- **Temperature values**: Operating=100, Danger=200, temp_rate=1.667/tick (100→200 in 60 ticks)
+- **Steam header capacity**: Base reactor has 2.0 capacity; Pressure Tank building adds capacity
+- **Turbine demand**: Fixed per-tick demand tuned to peak speed. `demand = peak × friction / (accel × (1-friction))`
+- **Power formula**: `power = eff(speed) × max_eff × steam_actually_received_this_tick`
+- **Optimal turbine counts**: Base=3, Bronze=5, Steel=7, Titanium=13 (under pressure model)
+- **Bearings are per-turbine upgrades** (each turbine has its own friction, max_eff, sigma)
 
 ### Remaining Open Questions
 
 - Construction cost and tier placement (likely Tier 6-7)
 - 3D model design
 - Multi-tile structure?
-- Exact temperature values (Operating/Danger/Critical) and rate of change per tick
+- Pressure Tank building: construction cost, tier, capacity per tank
 - Steam turbine construction cost and tier
 - Whether water byproduct from turbines is 1:1 with steam input
 - Bearing construction costs per tier (must justify the power gain)
-- Whether bearings are per-turbine upgrades or a shared reactor upgrade
-- Steam header capacity (max pressure buffer size)
 - How turbines connect to the reactor (adjacency? pipe building? implicit within radius?)
+- UI: how to display header pressure, turbine speed, starvation indicators
+- Whether dual-reactor offset is automatic (shared header by proximity) or requires explicit connection
